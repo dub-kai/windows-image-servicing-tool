@@ -15,7 +15,6 @@
 
         CmbDriverMount         = $null
         BtnDriverRefreshMounts = $null
-        BtnDriverLoadDrivers   = $null
 
         BtnDriverAddDrivers      = $null
         BtnDriverRemoveSelected  = $null
@@ -38,7 +37,6 @@
 
     $script:ctx["CmbDriverMount"]          = Find-Ui -Root $p -Name "CmbDriverMount"
     $script:ctx["BtnDriverRefreshMounts"]  = Find-Ui -Root $p -Name "BtnDriverRefreshMounts"
-    $script:ctx["BtnDriverLoadDrivers"]    = Find-Ui -Root $p -Name "BtnDriverLoadDrivers"
 
     $script:ctx["BtnDriverAddDrivers"]     = Find-Ui -Root $p -Name "BtnDriverAddDrivers"
     $script:ctx["BtnDriverRemoveSelected"] = Find-Ui -Root $p -Name "BtnDriverRemoveSelected"
@@ -56,12 +54,6 @@
     if ($script:ctx["BtnDriverRefreshMounts"]) {
         $script:ctx["BtnDriverRefreshMounts"].Add_Click({
             Refresh-DriverMountedList
-        })
-    }
-
-    if ($script:ctx["BtnDriverLoadDrivers"]) {
-        $script:ctx["BtnDriverLoadDrivers"].Add_Click({
-            Request-DriversReload -Reason "Manual load" -Force
         })
     }
 

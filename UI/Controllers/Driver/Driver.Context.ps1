@@ -15,7 +15,6 @@
 
         CmbDriverMount         = $null
         BtnDriverRefreshMounts = $null
-        BtnDriverLoadDrivers   = $null
 
         BtnDriverAddDrivers     = $null
         BtnDriverRemoveSelected = $null
@@ -38,7 +37,6 @@
 
     $ctx["CmbDriverMount"]         = Find-Ui -Root $p -Name "CmbDriverMount"
     $ctx["BtnDriverRefreshMounts"] = Find-Ui -Root $p -Name "BtnDriverRefreshMounts"
-    $ctx["BtnDriverLoadDrivers"]   = Find-Ui -Root $p -Name "BtnDriverLoadDrivers"
 
     $ctx["BtnDriverAddDrivers"]     = Find-Ui -Root $p -Name "BtnDriverAddDrivers"
     $ctx["BtnDriverRemoveSelected"] = Find-Ui -Root $p -Name "BtnDriverRemoveSelected"
@@ -63,7 +61,6 @@ function Assert-DriverContext {
 
     if (-not $Context["CmbDriverMount"])         { throw "CmbDriverMount nicht gefunden." }
     if (-not $Context["BtnDriverRefreshMounts"]) { throw "BtnDriverRefreshMounts nicht gefunden." }
-    if (-not $Context["BtnDriverLoadDrivers"])   { throw "BtnDriverLoadDrivers nicht gefunden." }
     if (-not $Context["BtnDriverAddDrivers"])    { throw "BtnDriverAddDrivers nicht gefunden." }
     if (-not $Context["BtnDriverRemoveSelected"]) { throw "BtnDriverRemoveSelected nicht gefunden." }
     if (-not $Context["LstDrivers"])             { throw "LstDrivers nicht gefunden." }
@@ -76,10 +73,9 @@ function Write-DriverUiWiresLog {
 
     try {
         Write-Log -Level INFO -Message (
-            "Driver UI wires: CmbDriverMount={0} BtnRefreshMounts={1} BtnLoadDrivers={2} BtnAddDrivers={3} BtnRemoveSelected={4} LstDrivers={5}" -f
+            "Driver UI wires: CmbDriverMount={0} BtnRefreshMounts={1} BtnAddDrivers={2} BtnRemoveSelected={3} LstDrivers={4}" -f
             [bool]($Context["CmbDriverMount"]),
             [bool]($Context["BtnDriverRefreshMounts"]),
-            [bool]($Context["BtnDriverLoadDrivers"]),
             [bool]($Context["BtnDriverAddDrivers"]),
             [bool]($Context["BtnDriverRemoveSelected"]),
             [bool]($Context["LstDrivers"])

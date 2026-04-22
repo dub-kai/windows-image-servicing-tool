@@ -24,7 +24,6 @@ function Set-DriverBusy {
     $targets = @(
         (Get-Ctx "CmbDriverMount"),
         (Get-Ctx "BtnDriverRefreshMounts"),
-        (Get-Ctx "BtnDriverLoadDrivers"),
         (Get-Ctx "BtnDriverAddDrivers"),
         (Get-Ctx "BtnDriverRemoveSelected"),
         (Get-Ctx "ChkDriverAll"),

@@ -48,8 +48,7 @@ function Set-DriversList {
 
 function Request-DriversReload {
     param(
-        [string]$Reason = $null,
-        [switch]$Force
+        [string]$Reason = $null
     )
 
     if (-not $script:ctx) { return }
@@ -66,31 +65,6 @@ function Request-DriversReload {
     if ($script:isBusy) { return }
     if (Get-ImageServicingBusy) { return }
 
-    $all = $false
-    try {
-        $chk = $script:ctx["ChkDriverAll"]
-        if ($chk) { $all = [bool]$chk.IsChecked }
-    } catch { $all = $false }
-
-    if ($all -and -not $Force) {
-        try {
-            if ($Reason) {
-                Write-Log -Level INFO -Message ("Driver: Reload deferred because Inbox mode is enabled ({0})" -f $Reason)
-            } else {
-                Write-Log -Level INFO -Message "Driver: Reload deferred because Inbox mode is enabled"
-            }
-        } catch {}
-
-        try {
-            $setStatus = $script:ctx["SetStatus"]
-            if ($setStatus) {
-                & $setStatus "Driver: Inbox-Modus aktiv. Für vollständige Treiberliste bitte 'Treiber laden' klicken."
-            }
-        } catch {}
-        try { Refresh-DriverUI } catch {}
-        return
-    }
-
     $script:reloadPending = $false
 
     try {
@@ -99,14 +73,10 @@ function Request-DriversReload {
         }
     } catch {}
 
-    try { Load-DriversAsync -Force:$Force } catch {}
+    try { Load-DriversAsync } catch {}
 }
 
 function Load-DriversAsync {
-    param(
-        [switch]$Force
-    )
-
     if (-not $script:ctx) { return }
     if ($script:isBusy) { return }
 
@@ -140,16 +110,6 @@ function Load-DriversAsync {
         $chk = $ctxLocal["ChkDriverAll"]
         if ($chk) { $all = [bool]$chk.IsChecked }
     } catch { $all = $true }
-
-    if ($all -and -not $Force) {
-        try {
-            if ($setStatus) {
-                & $setStatus "Driver: Inbox-Modus aktiv. Für vollständige Treiberliste bitte 'Treiber laden' klicken."
-            }
-        } catch {}
-        try { Refresh-DriverUI } catch {}
-        return
-    }
 
     & $fnBusy -Busy $true -Reason "Treiber werden gelesen..." -Context $ctxLocal
 

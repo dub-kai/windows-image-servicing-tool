@@ -83,13 +83,6 @@ function Refresh-DriverUI {
     $mountUsable = Test-DriverMountUsable -MountDir $mount
     $canWork = (-not $script:isBusy) -and $mountUsable -and (-not (Get-ImageServicingBusy))
 
-    if ($script:ctx["BtnDriverLoadDrivers"]) {
-        try {
-            $script:ctx["BtnDriverLoadDrivers"].IsEnabled = $canWork
-            $script:ctx["BtnDriverLoadDrivers"].Content = if ($allDrivers) { "Treiber laden (vollständig)" } else { "Treiber laden" }
-        } catch {}
-    }
-
     if ($script:ctx["BtnDriverAddDrivers"]) {
         try { $script:ctx["BtnDriverAddDrivers"].IsEnabled = $canWork } catch {}
     }

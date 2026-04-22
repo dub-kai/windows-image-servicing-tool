@@ -39,7 +39,6 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
 
           <TextBlock Grid.Column="0"
@@ -59,13 +58,7 @@
                   Content="Refresh Mounts"
                   Height="28"
                   MinWidth="130"
-                  Margin="0,0,10,0"/>
-
-          <Button Grid.Column="3"
-                  Name="BtnDriverLoadDrivers"
-                  Content="Treiber laden"
-                  Height="28"
-                  MinWidth="120"/>
+                  Margin="0"/>
         </Grid>
 
         <TextBlock Grid.Row="2"

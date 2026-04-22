@@ -43,12 +43,6 @@ function Register-DriverEventHandlers {
         })
     }
 
-    if ($Context["BtnDriverLoadDrivers"]) {
-        $Context["BtnDriverLoadDrivers"].Add_Click({
-            Load-DriversAsync -Force
-        })
-    }
-
     if ($Context["BtnDriverAddDrivers"]) {
         $Context["BtnDriverAddDrivers"].Add_Click({
             Add-DriversFromFolderAsync
