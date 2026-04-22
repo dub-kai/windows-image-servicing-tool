@@ -11,6 +11,8 @@ $script:mountItems = @()
 $script:selectedMountDir = $null
 $script:suspendMountSelectionEvent = $false
 $script:allPackages = @()
+$script:lastRefreshTriggerAtUtc = $null
+$script:lastRefreshReason = $null
 
 function New-UpdatesWorkerScript {
     param([Parameter(Mandatory)][string]$Code)

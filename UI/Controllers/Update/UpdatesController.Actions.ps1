@@ -71,6 +71,53 @@ function Invoke-AutoCatalogSearchIfEnabled {
     Invoke-CatalogSearchUi
 }
 
+function Test-UpdatesRefreshAllowed {
+    param(
+        [string]$Reason = $null,
+        [int]$MinIntervalMs = 1200
+    )
+
+    $now = [DateTime]::UtcNow
+    if ($script:lastRefreshTriggerAtUtc) {
+        $elapsedMs = [int]($now - $script:lastRefreshTriggerAtUtc).TotalMilliseconds
+        if ($elapsedMs -lt $MinIntervalMs) {
+            try {
+                Write-Log -Level INFO -Message ('Updates: Refresh skipped (debounced) | Reason={0} | LastReason={1} | ElapsedMs={2}' -f `
+                    $(if ($Reason) { $Reason } else { '-' }),
+                    $(if ($script:lastRefreshReason) { $script:lastRefreshReason } else { '-' }),
+                    $elapsedMs)
+            } catch {}
+            return $false
+        }
+    }
+
+    $script:lastRefreshTriggerAtUtc = $now
+    $script:lastRefreshReason = $Reason
+    return $true
+}
+
+function Invoke-UpdatesPageActivated {
+    param(
+        [string]$Reason = $null
+    )
+
+    if ($null -eq $script:ctx -or $null -eq $script:ctx.Page) { return }
+    if ($script:isBusy) { return }
+
+    $page = $script:ctx.Page
+    try {
+        if (-not [bool]$page.IsVisible) { return }
+    } catch {}
+
+    if (-not (Test-UpdatesRefreshAllowed -Reason $Reason)) { return }
+
+    try {
+        Write-Log -Level INFO -Message ('Updates: Activation refresh | Reason={0}' -f $(if ($Reason) { $Reason } else { '-' }))
+    } catch {}
+
+    Refresh-UpdatesUI
+}
+
 function Start-UpdatesMountRefresh {
     $preferredMountDir = $script:selectedMountDir
     $page = $null
@@ -234,6 +281,15 @@ function Start-SelectedMountContextLoad {
     )
 
     if ([string]::IsNullOrWhiteSpace($MountDir)) { return }
+
+    $currentMountDir = $null
+    try { $currentMountDir = [string]$script:updateContext.MountDir } catch {}
+    if ((-not $TriggerCatalogIfEnabled) -and -not [string]::IsNullOrWhiteSpace($currentMountDir) -and ($currentMountDir -ieq $MountDir)) {
+        try {
+            Write-Log -Level INFO -Message ('Updates: Kontext-Reload uebersprungen (Mount unveraendert): {0}' -f $MountDir)
+        } catch {}
+        return
+    }
 
     $script:selectedMountDir = $MountDir
     $shouldTriggerCatalog = $TriggerCatalogIfEnabled.IsPresent

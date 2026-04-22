@@ -131,6 +131,16 @@
                 if ([string]::IsNullOrWhiteSpace([string]$mountDir)) { return }
 
                 $script:selectedMountDir = [string]$mountDir
+
+                $currentMountDir = $null
+                try { $currentMountDir = [string]$script:updateContext.MountDir } catch {}
+                if (-not [string]::IsNullOrWhiteSpace($currentMountDir) -and ($currentMountDir -ieq $script:selectedMountDir)) {
+                    try {
+                        Write-Log -Level INFO -Message ('Updates: Mount-Auswahl unveraendert, kein Context-Reload: {0}' -f $script:selectedMountDir)
+                    } catch {}
+                    return
+                }
+
                 Start-SelectedMountContextLoad -MountDir $script:selectedMountDir -TriggerCatalogIfEnabled
             } catch {
                 try {
@@ -173,10 +183,7 @@
 
             try {
                 if (-not $sender.IsVisible) { return }
-                if ($script:isBusy) { return }
-
-                Write-Log -Level INFO -Message 'Updates: Activation refresh | Reason=IsVisibleChanged'
-                Refresh-UpdatesUI
+                Invoke-UpdatesPageActivated -Reason "IsVisibleChanged"
             } catch {}
         })
 
@@ -185,10 +192,7 @@
 
             try {
                 if (-not $sender.IsVisible) { return }
-                if ($script:isBusy) { return }
-
-                Write-Log -Level INFO -Message 'Updates: Activation refresh | Reason=Loaded'
-                Refresh-UpdatesUI
+                Invoke-UpdatesPageActivated -Reason "Loaded"
             } catch {}
         })
     }
@@ -197,7 +201,7 @@
 
     try {
         Write-Log -Level INFO -Message 'Updates: Initial refresh'
-        Refresh-UpdatesUI
+        Invoke-UpdatesPageActivated -Reason "Initialize"
     } catch {
         try {
             Write-Log -Level WARN -Message ('Updates: initialer Refresh fehlgeschlagen: {0}' -f $_.Exception.Message)
