@@ -1,0 +1,230 @@
+﻿function Reset-CatalogState {
+    $script:catalogAllResults = @()
+    $script:catalogWorkResults = @()
+    $script:catalogVisibleResults = @()
+    $script:catalogRecommendations = $null
+    $script:lastCatalogSelectionKey = $null
+}
+
+function Get-SelectedCatalogItem {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return $null }
+
+    $grid = Find-Ui -Root $script:ctx.Page -Name 'GridCatalogResults'
+    if (-not $grid) { return $null }
+
+    return $grid.SelectedItem
+}
+
+function Get-CatalogSelectionKey {
+    param($Item)
+
+    if ($null -eq $Item) { return $null }
+
+    $updateId = [string]$Item.UpdateId
+    if (-not [string]::IsNullOrWhiteSpace($updateId)) { return $updateId }
+
+    return (([string]$Item.Title) + '|' + ([string]$Item.KB) + '|' + ([string]$Item.Version))
+}
+
+function Format-CatalogItemLine {
+    param($Item)
+
+    if ($null -eq $Item) { return '-' }
+
+    $kb = [string]$Item.KB
+    $kind = [string]$Item.Kind
+    $date = [string]$Item.LastUpdated
+    $title = [string]$Item.Title
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace($kb))   { $parts.Add($kb) | Out-Null }
+    if (-not [string]::IsNullOrWhiteSpace($kind)) { $parts.Add($kind) | Out-Null }
+    if (-not [string]::IsNullOrWhiteSpace($date)) { $parts.Add($date) | Out-Null }
+
+    if ($parts.Count -gt 0) {
+        return (($parts -join ' | ') + ' | ' + $title)
+    }
+
+    return $title
+}
+
+function Update-SelectedCatalogDetails {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    $page = $script:ctx.Page
+    $item = Get-SelectedCatalogItem
+
+    if ($item) {
+        $script:lastCatalogSelectionKey = Get-CatalogSelectionKey -Item $item
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogKB'      -Value $item.KB
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogType'    -Value $item.Kind
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogDate'    -Value $item.LastUpdated
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogVersion' -Value $item.Version
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogTitle'   -Value $item.Title
+    }
+    else {
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogKB'      -Value '-'
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogType'    -Value '-'
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogDate'    -Value '-'
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogVersion' -Value '-'
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogTitle'   -Value 'Noch kein Catalog-Treffer ausgewaehlt.'
+    }
+
+    Update-UpdatesActionButtons
+}
+
+function Update-UpdatesActionButtons {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    $selected = Get-SelectedCatalogItem
+    $canSelect = ($null -ne $selected) -and (-not $script:isBusy)
+
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogDownload'  -Enabled $canSelect
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled $canSelect
+}
+
+function Get-CurrentFilterMode {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return 'Recommended' }
+
+    $cmb = Find-Ui -Root $script:ctx.Page -Name 'CmbUpdatesFilterMode'
+    if (-not $cmb) { return 'Recommended' }
+
+    switch ([int]$cmb.SelectedIndex) {
+        1 { return 'All' }
+        2 { return 'Packages' }
+        default { return 'Recommended' }
+    }
+}
+
+function Test-CatalogItemMatchesFilter {
+    param(
+        $Item,
+        [string]$FilterText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($FilterText)) { return $true }
+
+    $needle = $FilterText.Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($needle)) { return $true }
+
+    foreach ($field in @(
+        [string]$Item.Title,
+        [string]$Item.KB,
+        [string]$Item.Kind,
+        [string]$Item.Version,
+        [string]$Item.Classification,
+        [string]$Item.Products,
+        [string]$Item.Query
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace($field)) {
+            if ($field.ToLowerInvariant().Contains($needle)) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
+function Update-RecommendationUi {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    $page = $script:ctx.Page
+    $rec = $script:catalogRecommendations
+
+    if ($null -eq $rec) {
+        Set-UiText -Root $page -Name 'TxtRecommendedLCU'        -Value '-'
+        Set-UiText -Root $page -Name 'TxtRecommendedSSU'        -Value '-'
+        Set-UiText -Root $page -Name 'TxtRecommendedDotNet'     -Value '-'
+        Set-UiText -Root $page -Name 'TxtRecommendationSummary' -Value 'Noch keine Catalog-Suche ausgefuehrt.'
+        return
+    }
+
+    Set-UiText -Root $page -Name 'TxtRecommendedLCU'    -Value (Format-CatalogItemLine -Item $rec.RecommendedLCU)
+    Set-UiText -Root $page -Name 'TxtRecommendedSSU'    -Value (Format-CatalogItemLine -Item $rec.RecommendedSSU)
+    Set-UiText -Root $page -Name 'TxtRecommendedDotNet' -Value (Format-CatalogItemLine -Item $rec.RecommendedDotNet)
+
+    $summary = 'Gesamt: {0} | LCU: {1} | SSU: {2} | .NET: {3} | Preview: {4}' -f `
+        $rec.TotalCount,
+        $rec.LCUCount,
+        $rec.SSUCount,
+        $rec.DotNetCount,
+        $rec.PreviewCount
+
+    Set-UiText -Root $page -Name 'TxtRecommendationSummary' -Value $summary
+}
+
+function Apply-CatalogView {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    $page = $script:ctx.Page
+    $mode = Get-CurrentFilterMode
+    $txtFilter = Find-Ui -Root $page -Name 'TxtUpdatesFilterText'
+    $filterText = if ($txtFilter) { [string]$txtFilter.Text } else { '' }
+
+    $source = switch ($mode) {
+        'All' {
+            @($script:catalogAllResults)
+        }
+        'Packages' {
+            @(
+                $script:catalogAllResults | Where-Object {
+                    $kind = [string]$_.Kind
+                    $class = [string]$_.Classification
+                    ($kind -in @('LCU','SSU','DotNet','Preview')) -or ($class -match 'Update')
+                }
+            )
+        }
+        default {
+            @($script:catalogWorkResults)
+        }
+    }
+
+    $visible = @(
+        $source | Where-Object {
+            Test-CatalogItemMatchesFilter -Item $_ -FilterText $filterText
+        }
+    )
+    $script:catalogVisibleResults = $visible
+
+    $grid = Find-Ui -Root $page -Name 'GridCatalogResults'
+    if ($grid) {
+        $selectedKey = $script:lastCatalogSelectionKey
+
+        $grid.ItemsSource = $null
+        $grid.ItemsSource = $visible
+
+        $selectedItem = $null
+        if (-not [string]::IsNullOrWhiteSpace($selectedKey)) {
+            $selectedItem = $visible | Where-Object {
+                (Get-CatalogSelectionKey -Item $_) -eq $selectedKey
+            } | Select-Object -First 1
+        }
+
+        if (-not $selectedItem -and $visible.Count -gt 0) {
+            $selectedItem = $visible[0]
+        }
+
+        $grid.SelectedItem = $selectedItem
+        $grid.Items.Refresh()
+    }
+
+    $localKbCount = if ($null -ne $script:updateContext) { @($script:updateContext.InstalledKBs).Count } else { 0 }
+    $countText = 'Treffer: {0} | Lokal: {1}' -f $visible.Count, $localKbCount
+    Set-UiText -Root $page -Name 'TxtCatalogResultsCount' -Value $countText
+
+    $packageCount = if ($null -ne $script:updateContext) { @($script:updateContext.Packages).Count } else { 0 }
+    $hintText = 'Ansicht: {0} | Pakete: {1} | Treffer: {2}' -f $mode, $packageCount, $visible.Count
+    Set-UiText -Root $page -Name 'TxtUpdatesFilterHint' -Value $hintText
+
+    try {
+        Write-Log -Level INFO -Message ('Catalog View: Mode={0}; All={1}; Work={2}; Visible={3}' -f `
+            $mode,
+            @($script:catalogAllResults).Count,
+            @($script:catalogWorkResults).Count,
+            $visible.Count)
+    } catch {}
+
+    Update-RecommendationUi
+    Update-SelectedCatalogDetails
+}

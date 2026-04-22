@@ -1,0 +1,311 @@
+﻿<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Images"
+      Background="Transparent">
+
+  <Grid Margin="2">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0"
+               FontSize="24"
+               FontWeight="SemiBold"
+               Foreground="#0F172A"
+               Margin="0,0,0,16"
+               Text="Images" />
+
+    <ScrollViewer Grid.Row="1"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+
+        <!-- Top: ISO + Standalone -->
+        <Grid Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                         FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
+                         Text="ISO Quellen" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="ISO Install:"/>
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         Margin="0,0,0,6"
+                         TextWrapping="NoWrap"
+                         TextTrimming="CharacterEllipsis"
+                         ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                         Name="TxtIsoInstall"
+                         Text="-" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="ISO Boot:"/>
+              <TextBlock Grid.Row="2" Grid.Column="1"
+                         Margin="0,0,0,0"
+                         TextWrapping="NoWrap"
+                         TextTrimming="CharacterEllipsis"
+                         ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                         Name="TxtIsoBoot"
+                         Text="-" />
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="2" Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                         FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
+                         Text="Standalone WIM/ESD" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="Pfad:"/>
+
+              <Grid Grid.Row="1" Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Name="TxtStandalone"
+                           Text="-"
+                           VerticalAlignment="Center"
+                           TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                  <Button Name="BtnPickStandalone" Width="140" Height="28" Margin="0,0,8,0" Content="WIM/ESD wählen"/>
+                  <Button Name="BtnClearStandalone" Width="90" Height="28" Content="Clear"/>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Border>
+        </Grid>
+
+        <!-- View + Mount + Export -->
+        <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,0,12">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- robustere Zeile statt langem StackPanel -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="140"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Column="0"
+                         VerticalAlignment="Center"
+                         Margin="0,0,10,0"
+                         FontWeight="SemiBold"
+                         Text="Ansicht:"/>
+
+              <ComboBox Grid.Column="1"
+                        Name="CmbView"
+                        Height="28">
+                <ComboBoxItem x:Name="CmbItemIsoInstall" Content="ISO Install"/>
+                <ComboBoxItem x:Name="CmbItemIsoBoot" Content="ISO Boot"/>
+                <ComboBoxItem x:Name="CmbItemStandalone" Content="Standalone"/>
+              </ComboBox>
+
+              <Button Grid.Column="3"
+                      Name="BtnLoadWimIndexes"
+                      Height="30"
+                      Content="Indexe laden"/>
+
+              <TextBlock Grid.Column="5"
+                         VerticalAlignment="Center"
+                         Foreground="#374151"
+                         TextWrapping="NoWrap"
+                         TextTrimming="CharacterEllipsis">
+                <Run FontWeight="SemiBold">Quelle: </Run>
+                <Run Name="TxtWimSourceUsed">-</Run>
+              </TextBlock>
+            </Grid>
+
+            <!-- Mount row + Export buttons -->
+            <Grid Grid.Row="1">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <Button Grid.Column="0" Name="BtnMountSelected"
+                      Width="140" Height="30" Margin="0,0,10,0"
+                      Content="Mount Selected"/>
+
+              <Button Grid.Column="1" Name="BtnSaveSourceWim"
+                      Width="150" Height="30" Margin="0,0,10,0"
+                      Content="WIM/ESD speichern"/>
+
+              <Button Grid.Column="2" Name="BtnExportSelectedIndex"
+                      Width="150" Height="30"
+                      Content="Index exportieren"/>
+
+              <StackPanel Grid.Column="4" Orientation="Vertical">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock FontWeight="SemiBold" Margin="0,0,10,0" Text="Selected Index:"/>
+                  <TextBlock Name="TxtSelectedIndex" Text="-" />
+                  <TextBlock Margin="18,0,10,0" FontWeight="SemiBold" Text="ReadOnly:"/>
+                  <CheckBox Name="ChkMountReadOnly" IsChecked="True" />
+                </StackPanel>
+
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+
+                  <TextBlock Grid.Column="0"
+                             FontWeight="SemiBold"
+                             Margin="0,0,10,0"
+                             VerticalAlignment="Center"
+                             Text="MountDir:"/>
+
+                  <TextBox Grid.Column="1"
+                           Name="TxtMountDir"
+                           Text="-"
+                           IsReadOnly="True"
+                           MinWidth="520"/>
+                </Grid>
+              </StackPanel>
+            </Grid>
+
+          </Grid>
+        </Border>
+
+        <!-- Bottom: Indexe links, Mounted rechts -->
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+
+              <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
+                         Text="WIM/ESD Indexe" />
+
+              <ListView Grid.Row="1" Name="LstWimImages" MinHeight="260">
+                <ListView.View>
+                  <GridView>
+                    <GridViewColumn Header="Index" Width="70" DisplayMemberBinding="{Binding Index}" />
+                    <GridViewColumn Header="Name" Width="260" DisplayMemberBinding="{Binding Name}" />
+                    <GridViewColumn Header="Description" Width="420" DisplayMemberBinding="{Binding Description}" />
+                  </GridView>
+                </ListView.View>
+              </ListView>
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="2" Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" VerticalAlignment="Center" Text="Mounted Images" Margin="0,0,14,0"/>
+                <Button Name="BtnRefreshMounted" Width="110" Height="28" Margin="0,0,10,0" Content="Refresh"/>
+                <Button Name="BtnUnmountMountedCommit" Width="160" Height="28" Margin="0,0,10,0" Content="Unmount (Commit)"/>
+                <Button Name="BtnUnmountMountedDiscard" Width="170" Height="28" Content="Unmount (Discard)"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="1" Foreground="#374151" Margin="0,0,0,10"
+                         Text="Tipp: Auswahl anklicken, dann Unmount." />
+
+              <ListView Grid.Row="2"
+                        Name="LstMountedWims"
+                        SelectedValuePath="MountDir"
+                        MinHeight="260">
+                <ListView.View>
+                  <GridView>
+                    <GridViewColumn Header="MountDir" Width="260" DisplayMemberBinding="{Binding MountDir}" />
+                    <GridViewColumn Header="ImageFile" Width="240" DisplayMemberBinding="{Binding ImageFile}" />
+                    <GridViewColumn Header="Index" Width="60" DisplayMemberBinding="{Binding ImageIndex}" />
+                    <GridViewColumn Header="Status" Width="110" DisplayMemberBinding="{Binding Status}" />
+                    <GridViewColumn Header="RW" Width="60" DisplayMemberBinding="{Binding ReadWrite}" />
+                  </GridView>
+                </ListView.View>
+              </ListView>
+            </Grid>
+          </Border>
+
+        </Grid>
+
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Busy Overlay -->
+    <Border Name="BusyOverlay"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Panel.ZIndex="9999"
+            Background="#80000000"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Visibility="Collapsed"
+            IsHitTestVisible="True">
+      <Grid HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Width="520">
+        <Border Background="#FFFFFFFF" CornerRadius="10" Padding="18">
+          <StackPanel>
+            <TextBlock Name="TxtBusyMessage"
+                       Text="Bitte warten..."
+                       FontWeight="SemiBold"
+                       FontSize="14"
+                       Margin="0,0,0,10"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap" />
+            <ProgressBar Height="18"
+                         Width="420"
+                         IsIndeterminate="True" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+  </Grid>
+</Page>

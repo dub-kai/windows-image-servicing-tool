@@ -1,0 +1,8 @@
+Logs/
+Work/
+
+# Local editor or system noise
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini
