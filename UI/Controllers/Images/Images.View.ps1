@@ -214,6 +214,7 @@ function Refresh-ImagesUI {
     try { Update-MountUiFromState } catch {}
     try { Update-MountedButtons } catch {}
     try { Update-SelectedIndexUi } catch {}
+    try { Update-IsoBuildUi } catch {}
 
     try {
         Write-Log -Level INFO -Message ("Images UI Refresh: Mode={0}; IsoInstall={1}; IsoBoot={2}; Standalone={3}" -f `

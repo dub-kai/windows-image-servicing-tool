@@ -312,6 +312,7 @@ function Initialize-ImagesController {
         BtnMountSelected         = Find-Ui -Root $Page -Name 'BtnMountSelected'
         BtnSaveSourceWim         = Find-Ui -Root $Page -Name 'BtnSaveSourceWim'
         BtnExportSelectedIndex   = Find-Ui -Root $Page -Name 'BtnExportSelectedIndex'
+        BtnBuildIso              = Find-Ui -Root $Page -Name 'BtnBuildIso'
 
         TxtSelectedIndex         = Find-Ui -Root $Page -Name 'TxtSelectedIndex'
         ChkMountReadOnly         = Find-Ui -Root $Page -Name 'ChkMountReadOnly'
@@ -483,6 +484,16 @@ function Initialize-ImagesController {
         })
     }
 
+    if ($script:ctx.BtnBuildIso) {
+        $script:ctx.BtnBuildIso.Add_Click({
+            try {
+                Start-BuildIsoAsync
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
     if ($script:ctx.BtnRefreshMounted) {
         $script:ctx.BtnRefreshMounted.Add_Click({
             try {
@@ -606,6 +617,10 @@ if ($Page) {
     } catch {
         Show-UiError -Message $_.Exception.Message
     }
+
+    try {
+        Update-IsoBuildUi
+    } catch {}
 
     try {
         $script:ctx.StandalonePath = Resolve-StandaloneImagePath

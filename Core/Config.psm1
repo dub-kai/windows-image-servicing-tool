@@ -30,9 +30,11 @@ function ConvertTo-HashtableRecursive {
         return @($list.ToArray())
     }
 
-    if ($InputObject -is [psobject] -and $InputObject.PSObject.Properties.Count -gt 0) {
+    $psProps = $null
+    try { $psProps = @($InputObject.PSObject.Properties) } catch { $psProps = @() }
+    if ($InputObject -is [psobject] -and @($psProps).Count -gt 0) {
         $hash = @{}
-        foreach ($prop in $InputObject.PSObject.Properties) {
+        foreach ($prop in $psProps) {
             $hash[[string]$prop.Name] = ConvertTo-HashtableRecursive -InputObject $prop.Value
         }
         return $hash
