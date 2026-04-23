@@ -228,3 +228,58 @@ function Apply-CatalogView {
     Update-RecommendationUi
     Update-SelectedCatalogDetails
 }
+
+function Export-CatalogResultsCsv {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+    if ($script:isBusy) { return }
+
+    $items = @($script:catalogVisibleResults)
+    if ($items.Count -le 0) {
+        Show-UiInfo -Message 'Aktuell sind keine sichtbaren Catalog-Treffer zum Exportieren vorhanden.' -Title 'Catalog Export'
+        return
+    }
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object Microsoft.Win32.SaveFileDialog
+    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.FileName = ('catalog_results_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+    $dlg.OverwritePrompt = $true
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne $true) { return }
+
+    $dest = [string]$dlg.FileName
+    if ([string]::IsNullOrWhiteSpace($dest)) { return }
+
+    $mountDir = $null
+    try { $mountDir = [string]$script:updateContext.MountDir } catch {}
+
+    $rows = @(
+        foreach ($item in $items) {
+            [pscustomobject]@{
+                MountDir       = $mountDir
+                KB             = [string]$item.KB
+                Kind           = [string]$item.Kind
+                LastUpdated    = [string]$item.LastUpdated
+                Version        = [string]$item.Version
+                Classification = [string]$item.Classification
+                Products       = [string]$item.Products
+                Query          = [string]$item.Query
+                Title          = [string]$item.Title
+                UpdateId       = [string]$item.UpdateId
+            }
+        }
+    )
+
+    try {
+        $dir = Split-Path -LiteralPath $dest -Parent
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+            $null = New-Item -ItemType Directory -Path $dir -Force
+        }
+
+        $rows | Export-Csv -LiteralPath $dest -Delimiter ';' -NoTypeInformation -Encoding UTF8
+        Set-UpdatesStatusText -Message ('Catalog CSV exportiert: {0}' -f $dest)
+    } catch {
+        Show-UiError -Message $_.Exception.Message -Title 'Catalog Export'
+    }
+}

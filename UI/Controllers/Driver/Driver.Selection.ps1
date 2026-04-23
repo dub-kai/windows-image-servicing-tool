@@ -102,6 +102,11 @@ function Refresh-DriverUI {
         $count = 0
     }
 
+    $canExport = $canWork -and ($count -gt 0)
+    if ($script:ctx["BtnDriverExportCsv"]) {
+        try { $script:ctx["BtnDriverExportCsv"].IsEnabled = $canExport } catch {}
+    }
+
     if ($script:ctx["TxtDriverCount"]) {
         try {
             $suffix = if ($allDrivers) { " | inkl. Inbox" } else { " | ohne Inbox" }

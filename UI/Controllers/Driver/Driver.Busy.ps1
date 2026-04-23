@@ -26,6 +26,7 @@ function Set-DriverBusy {
         (Get-Ctx "BtnDriverRefreshMounts"),
         (Get-Ctx "BtnDriverAddDrivers"),
         (Get-Ctx "BtnDriverRemoveSelected"),
+        (Get-Ctx "BtnDriverExportCsv"),
         (Get-Ctx "ChkDriverAll"),
         (Get-Ctx "ChkDriverRecurse"),
         (Get-Ctx "ChkDriverForceUnsigned"),

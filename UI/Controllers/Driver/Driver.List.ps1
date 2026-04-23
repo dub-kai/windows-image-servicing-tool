@@ -1,4 +1,4 @@
-﻿function Clear-DriversList {
+function Clear-DriversList {
     param(
         $Context = $null,
         [string]$StatusText = "Driver: Treiber=0"
@@ -8,6 +8,71 @@
     if (-not $ctxLocal) { return }
 
     Set-DriversList -Drivers @() -Context $ctxLocal -StatusText $StatusText
+}
+
+function Export-DriversCsv {
+    if (-not $script:ctx) { return }
+    if ($script:isBusy) { return }
+
+    $lst = $script:ctx["LstDrivers"]
+    $mountDir = Resolve-DriverMountDir
+    $items = @()
+
+    try {
+        if ($lst -and $lst.ItemsSource) {
+            $items = @($lst.ItemsSource)
+        }
+    } catch {
+        $items = @()
+    }
+
+    if (@($items).Count -le 0) {
+        Show-UiInfo -Message 'Aktuell sind keine Treiber zum Exportieren geladen.' -Title 'Driver Export'
+        return
+    }
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object Microsoft.Win32.SaveFileDialog
+    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.FileName = ('drivers_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+    $dlg.OverwritePrompt = $true
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne $true) { return }
+
+    $dest = [string]$dlg.FileName
+    if ([string]::IsNullOrWhiteSpace($dest)) { return }
+
+    $rows = @(
+        foreach ($driver in $items) {
+            [pscustomobject]@{
+                MountDir         = $mountDir
+                PublishedName    = [string]$driver.PublishedName
+                OriginalFileName = [string]$driver.OriginalFileName
+                ProviderName     = [string]$driver.ProviderName
+                ClassName        = [string]$driver.ClassName
+                Date             = [string]$driver.Date
+                Version          = [string]$driver.Version
+                Inbox            = [string]$driver.Inbox
+            }
+        }
+    )
+
+    try {
+        $dir = Split-Path -LiteralPath $dest -Parent
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+            $null = New-Item -ItemType Directory -Path $dir -Force
+        }
+
+        $rows | Export-Csv -LiteralPath $dest -Delimiter ';' -NoTypeInformation -Encoding UTF8
+
+        $setStatus = $script:ctx["SetStatus"]
+        if ($setStatus) {
+            try { & $setStatus ("Driver CSV exportiert: {0}" -f $dest) } catch {}
+        }
+    } catch {
+        Show-UiError -Message $_.Exception.Message -Title 'Driver Export'
+    }
 }
 
 function Set-DriversList {

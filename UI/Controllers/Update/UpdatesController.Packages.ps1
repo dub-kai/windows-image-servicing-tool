@@ -81,6 +81,7 @@ function Apply-PackagesView {
     }
 
     $visible = @($source | Where-Object { Test-PackageMatchesFilterText -Package $_ -FilterText $filterText })
+    $script:visiblePackages = $visible
 
     $grid = Find-Ui -Root $page -Name 'GridUpdatesPackages'
     if ($grid) {
@@ -100,4 +101,55 @@ function Apply-PackagesView {
     try {
         Write-Log -Level INFO -Message ('Packages View: Mode={0}; Visible={1}; Total={2}' -f $modeText, $visible.Count, @($script:allPackages).Count)
     } catch {}
+}
+
+function Export-UpdatesPackagesCsv {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+    if ($script:isBusy) { return }
+
+    $items = @($script:visiblePackages)
+    if ($items.Count -le 0) {
+        Show-UiInfo -Message 'Aktuell sind keine sichtbaren Pakete zum Exportieren vorhanden.' -Title 'Pakete Export'
+        return
+    }
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object Microsoft.Win32.SaveFileDialog
+    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.FileName = ('packages_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+    $dlg.OverwritePrompt = $true
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne $true) { return }
+
+    $dest = [string]$dlg.FileName
+    if ([string]::IsNullOrWhiteSpace($dest)) { return }
+
+    $mountDir = $null
+    try { $mountDir = [string]$script:updateContext.MountDir } catch {}
+
+    $rows = @(
+        foreach ($pkg in $items) {
+            [pscustomobject]@{
+                MountDir        = $mountDir
+                KB              = [string]$pkg.KB
+                State           = [string]$pkg.State
+                ReleaseType     = [string]$pkg.ReleaseType
+                InstallTime     = [string]$pkg.InstallTime
+                PackageIdentity = [string]$pkg.PackageIdentity
+            }
+        }
+    )
+
+    try {
+        $dir = Split-Path -LiteralPath $dest -Parent
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+            $null = New-Item -ItemType Directory -Path $dir -Force
+        }
+
+        $rows | Export-Csv -LiteralPath $dest -Delimiter ';' -NoTypeInformation -Encoding UTF8
+        Set-UpdatesStatusText -Message ('Pakete CSV exportiert: {0}' -f $dest)
+    } catch {
+        Show-UiError -Message $_.Exception.Message -Title 'Pakete Export'
+    }
 }

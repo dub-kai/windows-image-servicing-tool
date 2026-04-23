@@ -11,6 +11,7 @@ $script:mountItems = @()
 $script:selectedMountDir = $null
 $script:suspendMountSelectionEvent = $false
 $script:allPackages = @()
+$script:visiblePackages = @()
 $script:lastRefreshTriggerAtUtc = $null
 $script:lastRefreshReason = $null
 

@@ -89,6 +89,12 @@
                   Content="Treiber entfernen (Selected)"
                   Height="28"
                   MinWidth="210"
+                  Margin="0,0,10,0"/>
+
+          <Button Name="BtnDriverExportCsv"
+                  Content="Treiber exportieren (CSV)"
+                  Height="28"
+                  MinWidth="210"
                   Margin="0,0,0,0"/>
         </StackPanel>
 

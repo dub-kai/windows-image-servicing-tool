@@ -55,6 +55,12 @@ function Register-DriverEventHandlers {
         })
     }
 
+    if ($Context["BtnDriverExportCsv"]) {
+        $Context["BtnDriverExportCsv"].Add_Click({
+            Export-DriversCsv
+        })
+    }
+
     foreach ($k in @("ChkDriverAll", "ChkDriverRecurse", "ChkDriverForceUnsigned")) {
         $cb = $Context[$k]
         if ($cb) {

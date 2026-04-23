@@ -19,6 +19,8 @@
     $btnSearch    = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogSearch'
     $btnDownload  = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogDownload'
     $btnIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrate'
+    $btnExportPkg = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportPackages'
+    $btnExportCat = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportCatalog'
     $cmbMode      = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesFilterMode'
     $txtFilter    = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesFilterText'
     $gridCatalog  = Find-Ui -Root $UpdatesPage -Name 'GridCatalogResults'
@@ -28,11 +30,13 @@
     $txtPkgFilter = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesPackagesFilter'
 
     try {
-        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} CmbMode={4} TxtFilter={5} GridCatalog={6} CmbMounts={7} ChkAuto={8} CmbPkgMode={9} TxtPkgFilter={10}' -f `
+        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnExportPkg={4} BtnExportCat={5} CmbMode={6} TxtFilter={7} GridCatalog={8} CmbMounts={9} ChkAuto={10} CmbPkgMode={11} TxtPkgFilter={12}' -f `
             ($null -ne $btnRefresh),
             ($null -ne $btnSearch),
             ($null -ne $btnDownload),
             ($null -ne $btnIntegrate),
+            ($null -ne $btnExportPkg),
+            ($null -ne $btnExportCat),
             ($null -ne $cmbMode),
             ($null -ne $txtFilter),
             ($null -ne $gridCatalog),
@@ -201,6 +205,32 @@
                 if (-not $sender.IsVisible) { return }
                 Invoke-UpdatesPageActivated -Reason "Loaded"
             } catch {}
+        })
+    }
+
+    if ($btnExportPkg) {
+        $btnExportPkg.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Export-UpdatesPackagesCsv
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Paket-Export fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnExportCat) {
+        $btnExportCat.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Export-CatalogResultsCsv
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Catalog-Export fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
         })
     }
 

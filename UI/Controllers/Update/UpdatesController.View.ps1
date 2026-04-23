@@ -115,6 +115,8 @@ function Set-UpdatesBusy {
 
     Set-UiEnabled -Root $page -Name 'BtnUpdatesRefresh'        -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch'         -Enabled (-not $Busy -and $null -ne $script:updateContext)
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled ((@($script:visiblePackages).Count -gt 0) -and (-not $Busy))
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog'  -Enabled ((@($script:catalogVisibleResults).Count -gt 0) -and (-not $Busy))
     Set-UiEnabled -Root $page -Name 'CmbUpdatesFilterMode'     -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'TxtUpdatesFilterText'     -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'CmbUpdatesMounts'         -Enabled ((@($script:mountItems).Count -gt 0) -and (-not $Busy))
@@ -131,6 +133,7 @@ function Clear-UpdatesUi {
     $page = $script:ctx.Page
     $script:updateContext = $null
     $script:allPackages = @()
+    $script:visiblePackages = @()
 
     Set-UiText -Root $page -Name 'TxtUpdatesImageFile'        -Value '-'
     Set-UiText -Root $page -Name 'TxtUpdatesEdition'          -Value '-'
@@ -154,6 +157,8 @@ function Clear-UpdatesUi {
     Apply-PackagesView
 
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $false
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled $false
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled $false
     Update-UpdatesActionButtons
 }
 
@@ -229,4 +234,6 @@ function Show-UpdateContext {
     Apply-CatalogView
     Apply-PackagesView
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $true
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled (@($script:visiblePackages).Count -gt 0)
+    Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled (@($script:catalogVisibleResults).Count -gt 0)
 }
