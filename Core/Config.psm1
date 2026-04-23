@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Wir speichern die Config als Hashtable im Modul-Scope.
@@ -111,7 +111,10 @@ function Test-ConfigKeyPersistable {
         "MountRoot",
         "DriverLoadAllDefault",
         "UpdatesAutoCatalogDefault",
-        "ImageMountReadOnlyDefault"
+        "ImageMountReadOnlyDefault",
+        "AdkRoot",
+        "WinPeRoot",
+        "OscdimgPath"
     )
 }
 
@@ -136,6 +139,9 @@ function New-DefaultConfig {
         DriverLoadAllDefault      = $false
         UpdatesAutoCatalogDefault = $true
         ImageMountReadOnlyDefault = $true
+        AdkRoot                   = $null
+        WinPeRoot                 = $null
+        OscdimgPath               = $null
 
         ProjectRoot      = $ProjectRoot
         LogDir           = $logDir

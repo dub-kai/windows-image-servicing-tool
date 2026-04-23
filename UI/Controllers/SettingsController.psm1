@@ -1,8 +1,9 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force
 Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1" -MustExist) -Force
+Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force
 
 $script:ctx = $null
 $script:suppressSettingsEvents = $false
@@ -81,6 +82,122 @@ function Save-SettingsValue {
     } catch {
         Show-UiError -Message $_.Exception.Message
     }
+}
+
+function Get-CurrentAdkStatus {
+    $adkRoot = [string](Get-ConfigValue -Key 'AdkRoot' -Default $null)
+    $winPeRoot = [string](Get-ConfigValue -Key 'WinPeRoot' -Default $null)
+    $oscdimgPath = [string](Get-ConfigValue -Key 'OscdimgPath' -Default $null)
+
+    return Get-AdkStatus -ConfiguredAdkRoot $adkRoot -ConfiguredWinPeRoot $winPeRoot -ConfiguredOscdimgPath $oscdimgPath
+}
+
+function Refresh-SettingsAdkUI {
+    if (-not $script:ctx) { return }
+
+    try {
+        $status = Get-CurrentAdkStatus
+
+        if ($script:ctx.TxtSettingsAdkRoot) {
+            $script:ctx.TxtSettingsAdkRoot.Text = (Get-DisplayValue $status.AdkRoot)
+        }
+
+        if ($script:ctx.TxtSettingsWinPeRoot) {
+            $script:ctx.TxtSettingsWinPeRoot.Text = (Get-DisplayValue $status.WinPeRoot)
+        }
+
+        if ($script:ctx.TxtSettingsOscdimgPath) {
+            $script:ctx.TxtSettingsOscdimgPath.Text = (Get-DisplayValue $status.OscdimgPath)
+        }
+
+        if ($script:ctx.TxtSettingsCopypePath) {
+            $script:ctx.TxtSettingsCopypePath.Text = ('copype.cmd: {0}' -f (Get-DisplayValue $status.CopypePath))
+        }
+
+        if ($script:ctx.TxtSettingsMakeWinPeMediaPath) {
+            $script:ctx.TxtSettingsMakeWinPeMediaPath.Text = ('MakeWinPEMedia.cmd: {0}' -f (Get-DisplayValue $status.MakeWinPEMediaPath))
+        }
+
+        if ($script:ctx.TxtSettingsAdkSummary) {
+            $parts = New-Object System.Collections.Generic.List[string]
+            if ($status.HasAdkRoot) { $parts.Add('ADK Root') | Out-Null }
+            if ($status.HasWinPe) { $parts.Add('WinPE') | Out-Null }
+            if ($status.HasOscdimg) { $parts.Add('oscdimg') | Out-Null }
+            if ($status.HasCopype) { $parts.Add('copype') | Out-Null }
+            if ($status.HasMakeWinPeMedia) { $parts.Add('MakeWinPEMedia') | Out-Null }
+
+            if ($parts.Count -gt 0) {
+                $script:ctx.TxtSettingsAdkSummary.Text = ('ADK-Status: gefunden -> {0}' -f ($parts -join ', '))
+            } else {
+                $script:ctx.TxtSettingsAdkSummary.Text = 'ADK-Status: nichts erkannt. ADK oder WinPE Add-on fehlt noch oder Pfade sind nicht gesetzt.'
+            }
+        }
+    } catch {
+        Show-UiError -Message $_.Exception.Message
+    }
+}
+
+function Pick-SettingsFolderPath {
+    param(
+        [Parameter(Mandatory)][string]$Description,
+        [string]$InitialPath = $null
+    )
+
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dlg.Description = $Description
+    if ($InitialPath -and (Test-Path -LiteralPath $InitialPath)) {
+        $dlg.SelectedPath = $InitialPath
+    }
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+    if ([string]::IsNullOrWhiteSpace([string]$dlg.SelectedPath)) { return $null }
+    return [string]$dlg.SelectedPath
+}
+
+function Pick-SettingsFilePath {
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][string]$Filter,
+        [string]$InitialPath = $null
+    )
+
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Title = $Title
+    $dlg.Filter = $Filter
+    $dlg.CheckFileExists = $true
+    $dlg.Multiselect = $false
+
+    if ($InitialPath -and (Test-Path -LiteralPath $InitialPath)) {
+        try {
+            $dlg.InitialDirectory = Split-Path -LiteralPath $InitialPath -Parent
+            $dlg.FileName = Split-Path -LiteralPath $InitialPath -Leaf
+        } catch {}
+    }
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+    if ([string]::IsNullOrWhiteSpace([string]$dlg.FileName)) { return $null }
+    return [string]$dlg.FileName
+}
+
+function Detect-AndSaveAdkDefaults {
+    $status = Get-AdkStatus
+
+    if ($status.AdkRoot) {
+        Set-ConfigValue -Key 'AdkRoot' -Value ([string]$status.AdkRoot) -Persist | Out-Null
+    }
+    if ($status.WinPeRoot) {
+        Set-ConfigValue -Key 'WinPeRoot' -Value ([string]$status.WinPeRoot) -Persist | Out-Null
+    }
+    if ($status.OscdimgPath) {
+        Set-ConfigValue -Key 'OscdimgPath' -Value ([string]$status.OscdimgPath) -Persist | Out-Null
+    }
+
+    Refresh-SettingsAdkUI
+    return $status
 }
 
 function Set-SettingsHealthBusy {
@@ -448,6 +565,8 @@ function Refresh-SettingsUI {
             }
         }
 
+        Refresh-SettingsAdkUI
+
         if ($script:ctx.CmbSettingsStartPage) {
             $startPage = [string](Get-ConfigValue -Key 'StartPage' -Default 'Dashboard')
             Set-SettingsComboToContent -ComboBox $script:ctx.CmbSettingsStartPage -Content $startPage
@@ -496,6 +615,20 @@ function Initialize-SettingsController {
         ChkSettingsImageMountReadOnlyDefault = $null
         ChkSettingsAppDebug = $null
 
+        BtnSettingsDetectAdk = $null
+        BtnSettingsPickAdkRoot = $null
+        BtnSettingsPickWinPeRoot = $null
+        BtnSettingsPickOscdimgPath = $null
+        BtnSettingsResetAdkRoot = $null
+        BtnSettingsResetWinPeRoot = $null
+        BtnSettingsResetOscdimgPath = $null
+        TxtSettingsAdkSummary = $null
+        TxtSettingsAdkRoot = $null
+        TxtSettingsWinPeRoot = $null
+        TxtSettingsOscdimgPath = $null
+        TxtSettingsCopypePath = $null
+        TxtSettingsMakeWinPeMediaPath = $null
+
         BtnSettingsHealthRefresh = $null
         BtnSettingsUnmountAllDiscard = $null
         BtnSettingsCleanupEmptyMountDirs = $null
@@ -523,6 +656,19 @@ function Initialize-SettingsController {
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
     $script:ctx.ChkSettingsAppDebug = Find-Ui -Root $p -Name 'ChkSettingsAppDebug'
+    $script:ctx.BtnSettingsDetectAdk = Find-Ui -Root $p -Name 'BtnSettingsDetectAdk'
+    $script:ctx.BtnSettingsPickAdkRoot = Find-Ui -Root $p -Name 'BtnSettingsPickAdkRoot'
+    $script:ctx.BtnSettingsPickWinPeRoot = Find-Ui -Root $p -Name 'BtnSettingsPickWinPeRoot'
+    $script:ctx.BtnSettingsPickOscdimgPath = Find-Ui -Root $p -Name 'BtnSettingsPickOscdimgPath'
+    $script:ctx.BtnSettingsResetAdkRoot = Find-Ui -Root $p -Name 'BtnSettingsResetAdkRoot'
+    $script:ctx.BtnSettingsResetWinPeRoot = Find-Ui -Root $p -Name 'BtnSettingsResetWinPeRoot'
+    $script:ctx.BtnSettingsResetOscdimgPath = Find-Ui -Root $p -Name 'BtnSettingsResetOscdimgPath'
+    $script:ctx.TxtSettingsAdkSummary = Find-Ui -Root $p -Name 'TxtSettingsAdkSummary'
+    $script:ctx.TxtSettingsAdkRoot = Find-Ui -Root $p -Name 'TxtSettingsAdkRoot'
+    $script:ctx.TxtSettingsWinPeRoot = Find-Ui -Root $p -Name 'TxtSettingsWinPeRoot'
+    $script:ctx.TxtSettingsOscdimgPath = Find-Ui -Root $p -Name 'TxtSettingsOscdimgPath'
+    $script:ctx.TxtSettingsCopypePath = Find-Ui -Root $p -Name 'TxtSettingsCopypePath'
+    $script:ctx.TxtSettingsMakeWinPeMediaPath = Find-Ui -Root $p -Name 'TxtSettingsMakeWinPeMediaPath'
 
     $script:ctx.BtnSettingsHealthRefresh = Find-Ui -Root $p -Name 'BtnSettingsHealthRefresh'
     $script:ctx.BtnSettingsUnmountAllDiscard = Find-Ui -Root $p -Name 'BtnSettingsUnmountAllDiscard'
@@ -586,6 +732,95 @@ function Initialize-SettingsController {
             if ($script:suppressSettingsEvents) { return }
             $selected = Get-SelectedSettingsComboContent -ComboBox $script:ctx.CmbSettingsStartPage -Default 'Dashboard'
             Save-SettingsValue -Key 'StartPage' -Value $selected -StatusMessage ('Settings: Startseite = {0}' -f $selected)
+        })
+    }
+
+    if ($script:ctx.BtnSettingsDetectAdk) {
+        $script:ctx.BtnSettingsDetectAdk.Add_Click({
+            try {
+                $status = Detect-AndSaveAdkDefaults
+                if ($script:ctx.SetStatus) {
+                    $msg = if ($status.HasAdkRoot) { 'Settings: ADK automatisch erkannt' } else { 'Settings: ADK nicht gefunden' }
+                    try { & $script:ctx.SetStatus $msg } catch {}
+                }
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsPickAdkRoot) {
+        $script:ctx.BtnSettingsPickAdkRoot.Add_Click({
+            try {
+                $initial = [string](Get-ConfigValue -Key 'AdkRoot' -Default $null)
+                $picked = Pick-SettingsFolderPath -Description 'ADK-Ordner wählen' -InitialPath $initial
+                if (-not $picked) { return }
+                Save-SettingsValue -Key 'AdkRoot' -Value $picked -StatusMessage 'Settings: ADK-Ordner gesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsPickWinPeRoot) {
+        $script:ctx.BtnSettingsPickWinPeRoot.Add_Click({
+            try {
+                $initial = [string](Get-ConfigValue -Key 'WinPeRoot' -Default $null)
+                $picked = Pick-SettingsFolderPath -Description 'WinPE-Ordner wählen' -InitialPath $initial
+                if (-not $picked) { return }
+                Save-SettingsValue -Key 'WinPeRoot' -Value $picked -StatusMessage 'Settings: WinPE-Ordner gesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsPickOscdimgPath) {
+        $script:ctx.BtnSettingsPickOscdimgPath.Add_Click({
+            try {
+                $initial = [string](Get-ConfigValue -Key 'OscdimgPath' -Default $null)
+                $picked = Pick-SettingsFilePath -Title 'oscdimg.exe wählen' -Filter 'oscdimg.exe|oscdimg.exe|Executables (*.exe)|*.exe|Alle Dateien (*.*)|*.*' -InitialPath $initial
+                if (-not $picked) { return }
+                Save-SettingsValue -Key 'OscdimgPath' -Value $picked -StatusMessage 'Settings: oscdimg.exe gesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsResetAdkRoot) {
+        $script:ctx.BtnSettingsResetAdkRoot.Add_Click({
+            try {
+                Save-SettingsValue -Key 'AdkRoot' -Value $null -StatusMessage 'Settings: ADK-Ordner zurückgesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsResetWinPeRoot) {
+        $script:ctx.BtnSettingsResetWinPeRoot.Add_Click({
+            try {
+                Save-SettingsValue -Key 'WinPeRoot' -Value $null -StatusMessage 'Settings: WinPE-Ordner zurückgesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsResetOscdimgPath) {
+        $script:ctx.BtnSettingsResetOscdimgPath.Add_Click({
+            try {
+                Save-SettingsValue -Key 'OscdimgPath' -Value $null -StatusMessage 'Settings: oscdimg.exe zurückgesetzt'
+                Refresh-SettingsUI
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
         })
     }
 
