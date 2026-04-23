@@ -1,8 +1,119 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Wir speichern die Config als Hashtable im Modul-Scope.
 $script:Config = $null
+$script:ConfigFilePath = $null
+
+function ConvertTo-HashtableRecursive {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        $InputObject
+    )
+
+    if ($null -eq $InputObject) { return $null }
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        $hash = @{}
+        foreach ($key in $InputObject.Keys) {
+            $hash[[string]$key] = ConvertTo-HashtableRecursive -InputObject $InputObject[$key]
+        }
+        return $hash
+    }
+
+    if (($InputObject -is [System.Collections.IEnumerable]) -and -not ($InputObject -is [string])) {
+        $list = New-Object System.Collections.ArrayList
+        foreach ($item in $InputObject) {
+            [void]$list.Add((ConvertTo-HashtableRecursive -InputObject $item))
+        }
+        return @($list.ToArray())
+    }
+
+    if ($InputObject -is [psobject] -and $InputObject.PSObject.Properties.Count -gt 0) {
+        $hash = @{}
+        foreach ($prop in $InputObject.PSObject.Properties) {
+            $hash[[string]$prop.Name] = ConvertTo-HashtableRecursive -InputObject $prop.Value
+        }
+        return $hash
+    }
+
+    return $InputObject
+}
+
+function Get-ConfigFilePath {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$ProjectRoot
+    )
+
+    if ($script:ConfigFilePath) {
+        return $script:ConfigFilePath
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+        try { $ProjectRoot = Get-ProjectRoot } catch { $ProjectRoot = (Get-Location).Path }
+    }
+
+    $workDir = Join-Path $ProjectRoot "Work"
+    $cfgDir = Join-Path $workDir "Config"
+    if (-not (Test-Path -LiteralPath $cfgDir)) {
+        $null = New-Item -ItemType Directory -Path $cfgDir -Force
+    }
+
+    $script:ConfigFilePath = Join-Path $cfgDir "user-settings.json"
+    return $script:ConfigFilePath
+}
+
+function Import-UserConfigOverrides {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$ProjectRoot
+    )
+
+    $path = Get-ConfigFilePath -ProjectRoot $ProjectRoot
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        return @{}
+    }
+
+    try {
+        $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return @{}
+        }
+
+        $parsed = $raw | ConvertFrom-Json
+        $hash = ConvertTo-HashtableRecursive -InputObject $parsed
+        if ($hash -is [hashtable]) {
+            return $hash
+        }
+    } catch {
+        try {
+            Write-Warning ("Config konnte nicht geladen werden: {0}" -f $_.Exception.Message)
+        } catch {}
+    }
+
+    return @{}
+}
+
+function Test-ConfigKeyPersistable {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Key
+    )
+
+    return $Key -in @(
+        "StartPage",
+        "AppDebug",
+        "MountRoot",
+        "DriverLoadAllDefault",
+        "UpdatesAutoCatalogDefault",
+        "ImageMountReadOnlyDefault"
+    )
+}
 
 function New-DefaultConfig {
     [CmdletBinding()]
@@ -12,7 +123,6 @@ function New-DefaultConfig {
     )
 
     if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
-        # Bootstrap liefert das; falls Bootstrap noch nicht importiert: fallback.
         try { $ProjectRoot = Get-ProjectRoot } catch { $ProjectRoot = (Get-Location).Path }
     }
 
@@ -21,17 +131,17 @@ function New-DefaultConfig {
     $mountDir = Join-Path $workDir "Mounts"
 
     return @{
-        # Allgemein
-        StartPage        = "Dashboard"
-        AppDebug         = $false
+        StartPage                 = "Dashboard"
+        AppDebug                  = $false
+        DriverLoadAllDefault      = $false
+        UpdatesAutoCatalogDefault = $true
+        ImageMountReadOnlyDefault = $true
 
-        # Pfade (alles relativ zum ProjectRoot)
         ProjectRoot      = $ProjectRoot
         LogDir           = $logDir
         WorkDir          = $workDir
         DefaultMountRoot = $mountDir
 
-        # DISM / Mount / ISO
         DismTimeoutSec   = 900
         IsoMountRetry    = @{
             Count = 25
@@ -48,6 +158,11 @@ function Initialize-Config {
     )
 
     $base = New-DefaultConfig
+    $persisted = Import-UserConfigOverrides -ProjectRoot $base["ProjectRoot"]
+
+    foreach ($k in $persisted.Keys) {
+        $base[$k] = $persisted[$k]
+    }
 
     if ($Overrides) {
         foreach ($k in $Overrides.Keys) {
@@ -84,6 +199,24 @@ function Get-ConfigValue {
     return $Default
 }
 
+function Save-Config {
+    [CmdletBinding()]
+    param()
+
+    $cfg = Get-Config
+    $path = Get-ConfigFilePath -ProjectRoot $cfg["ProjectRoot"]
+
+    $persisted = [ordered]@{}
+    foreach ($key in ($cfg.Keys | Sort-Object)) {
+        if (-not (Test-ConfigKeyPersistable -Key [string]$key)) { continue }
+        $persisted[[string]$key] = $cfg[$key]
+    }
+
+    $json = $persisted | ConvertTo-Json -Depth 8
+    Set-Content -LiteralPath $path -Value $json -Encoding UTF8
+    return $path
+}
+
 function Set-ConfigValue {
     [CmdletBinding()]
     param(
@@ -91,17 +224,26 @@ function Set-ConfigValue {
         [string]$Key,
 
         [Parameter()]
-        $Value
+        $Value,
+
+        [switch]$Persist
     )
 
     $cfg = Get-Config
     $cfg[$Key] = $Value
+
+    if ($Persist) {
+        $null = Save-Config
+    }
+
     return $Value
 }
 
 Export-ModuleMember -Function `
+    Get-ConfigFilePath, `
     New-DefaultConfig, `
     Initialize-Config, `
     Get-Config, `
     Get-ConfigValue, `
-    Set-ConfigValue
+    Set-ConfigValue, `
+    Save-Config

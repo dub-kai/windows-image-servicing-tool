@@ -36,6 +36,7 @@
     return [pscustomobject]@{
         Window        = $window
         Frame         = $frame
+        StartPage     = (Get-ConfigValue -Key 'StartPage' -Default 'Dashboard')
         DashboardPage = $dashboardPage
         ImagesPage    = $imagesPage
         DriverPage    = $driverPage

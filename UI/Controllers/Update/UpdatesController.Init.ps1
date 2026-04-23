@@ -42,6 +42,12 @@
             ($null -ne $txtPkgFilter))
     } catch {}
 
+    if ($chkAuto) {
+        try {
+            $chkAuto.IsChecked = [bool](Get-ConfigValue -Key 'UpdatesAutoCatalogDefault' -Default $true)
+        } catch {}
+    }
+
     if ($btnRefresh) {
         $btnRefresh.Add_Click({
             try {
@@ -154,6 +160,7 @@
         $chkAuto.Add_Click({
             try {
                 if ($script:isBusy) { return }
+                Set-ConfigValue -Key 'UpdatesAutoCatalogDefault' -Value ([bool]$chkAuto.IsChecked) -Persist | Out-Null
                 Invoke-AutoCatalogSearchIfEnabled
             } catch {}
         })

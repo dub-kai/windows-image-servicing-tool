@@ -60,6 +60,9 @@ function Register-DriverEventHandlers {
         if ($cb) {
             $cb.Add_Checked({
                 try {
+                    if ($script:ctx -and $script:ctx["ChkDriverAll"]) {
+                        Set-ConfigValue -Key "DriverLoadAllDefault" -Value ([bool]$script:ctx["ChkDriverAll"].IsChecked) -Persist | Out-Null
+                    }
                     if (-not (Get-ImageServicingBusy)) {
                         Load-DriversAsync
                     } else {
@@ -70,6 +73,9 @@ function Register-DriverEventHandlers {
 
             $cb.Add_Unchecked({
                 try {
+                    if ($script:ctx -and $script:ctx["ChkDriverAll"]) {
+                        Set-ConfigValue -Key "DriverLoadAllDefault" -Value ([bool]$script:ctx["ChkDriverAll"].IsChecked) -Persist | Out-Null
+                    }
                     if (-not (Get-ImageServicingBusy)) {
                         Load-DriversAsync
                     } else {

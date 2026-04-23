@@ -45,6 +45,12 @@
     $ctx["ChkDriverRecurse"]       = Find-Ui -Root $p -Name "ChkDriverRecurse"
     $ctx["ChkDriverForceUnsigned"] = Find-Ui -Root $p -Name "ChkDriverForceUnsigned"
 
+    if ($ctx["ChkDriverAll"]) {
+        try {
+            $ctx["ChkDriverAll"].IsChecked = [bool](Get-ConfigValue -Key "DriverLoadAllDefault" -Default $false)
+        } catch {}
+    }
+
     $ctx["TxtDriverCount"]     = Find-Ui -Root $p -Name "TxtDriverCount"
     $ctx["TxtDriverMountUsed"] = Find-Ui -Root $p -Name "TxtDriverMountUsed"
     $ctx["TxtDriverSelected"]  = Find-Ui -Root $p -Name "TxtDriverSelected"

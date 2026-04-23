@@ -350,6 +350,12 @@ function Initialize-ImagesController {
         [bool]($script:ctx.BtnRefreshMounted)
     )
 
+    if ($script:ctx.ChkMountReadOnly) {
+        try {
+            $script:ctx.ChkMountReadOnly.IsChecked = [bool](Get-ConfigValue -Key 'ImageMountReadOnlyDefault' -Default $true)
+        } catch {}
+    }
+
     try {
         if ($script:ctx.TxtIsoInstall) {
             $script:ctx.TxtIsoInstall.Text = $(if ($script:ctx.IsoInstallPath) { [string]$script:ctx.IsoInstallPath } else { '-' })
@@ -434,10 +440,16 @@ function Initialize-ImagesController {
 
     if ($script:ctx.ChkMountReadOnly) {
         $script:ctx.ChkMountReadOnly.Add_Checked({
-            try { Update-MountUiFromState } catch {}
+            try {
+                Set-ConfigValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkMountReadOnly.IsChecked) -Persist | Out-Null
+                Update-MountUiFromState
+            } catch {}
         })
         $script:ctx.ChkMountReadOnly.Add_Unchecked({
-            try { Update-MountUiFromState } catch {}
+            try {
+                Set-ConfigValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkMountReadOnly.IsChecked) -Persist | Out-Null
+                Update-MountUiFromState
+            } catch {}
         })
     }
 

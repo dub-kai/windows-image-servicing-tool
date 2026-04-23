@@ -50,7 +50,7 @@ function Set-MountRoot {
     }
 
     if ($Persist -and (Get-Command Set-ConfigValue -ErrorAction SilentlyContinue)) {
-        try { Set-ConfigValue -Key "MountRoot" -Value $p } catch {}
+        try { Set-ConfigValue -Key "MountRoot" -Value $p -Persist } catch {}
     }
 
     return $p

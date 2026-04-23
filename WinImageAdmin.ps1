@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
-    [ValidateSet("Dashboard", "Images", "Updates")]
-    [string]$StartPage = "Dashboard",
+    [ValidateSet("Dashboard", "Images", "Driver", "Updates", "Settings")]
+    [string]$StartPage,
 
     [switch]$AppDebug,
 
@@ -261,10 +261,15 @@ Import-Module (Resolve-ProjectPath "Core\Config.psm1"   -MustExist) -Force
 Import-Module (Resolve-ProjectPath "Core\AppState.psm1" -MustExist) -Force
 Import-Module (Resolve-ProjectPath "Core\Logger.psm1"   -MustExist) -Force
 
-Initialize-Config -Overrides @{
-    StartPage = $StartPage
-    AppDebug  = [bool]$AppDebug
-} | Out-Null
+$configOverrides = @{}
+if ($PSBoundParameters.ContainsKey('StartPage')) {
+    $configOverrides['StartPage'] = $StartPage
+}
+if ($PSBoundParameters.ContainsKey('AppDebug')) {
+    $configOverrides['AppDebug'] = [bool]$AppDebug
+}
+
+Initialize-Config -Overrides $configOverrides | Out-Null
 
 Initialize-Logger | Out-Null
 
