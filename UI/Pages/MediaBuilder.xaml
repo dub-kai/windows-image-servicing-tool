@@ -1,0 +1,100 @@
+﻿<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Media Builder"
+      Background="Transparent">
+
+  <Grid Margin="2">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0"
+               FontSize="24"
+               FontWeight="SemiBold"
+               Foreground="#0F172A"
+               Margin="0,0,0,16"
+               Text="Media Builder" />
+
+    <ScrollViewer Grid.Row="1"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+
+        <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="16" CornerRadius="14" Margin="0,0,0,12">
+          <StackPanel>
+            <TextBlock FontWeight="SemiBold" FontSize="16" Foreground="#0F172A" Margin="0,0,0,8" Text="1. Bootfähige ISO aus Basisquelle bauen"/>
+            <TextBlock Foreground="#475569" Margin="0,0,0,12" TextWrapping="Wrap"
+                       Text="Hier wird eine gemountete Windows-ISO als Basis verwendet. Du kannst install.wim/install.esd und boot.wim gezielt überschreiben und daraus wieder eine neue bootfähige ISO erzeugen."/>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Basis-ISO Root:"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtMediaSourceIso" Margin="0,0,0,8" Text="-" TextWrapping="Wrap"/>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Install-Image:"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtMediaInstallImage" Margin="0,0,0,8" Text="-" TextWrapping="Wrap"/>
+
+              <TextBlock Grid.Row="2" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,0" Text="Boot-Image:"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtMediaBootImage" Text="-" TextWrapping="Wrap"/>
+            </Grid>
+
+            <WrapPanel>
+              <Button Name="BtnMediaPickInstallImage" Content="Install-Image wählen" Height="30" MinWidth="160" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaClearInstallImage" Content="Install zurücksetzen" Height="30" MinWidth="150" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaPickBootImage" Content="boot.wim wählen" Height="30" MinWidth="140" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaClearBootImage" Content="Boot zurücksetzen" Height="30" MinWidth="140" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaBuildIso" Content="Neue ISO bauen" Height="30" MinWidth="150" Margin="0,0,0,8"/>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="16" CornerRadius="14" Margin="0,0,0,12">
+          <StackPanel>
+            <TextBlock FontWeight="SemiBold" FontSize="16" Foreground="#0F172A" Margin="0,0,0,8" Text="2. Mehrere WIM/ESD zu einer install.esd bündeln"/>
+            <TextBlock Name="TxtMediaComposeSummary"
+                       Foreground="#475569"
+                       Margin="0,0,0,12"
+                       TextWrapping="Wrap"
+                       Text="Noch keine Quellimages vorgemerkt."/>
+
+            <WrapPanel Margin="0,0,0,10">
+              <Button Name="BtnMediaAddSourceImage" Content="WIM/ESD hinzufügen" Height="30" MinWidth="150" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaRemoveSourceImage" Content="Auswahl entfernen" Height="30" MinWidth="150" Margin="0,0,10,8"/>
+              <Button Name="BtnMediaBuildInstallEsd" Content="install.esd bauen" Height="30" MinWidth="150" Margin="0,0,0,8"/>
+            </WrapPanel>
+
+            <ListView Name="LstMediaComposeItems" MinHeight="220" SelectionMode="Extended">
+              <ListView.View>
+                <GridView>
+                  <GridViewColumn Header="Datei" Width="220" DisplayMemberBinding="{Binding FileName}" />
+                  <GridViewColumn Header="Index" Width="60" DisplayMemberBinding="{Binding Index}" />
+                  <GridViewColumn Header="Name" Width="220" DisplayMemberBinding="{Binding Name}" />
+                  <GridViewColumn Header="Description" Width="360" DisplayMemberBinding="{Binding Description}" />
+                </GridView>
+              </ListView.View>
+            </ListView>
+          </StackPanel>
+        </Border>
+
+        <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="16" CornerRadius="14">
+          <StackPanel>
+            <TextBlock FontWeight="SemiBold" FontSize="16" Foreground="#0F172A" Margin="0,0,0,8" Text="3. USB-Stick vorbereiten"/>
+            <TextBlock Foreground="#475569" TextWrapping="Wrap"
+                       Text="Der USB-Workflow gehört hier ebenfalls hin: ISO oder Stage direkt auf einen vorbereiteten USB-Stick bringen. Den Bereich habe ich bewusst schon reserviert, aber das eigentliche Schreiben auf Datenträger ziehe ich lieber als nächsten kontrollierten Schritt nach."/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Page>

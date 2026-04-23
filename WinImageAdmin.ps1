@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-    [ValidateSet("Dashboard", "Images", "Driver", "Updates", "Settings")]
+    [ValidateSet("Dashboard", "Images", "Media", "Driver", "Updates", "Settings")]
     [string]$StartPage,
 
     [switch]$AppDebug,
@@ -302,6 +302,8 @@ $dismServicePath       = Resolve-ProjectPath "Services\DismService.psm1"
 $wimInfoServicePath    = Resolve-ProjectPath "Services\WimInfoService.psm1"
 $mountServicePath      = Resolve-ProjectPath "Services\MountService.psm1"
 $mountedWimServicePath = Resolve-ProjectPath "Services\MountedWimService.psm1"
+$isoBuildServicePath   = Resolve-ProjectPath "Services\IsoBuildService.psm1"
+$imageComposePath      = Resolve-ProjectPath "Services\ImageCompositionService.psm1"
 
 foreach ($p in @(
     $isoServicePath,
@@ -310,7 +312,9 @@ foreach ($p in @(
     $dismServicePath,
     $wimInfoServicePath,
     $mountServicePath,
-    $mountedWimServicePath
+    $mountedWimServicePath,
+    $isoBuildServicePath,
+    $imageComposePath
 )) {
     if (-not (Test-Path -LiteralPath $p)) { throw "Fehlt: $p" }
 }
@@ -322,6 +326,8 @@ Import-Module $dismServicePath       -Force
 Import-Module $wimInfoServicePath    -Force
 Import-Module $mountServicePath      -Force
 Import-Module $mountedWimServicePath -Force
+Import-Module $isoBuildServicePath   -Force
+Import-Module $imageComposePath      -Force
 
 Write-Log -Level INFO -Message "SERVICES_OK: Iso + IsoDetect + Image + DISM + WimInfo + Mount + MountedWim importiert" -ToConsole
 

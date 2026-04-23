@@ -9,6 +9,7 @@ Import-Module (Resolve-ProjectPath "UI\Controllers\DashboardController.psm1" -Mu
 Import-Module (Resolve-ProjectPath "UI\Controllers\SettingsController.psm1"  -MustExist) -Force
 Import-Module (Resolve-ProjectPath "UI\Controllers\DriverController.psm1"    -MustExist) -Force
 Import-Module (Resolve-ProjectPath "UI\Controllers\UpdatesController.psm1"   -MustExist) -Force
+Import-Module (Resolve-ProjectPath "UI\Controllers\MediaBuilderController.psm1" -MustExist) -Force
 
 $partsRoot = Join-Path $PSScriptRoot "MainWindow"
 if (-not (Test-Path -LiteralPath $partsRoot)) { throw "MainWindow parts folder fehlt: $partsRoot" }

@@ -130,6 +130,7 @@
           <StackPanel DockPanel.Dock="Top">
             <Button Name="BtnDashboard" Height="38" Margin="0,0,0,8" Content="Dashboard"/>
             <Button Name="BtnImages" Height="38" Margin="0,0,0,8" Content="Images"/>
+            <Button Name="BtnMedia" Height="38" Margin="0,0,0,8" Content="Media Builder"/>
             <Button Name="BtnDriver" Height="38" Margin="0,0,0,8" Content="Driver"/>
             <Button Name="BtnUpdates" Height="38" Margin="0,0,0,8" Content="Updates"/>
           </StackPanel>

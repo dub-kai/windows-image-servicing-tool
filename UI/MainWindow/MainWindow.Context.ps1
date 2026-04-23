@@ -19,11 +19,12 @@
     $txtBuild  = Find-Ui -Root $window -Name "TxtBuild"
 
     if ($txtBuild -and $txtBuild.PSObject.Properties.Match("Text").Count -gt 0) {
-        $txtBuild.Text = "v1.8 (Updates groundwork)"
+        $txtBuild.Text = "v1.9 (Media Builder)"
     }
 
     $dashboardPage = Import-XamlFile -RelativePath "UI\Pages\Dashboard.xaml"
     $imagesPage    = Import-XamlFile -RelativePath "UI\Pages\Images.xaml"
+    $mediaPage     = Import-XamlFile -RelativePath "UI\Pages\MediaBuilder.xaml"
     $driverPage    = Import-XamlFile -RelativePath "UI\Pages\Driver.xaml"
     $updatesPage   = Import-XamlFile -RelativePath "UI\Pages\Updates.xaml"
     $settingsPage  = Import-XamlFile -RelativePath "UI\Pages\Settings.xaml"
@@ -39,6 +40,7 @@
         StartPage     = (Get-ConfigValue -Key 'StartPage' -Default 'Dashboard')
         DashboardPage = $dashboardPage
         ImagesPage    = $imagesPage
+        MediaPage     = $mediaPage
         DriverPage    = $driverPage
         UpdatesPage   = $updatesPage
         SettingsPage  = $settingsPage
@@ -48,6 +50,7 @@
 
         NavigateDashboard = $null
         NavigateImages    = $null
+        NavigateMedia     = $null
         NavigateDriver    = $null
         NavigateUpdates   = $null
         NavigateSettings  = $null

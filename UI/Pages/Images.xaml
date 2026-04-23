@@ -159,7 +159,6 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="18"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
@@ -173,14 +172,10 @@
                       Content="WIM/ESD speichern"/>
 
               <Button Grid.Column="2" Name="BtnExportSelectedIndex"
-                      Width="150" Height="30" Margin="0,0,10,0"
+                      Width="150" Height="30"
                       Content="Index exportieren"/>
 
-              <Button Grid.Column="3" Name="BtnBuildIso"
-                      Width="140" Height="30"
-                      Content="ISO neu bauen"/>
-
-              <StackPanel Grid.Column="5" Orientation="Vertical">
+              <StackPanel Grid.Column="4" Orientation="Vertical">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                   <TextBlock FontWeight="SemiBold" Margin="0,0,10,0" Text="Selected Index:"/>
                   <TextBlock Name="TxtSelectedIndex" Text="-" />

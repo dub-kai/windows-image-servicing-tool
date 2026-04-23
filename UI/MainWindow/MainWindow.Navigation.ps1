@@ -11,6 +11,7 @@ function Initialize-MainWindowNavigation {
 
     $btnDashboard = $null
     $btnImages    = $null
+    $btnMedia     = $null
     $btnDriver    = $null
     $btnUpdates   = $null
     $btnSettings  = $null
@@ -20,6 +21,9 @@ function Initialize-MainWindowNavigation {
 
     try { $btnImages = $window.FindName('BtnNavImages') } catch {}
     if (-not $btnImages) { try { $btnImages = $window.FindName('BtnImages') } catch {} }
+
+    try { $btnMedia = $window.FindName('BtnNavMedia') } catch {}
+    if (-not $btnMedia) { try { $btnMedia = $window.FindName('BtnMedia') } catch {} }
 
     try { $btnDriver = $window.FindName('BtnNavDriver') } catch {}
     if (-not $btnDriver) { try { $btnDriver = $window.FindName('BtnDriver') } catch {} }
@@ -32,6 +36,7 @@ function Initialize-MainWindowNavigation {
 
     $navigateDashboard = $Ctx.NavigateDashboard
     $navigateImages    = $Ctx.NavigateImages
+    $navigateMedia     = $Ctx.NavigateMedia
     $navigateDriver    = $Ctx.NavigateDriver
     $navigateUpdates   = $Ctx.NavigateUpdates
     $navigateSettings  = $Ctx.NavigateSettings
@@ -47,6 +52,27 @@ function Initialize-MainWindowNavigation {
             catch {
                 try {
                     Write-Log -Level ERROR -Message ("NavigateDashboard FAILED: {0}" -f $_.Exception.Message)
+                    if ($_.ScriptStackTrace) {
+                        Write-Log -Level ERROR -Message ("STACK:`n{0}" -f $_.ScriptStackTrace)
+                    }
+                }
+                catch {}
+                Show-UiError -Message $_.Exception.Message
+            }
+        }.GetNewClosure())
+    }
+
+    if ($btnMedia) {
+        $btnMedia.Add_Click({
+            try {
+                if (-not ($navigateMedia -is [scriptblock])) {
+                    throw "NavigateMedia ist nicht verfuegbar."
+                }
+                & $navigateMedia
+            }
+            catch {
+                try {
+                    Write-Log -Level ERROR -Message ("NavigateMedia FAILED: {0}" -f $_.Exception.Message)
                     if ($_.ScriptStackTrace) {
                         Write-Log -Level ERROR -Message ("STACK:`n{0}" -f $_.ScriptStackTrace)
                     }
@@ -158,6 +184,7 @@ function Invoke-MainWindowInitialNavigation {
 
     $action = switch ($startPage) {
         'Images'   { $Ctx.NavigateImages }
+        'Media'    { $Ctx.NavigateMedia }
         'Driver'   { $Ctx.NavigateDriver }
         'Updates'  { $Ctx.NavigateUpdates }
         'Settings' { $Ctx.NavigateSettings }

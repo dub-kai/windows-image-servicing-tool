@@ -24,7 +24,6 @@ $parts = @(
     "Images.Mounted.ps1",
     "Images.MountOps.ps1",
     "Images.Export.ps1",
-    "Images.IsoBuild.ps1",
     "Images.Context.ps1"
 )
 
@@ -43,8 +42,7 @@ $required = @(
     "Refresh-MountedList",
     "New-WorkerScript",
     "Start-SaveSourceWimAsync",
-    "Start-ExportSelectedIndexAsync",
-    "Start-BuildIsoAsync"
+    "Start-ExportSelectedIndexAsync"
 )
 
 foreach ($name in $required) {

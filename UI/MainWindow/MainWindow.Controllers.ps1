@@ -19,6 +19,7 @@ function Invoke-ControllerInitializer {
         'DriverPage',
         'DashboardPage',
         'ImagesPage',
+        'MediaBuilderPage',
         'UpdatesPage',
         'SettingsPage'
     ) | Where-Object { $cmd.Parameters.ContainsKey($_) } | Select-Object -First 1
@@ -106,6 +107,7 @@ function Initialize-MainWindowControllers {
 
         $DashboardPage = $null,
         $ImagesPage    = $null,
+        $MediaPage     = $null,
         $DriverPage    = $null,
         $UpdatesPage   = $null,
         $SettingsPage  = $null,
@@ -120,6 +122,7 @@ function Initialize-MainWindowControllers {
             Frame             = $null
             DashboardPage     = $null
             ImagesPage        = $null
+            MediaPage         = $null
             DriverPage        = $null
             UpdatesPage       = $null
             SettingsPage      = $null
@@ -127,6 +130,7 @@ function Initialize-MainWindowControllers {
             OnStateChanged    = $null
             NavigateDashboard = $null
             NavigateImages    = $null
+            NavigateMedia     = $null
             NavigateDriver    = $null
             NavigateUpdates   = $null
             NavigateSettings  = $null
@@ -135,6 +139,7 @@ function Initialize-MainWindowControllers {
 
     if ($null -ne $DashboardPage) { $Ctx.DashboardPage  = $DashboardPage }
     if ($null -ne $ImagesPage)    { $Ctx.ImagesPage     = $ImagesPage }
+    if ($null -ne $MediaPage)     { $Ctx.MediaPage      = $MediaPage }
     if ($null -ne $DriverPage)    { $Ctx.DriverPage     = $DriverPage }
     if ($null -ne $UpdatesPage)   { $Ctx.UpdatesPage    = $UpdatesPage }
     if ($null -ne $SettingsPage)  { $Ctx.SettingsPage   = $SettingsPage }
@@ -169,6 +174,14 @@ function Initialize-MainWindowControllers {
             -OnStateChanged $Ctx.OnStateChanged
     }
 
+    if ($Ctx.MediaPage) {
+        Invoke-ControllerInitializer `
+            -CommandName 'Initialize-MediaBuilderController' `
+            -PageObject $Ctx.MediaPage `
+            -SetStatus $Ctx.SetStatus `
+            -OnStateChanged $Ctx.OnStateChanged
+    }
+
     if ($Ctx.UpdatesPage) {
         Invoke-ControllerInitializer `
             -CommandName 'Initialize-UpdatesController' `
@@ -196,6 +209,12 @@ function Initialize-MainWindowControllers {
         -Page $Ctx.ImagesPage `
         -RefreshCommandName 'Refresh-ImagesUI' `
         -Label 'NavigateImages'
+
+    $Ctx.NavigateMedia = New-MainWindowNavigateScript `
+        -Frame $Ctx.Frame `
+        -Page $Ctx.MediaPage `
+        -RefreshCommandName 'Refresh-MediaBuilderUI' `
+        -Label 'NavigateMedia'
 
     $Ctx.NavigateDriver = New-MainWindowNavigateScript `
         -Frame $Ctx.Frame `

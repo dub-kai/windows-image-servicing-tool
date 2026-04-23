@@ -85,7 +85,6 @@ function Apply-ImagesBusyUi {
         (Get-Ctx "BtnMountSelected"),
         (Get-Ctx "BtnSaveSourceWim"),
         (Get-Ctx "BtnExportSelectedIndex"),
-        (Get-Ctx "BtnBuildIso"),
         (Get-Ctx "LstWimImages"),
         (Get-Ctx "BtnRefreshMounted"),
         (Get-Ctx "BtnUnmountMountedCommit"),
