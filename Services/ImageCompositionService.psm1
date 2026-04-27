@@ -1,8 +1,16 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1') -Force
-Import-Module (Resolve-ProjectPath 'Services\DismService.psm1' -MustExist) -Force
+function Import-ImageCompositionDependencies {
+    [CmdletBinding()]
+    param()
+
+    $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
+    Import-Module $bootstrapPath -Global -Force | Out-Null
+
+    $dismPath = Resolve-ProjectPath 'Services\DismService.psm1' -MustExist
+    Import-Module $dismPath -Global -Force | Out-Null
+}
 
 function Build-CombinedInstallImage {
     [CmdletBinding()]
@@ -18,6 +26,8 @@ function Build-CombinedInstallImage {
     if ($items.Count -lt 1) {
         throw "Keine Quellimages zum Kombinieren angegeben."
     }
+
+    Import-ImageCompositionDependencies
 
     $outputFull = [System.IO.Path]::GetFullPath($OutputPath)
     $outputDir = [System.IO.Path]::GetDirectoryName($outputFull)

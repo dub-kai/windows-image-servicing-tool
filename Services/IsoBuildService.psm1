@@ -1,9 +1,19 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1') -Force
-Import-Module (Resolve-ProjectPath 'Core\Config.psm1' -MustExist) -Force
-Import-Module (Resolve-ProjectPath 'Services\AdkService.psm1' -MustExist) -Force
+function Import-IsoBuildDependencies {
+    [CmdletBinding()]
+    param()
+
+    $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
+    Import-Module $bootstrapPath -Global -Force | Out-Null
+
+    $configPath = Resolve-ProjectPath 'Core\Config.psm1' -MustExist
+    $adkPath = Resolve-ProjectPath 'Services\AdkService.psm1' -MustExist
+
+    Import-Module $configPath -Global -Force | Out-Null
+    Import-Module $adkPath -Global -Force | Out-Null
+}
 
 function Write-IsoBuildLog {
     param(
@@ -24,6 +34,8 @@ function Get-IsoBuildWorkingRoot {
         [Parameter()]
         [string]$WorkingRoot
     )
+
+    Import-IsoBuildDependencies
 
     if (-not [string]::IsNullOrWhiteSpace($WorkingRoot)) {
         return [System.IO.Path]::GetFullPath($WorkingRoot)
@@ -223,6 +235,8 @@ function Build-WindowsIso {
     if (-not (Test-Path -LiteralPath $SourceRoot -PathType Container)) {
         throw "ISO-Quellordner nicht gefunden: $SourceRoot"
     }
+
+    Import-IsoBuildDependencies
 
     $outputDir = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($OutputPath))
     if ([string]::IsNullOrWhiteSpace($outputDir)) {
