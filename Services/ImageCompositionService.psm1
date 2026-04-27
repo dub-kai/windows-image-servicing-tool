@@ -44,14 +44,22 @@ function Build-CombinedInstallImage {
     }
 
     $exported = New-Object System.Collections.Generic.List[object]
+    $position = 0
 
     foreach ($spec in $items) {
+        $position++
         $path = [string]$spec.Path
         $index = [int]$spec.Index
 
         if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Quellimage nicht gefunden: $path"
         }
+
+        try {
+            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log -Level INFO -Message ("ImageComposition: Export {0}/{1} -> {2} (Index {3})" -f $position, $items.Count, $path, $index)
+            }
+        } catch {}
 
         $args = @(
             '/Export-Image',
@@ -77,9 +85,19 @@ function Build-CombinedInstallImage {
         }) | Out-Null
     }
 
+    if (-not (Test-Path -LiteralPath $outputFull -PathType Leaf)) {
+        throw "install.esd wurde nicht erstellt: $outputFull"
+    }
+
+    $fileInfo = Get-Item -LiteralPath $outputFull -ErrorAction Stop
+    if ($fileInfo.Length -le 0) {
+        throw "install.esd wurde angelegt, ist aber leer: $outputFull"
+    }
+
     return [pscustomobject]@{
         OutputPath = $outputFull
         ImageCount = $exported.Count
+        SizeBytes  = $fileInfo.Length
         Items      = @($exported.ToArray())
     }
 }

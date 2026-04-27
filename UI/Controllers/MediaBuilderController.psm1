@@ -8,6 +8,24 @@ $script:ctx = $null
 $script:composeItems = New-Object System.Collections.Generic.List[object]
 $script:mediaBusy = $false
 
+function Get-MediaCtxValue {
+    param(
+        [Parameter(Mandatory)]$Obj,
+        [Parameter(Mandatory)][string]$Key
+    )
+
+    try {
+        if ($Obj -is [System.Collections.IDictionary]) {
+            return $Obj[$Key]
+        }
+
+        $prop = $Obj.PSObject.Properties[$Key]
+        if ($prop) { return $prop.Value }
+    } catch {}
+
+    return $null
+}
+
 function Get-MediaAppStateValueSafe {
     param(
         [Parameter(Mandatory)][string]$Key,
@@ -41,6 +59,30 @@ function Set-MediaBusy {
     foreach ($ctrl in $targets) {
         try { $ctrl.IsEnabled = (-not $Busy) } catch {}
     }
+
+    $overlay = Get-MediaCtxValue -Obj $script:ctx -Key 'BusyOverlay'
+    if ($overlay) {
+        try {
+            $overlay.Visibility = if ($Busy) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        } catch {}
+    }
+
+    $txtBusy = Get-MediaCtxValue -Obj $script:ctx -Key 'TxtBusyMessage'
+    if ($txtBusy) {
+        try {
+            $txtBusy.Text = if ($Busy -and $Reason) { $Reason } else { 'Bitte warten...' }
+        } catch {}
+    }
+
+    try {
+        $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
+        if ($page) {
+            $win = [System.Windows.Window]::GetWindow($page)
+            if ($win) {
+                $win.Cursor = if ($Busy) { [System.Windows.Input.Cursors]::Wait } else { $null }
+            }
+        }
+    } catch {}
 
     if ($Busy -and $Reason -and $script:ctx.SetStatus) {
         try { & $script:ctx.SetStatus $Reason } catch {}
@@ -88,9 +130,9 @@ function Refresh-MediaBuilderComposeList {
     try {
         if ($script:ctx.TxtMediaComposeSummary) {
             if ($items.Count -gt 0) {
-                $script:ctx.TxtMediaComposeSummary.Text = ("{0} Image(s) vorgemerkt. Diese werden als gemeinsames install.esd exportiert." -f $items.Count)
+                $script:ctx.TxtMediaComposeSummary.Text = ("{0} Eintrag/Einträge vorgemerkt. Daraus wird eine gemeinsame install.esd gebaut." -f $items.Count)
             } else {
-                $script:ctx.TxtMediaComposeSummary.Text = "Noch keine Quellimages vorgemerkt."
+                $script:ctx.TxtMediaComposeSummary.Text = "Noch keine Quell-Dateien ausgewählt."
             }
         }
     } catch {}
@@ -154,7 +196,7 @@ function Start-MediaBuildIsoAsync {
     try {
         $sourceRoot = Get-MediaIsoRoot
         if ([string]::IsNullOrWhiteSpace([string]$sourceRoot)) {
-            throw "Bitte zuerst eine Windows-ISO mounten. Der Media Builder nutzt diese als Basisquelle."
+            throw "Bitte zuerst eine Windows-ISO mounten. Diese ISO ist die Grundlage für den Build."
         }
 
         $installImagePath = $script:ctx.SelectedInstallImagePath
@@ -180,7 +222,7 @@ function Start-MediaBuildIsoAsync {
         $dest = [string]$dlg.FileName
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
-        Set-MediaBusy -Busy $true -Reason 'Media Builder: ISO wird gebaut...'
+        Set-MediaBusy -Busy $true -Reason 'Neue ISO wird gebaut...'
 
         $bootstrapPath = (Resolve-ProjectPath 'Core\Bootstrap.psm1' -MustExist).Replace("'", "''")
         $projectRoot = (Get-ProjectRoot).Replace("'", "''")
@@ -222,7 +264,7 @@ Build-WindowsIso @params
             try {
                 $item = @($result) | Select-Object -First 1
                 if ($script:ctx.SetStatus -and $item) {
-                    & $script:ctx.SetStatus ("Media Builder: ISO gebaut -> {0}" -f $item.OutputPath)
+                    & $script:ctx.SetStatus ("ISO erstellt: {0}" -f $item.OutputPath)
                 }
             } finally {
                 Set-MediaBusy -Busy $false
@@ -263,7 +305,7 @@ function Add-MediaComposeSourceImage {
         }
 
         if ($script:ctx.SetStatus) {
-            & $script:ctx.SetStatus ("Media Builder: {0} Index(e) aus {1} vorgemerkt" -f $items.Count, $path)
+            & $script:ctx.SetStatus ("{0} Index(e) aus {1} übernommen" -f $items.Count, $path)
         }
         Refresh-MediaBuilderUI
     } catch {
@@ -282,7 +324,7 @@ function Remove-MediaComposeSelectedItems {
     }
 
     if ($script:ctx.SetStatus) {
-        & $script:ctx.SetStatus ("Media Builder: {0} Eintrag/Einträge entfernt" -f $selected.Count)
+        & $script:ctx.SetStatus ("{0} Eintrag/Einträge entfernt" -f $selected.Count)
     }
     Refresh-MediaBuilderUI
 }
@@ -305,26 +347,35 @@ function Start-MediaBuildInstallEsdAsync {
         $dest = [string]$dlg.FileName
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
-        Set-MediaBusy -Busy $true -Reason 'Media Builder: install.esd wird gebaut...'
+        Set-MediaBusy -Busy $true -Reason 'install.esd wird gebaut...'
 
-        $json = (@($script:composeItems.ToArray()) | ConvertTo-Json -Depth 5 -Compress).Replace("'", "''")
         $bootstrapPath = (Resolve-ProjectPath 'Core\Bootstrap.psm1' -MustExist).Replace("'", "''")
         $projectRoot = (Get-ProjectRoot).Replace("'", "''")
         $servicePath = (Resolve-ProjectPath 'Services\ImageCompositionService.psm1' -MustExist).Replace("'", "''")
         $safeDest = $dest.Replace("'", "''")
+        $manifestPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-compose-{0}.json' -f ([guid]::NewGuid().ToString('N')))
+        @($script:composeItems.ToArray()) | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+        $safeManifest = $manifestPath.Replace("'", "''")
 
         $code = @'
 $ErrorActionPreference = 'Stop'
 Import-Module '__BOOTSTRAP__' -Force
 Set-ProjectRoot -Path '__PROJECTROOT__' | Out-Null
 Import-Module '__SERVICE__' -Force
-$specs = ConvertFrom-Json '__JSON__'
-Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__'
+try {
+    $specs = Get-Content -LiteralPath '__MANIFEST__' -Raw -Encoding UTF8 | ConvertFrom-Json
+    Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__'
+}
+finally {
+    if (Test-Path -LiteralPath '__MANIFEST__') {
+        Remove-Item -LiteralPath '__MANIFEST__' -Force -ErrorAction SilentlyContinue
+    }
+}
 '@
         $code = $code.Replace('__BOOTSTRAP__', $bootstrapPath).
             Replace('__PROJECTROOT__', $projectRoot).
             Replace('__SERVICE__', $servicePath).
-            Replace('__JSON__', $json).
+            Replace('__MANIFEST__', $safeManifest).
             Replace('__DEST__', $safeDest)
 
         Start-UiTask -Label 'MediaBuilder:BuildInstallEsd' -TimeoutSec 14400 -Work ([scriptblock]::Create($code)) -OnCompleted {
@@ -332,7 +383,7 @@ Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__'
             try {
                 $item = @($result) | Select-Object -First 1
                 if ($script:ctx.SetStatus -and $item) {
-                    & $script:ctx.SetStatus ("Media Builder: install.esd gebaut -> {0}" -f $item.OutputPath)
+                    & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f $item.OutputPath)
                 }
             } finally {
                 Set-MediaBusy -Busy $false
@@ -378,6 +429,8 @@ function Initialize-MediaBuilderController {
         BtnMediaAddSourceImage      = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaAddSourceImage'
         BtnMediaRemoveSourceImage   = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaRemoveSourceImage'
         BtnMediaBuildInstallEsd     = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaBuildInstallEsd'
+        BusyOverlay                 = Find-Ui -Root $MediaBuilderPage -Name 'BusyOverlay'
+        TxtBusyMessage              = Find-Ui -Root $MediaBuilderPage -Name 'TxtBusyMessage'
     }
 
     if ($script:ctx.BtnMediaPickInstallImage) {
