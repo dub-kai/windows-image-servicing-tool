@@ -6,10 +6,72 @@ function Import-ImageCompositionDependencies {
     param()
 
     $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
-    Import-Module $bootstrapPath -Global -Force | Out-Null
+    Import-Module $bootstrapPath -Global -Force -DisableNameChecking | Out-Null
 
     $dismPath = Resolve-ProjectPath 'Services\DismService.psm1' -MustExist
-    Import-Module $dismPath -Global -Force | Out-Null
+    Import-Module $dismPath -Global -Force -DisableNameChecking | Out-Null
+}
+
+function Set-ImageCompositionProgress {
+    [CmdletBinding()]
+    param(
+        [Parameter()][string]$ProgressPath,
+        [Parameter(Mandatory)][string]$Status,
+        [Parameter()][int]$Current = 0,
+        [Parameter()][int]$Total = 0,
+        [Parameter()][string]$Message = $null,
+        [Parameter()][string]$OutputPath = $null
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ProgressPath)) { return }
+
+    try {
+        $data = [ordered]@{
+            Time       = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+            Status     = $Status
+            Current    = $Current
+            Total      = $Total
+            Message    = $Message
+            OutputPath = $OutputPath
+            SizeBytes  = 0
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($OutputPath) -and (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
+            $data.SizeBytes = (Get-Item -LiteralPath $OutputPath).Length
+        }
+
+        $dir = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($ProgressPath))
+        if (-not [string]::IsNullOrWhiteSpace($dir) -and -not (Test-Path -LiteralPath $dir -PathType Container)) {
+            $null = New-Item -ItemType Directory -Path $dir -Force
+        }
+
+        $data | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ProgressPath -Encoding UTF8
+    } catch {}
+}
+
+function Get-ImageSpecValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Spec,
+
+        [Parameter(Mandatory)]
+        [string[]]$Names
+    )
+
+    if ($Spec -is [System.Collections.IDictionary]) {
+        foreach ($name in $Names) {
+            if ($Spec.Contains($name)) { return $Spec[$name] }
+        }
+        return $null
+    }
+
+    foreach ($name in $Names) {
+        $prop = $Spec.PSObject.Properties[$name]
+        if ($null -ne $prop) { return $prop.Value }
+    }
+
+    return $null
 }
 
 function Build-CombinedInstallImage {
@@ -19,10 +81,13 @@ function Build-CombinedInstallImage {
         [object[]]$ImageSpecs,
 
         [Parameter(Mandatory)]
-        [string]$OutputPath
+        [string]$OutputPath,
+
+        [Parameter()]
+        [string]$ProgressPath
     )
 
-    $items = @($ImageSpecs) | Where-Object { $_ -ne $null }
+    $items = @(@($ImageSpecs) | Where-Object { $_ -ne $null })
     if ($items.Count -lt 1) {
         throw "Keine Quellimages zum Kombinieren angegeben."
     }
@@ -45,44 +110,66 @@ function Build-CombinedInstallImage {
 
     $exported = New-Object System.Collections.Generic.List[object]
     $position = 0
+    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Starting' -Current 0 -Total $items.Count -Message 'install.esd wird vorbereitet...' -OutputPath $outputFull
 
-    foreach ($spec in $items) {
-        $position++
-        $path = [string]$spec.Path
-        $index = [int]$spec.Index
+    try {
+        foreach ($spec in $items) {
+            $position++
+            $path = [string](Get-ImageSpecValue -Spec $spec -Names @('Path', 'SourceImage', 'SourceImagePath'))
+            $indexRaw = Get-ImageSpecValue -Spec $spec -Names @('Index', 'SourceIndex', 'ImageIndex')
 
-        if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
-            throw "Quellimage nicht gefunden: $path"
-        }
-
-        try {
-            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
-                Write-Log -Level INFO -Message ("ImageComposition: Export {0}/{1} -> {2} (Index {3})" -f $position, $items.Count, $path, $index)
+            if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
+                throw "Quellimage nicht gefunden: $path"
             }
-        } catch {}
 
-        $args = @(
-            '/Export-Image',
-            ('/SourceImageFile:"{0}"' -f $path),
-            ('/SourceIndex:{0}' -f $index),
-            ('/DestinationImageFile:"{0}"' -f $outputFull),
-            '/Compress:recovery',
-            '/CheckIntegrity'
-        )
+            $parsedIndex = 0
+            if ($null -eq $indexRaw -or -not [int]::TryParse([string]$indexRaw, [ref]$parsedIndex)) {
+                throw "Image-Index fehlt oder ist ungültig für: $path"
+            }
+            $index = $parsedIndex
 
-        $result = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 7200
-        if ($result.ExitCode -ne 0) {
-            $msg = $result.StdErr
-            if ([string]::IsNullOrWhiteSpace($msg)) { $msg = $result.StdOut }
-            throw ("DISM Export-Image fehlgeschlagen für {0} Index {1} (ExitCode={2}). {3}" -f $path, $index, $result.ExitCode, $msg)
+            $displayName = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
+            if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = [System.IO.Path]::GetFileName($path) }
+            $msg = ("Exportiere {0}/{1}: {2} (Index {3})" -f $position, $items.Count, $displayName, $index)
+            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exporting' -Current $position -Total $items.Count -Message $msg -OutputPath $outputFull
+
+            try {
+                if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                    Write-Log -Level INFO -Message ("ImageComposition: Export {0}/{1} -> {2} (Index {3})" -f $position, $items.Count, $path, $index)
+                }
+            } catch {}
+
+            $args = @(
+                '/Export-Image',
+                ('/SourceImageFile:"{0}"' -f $path),
+                ('/SourceIndex:{0}' -f $index),
+                ('/DestinationImageFile:"{0}"' -f $outputFull),
+                '/Compress:recovery',
+                '/CheckIntegrity'
+            )
+
+            $result = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 7200
+            if ($result.ExitCode -ne 0) {
+                $err = $result.StdErr
+                if ([string]::IsNullOrWhiteSpace($err)) { $err = $result.StdOut }
+                throw ("DISM Export-Image fehlgeschlagen für {0} Index {1} (ExitCode={2}). {3}" -f $path, $index, $result.ExitCode, $err)
+            }
+
+            $exported.Add([pscustomobject]@{
+                Path        = $path
+                Index       = $index
+                Name        = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
+                Description = [string](Get-ImageSpecValue -Spec $spec -Names @('Description', 'ImageDescription'))
+            }) | Out-Null
+
+            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exported' -Current $position -Total $items.Count -Message ("Fertig: {0}" -f $displayName) -OutputPath $outputFull
         }
-
-        $exported.Add([pscustomobject]@{
-            Path        = $path
-            Index       = $index
-            Name        = [string]$spec.Name
-            Description = [string]$spec.Description
-        }) | Out-Null
+    } catch {
+        Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Failed' -Current $position -Total $items.Count -Message $_.Exception.Message -OutputPath $outputFull
+        if (Test-Path -LiteralPath $outputFull -PathType Leaf) {
+            try { Remove-Item -LiteralPath $outputFull -Force } catch {}
+        }
+        throw
     }
 
     if (-not (Test-Path -LiteralPath $outputFull -PathType Leaf)) {
@@ -93,6 +180,8 @@ function Build-CombinedInstallImage {
     if ($fileInfo.Length -le 0) {
         throw "install.esd wurde angelegt, ist aber leer: $outputFull"
     }
+
+    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Completed' -Current $items.Count -Total $items.Count -Message 'install.esd wurde erstellt.' -OutputPath $outputFull
 
     return [pscustomobject]@{
         OutputPath = $outputFull

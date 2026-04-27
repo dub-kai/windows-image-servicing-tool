@@ -6,13 +6,13 @@ function Import-IsoBuildDependencies {
     param()
 
     $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
-    Import-Module $bootstrapPath -Global -Force | Out-Null
+    Import-Module $bootstrapPath -Global -Force -DisableNameChecking | Out-Null
 
     $configPath = Resolve-ProjectPath 'Core\Config.psm1' -MustExist
     $adkPath = Resolve-ProjectPath 'Services\AdkService.psm1' -MustExist
 
-    Import-Module $configPath -Global -Force | Out-Null
-    Import-Module $adkPath -Global -Force | Out-Null
+    Import-Module $configPath -Global -Force -DisableNameChecking | Out-Null
+    Import-Module $adkPath -Global -Force -DisableNameChecking | Out-Null
 }
 
 function Write-IsoBuildLog {

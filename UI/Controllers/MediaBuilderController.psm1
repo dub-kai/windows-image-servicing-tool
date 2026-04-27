@@ -1,12 +1,16 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Resolve-ProjectPath 'UI\UiHelpers.psm1' -MustExist) -Force
-Import-Module (Resolve-ProjectPath 'UI\UiAsync.psm1' -MustExist) -Force
+Import-Module (Resolve-ProjectPath 'UI\UiHelpers.psm1' -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath 'UI\UiAsync.psm1' -MustExist) -Force -DisableNameChecking
 
 $script:ctx = $null
 $script:composeItems = New-Object System.Collections.Generic.List[object]
 $script:mediaBusy = $false
+$script:mediaProgressTimer = $null
+$script:mediaBusyStartedAt = $null
+$script:mediaProgressPath = $null
+$script:mediaOutputPath = $null
 
 function Get-MediaCtxValue {
     param(
@@ -35,6 +39,127 @@ function Get-MediaAppStateValueSafe {
     try { return Get-AppStateValue -Key $Key -Default $Default } catch { return $Default }
 }
 
+function Format-MediaBytes {
+    param([long]$Bytes)
+
+    if ($Bytes -ge 1GB) { return ('{0:N2} GB' -f ($Bytes / 1GB)) }
+    if ($Bytes -ge 1MB) { return ('{0:N1} MB' -f ($Bytes / 1MB)) }
+    if ($Bytes -ge 1KB) { return ('{0:N1} KB' -f ($Bytes / 1KB)) }
+    return ('{0} B' -f $Bytes)
+}
+
+function Add-MediaBuildLog {
+    param([Parameter(Mandatory)][string]$Message)
+
+    if (-not $script:ctx) { return }
+    $list = Get-MediaCtxValue -Obj $script:ctx -Key 'LstMediaBuildLog'
+    if (-not $list) { return }
+
+    try {
+        $text = ('{0}  {1}' -f (Get-Date -Format 'HH:mm:ss'), $Message)
+        [void]$list.Items.Add($text)
+        $list.ScrollIntoView($text)
+    } catch {}
+}
+
+function Set-MediaBuildStatus {
+    param(
+        [string]$Message = $null,
+        [string]$Detail = $null,
+        [Nullable[long]]$SizeBytes = $null
+    )
+
+    if (-not $script:ctx) { return }
+
+    try {
+        if ($script:ctx.TxtMediaCurrentStep -and -not [string]::IsNullOrWhiteSpace($Message)) {
+            $script:ctx.TxtMediaCurrentStep.Text = $Message
+        }
+    } catch {}
+
+    try {
+        if ($script:ctx.TxtMediaCurrentDetail) {
+            $script:ctx.TxtMediaCurrentDetail.Text = if ([string]::IsNullOrWhiteSpace($Detail)) { '-' } else { $Detail }
+        }
+    } catch {}
+
+    try {
+        if ($script:ctx.TxtMediaCurrentSize -and $null -ne $SizeBytes) {
+            $script:ctx.TxtMediaCurrentSize.Text = (Format-MediaBytes -Bytes ([long]$SizeBytes))
+        }
+    } catch {}
+
+    try {
+        if ($script:ctx.TxtMediaElapsed) {
+            if ($script:mediaBusyStartedAt) {
+                $elapsed = (Get-Date) - $script:mediaBusyStartedAt
+                $script:ctx.TxtMediaElapsed.Text = ('{0:mm\:ss}' -f $elapsed)
+            } else {
+                $script:ctx.TxtMediaElapsed.Text = '00:00'
+            }
+        }
+    } catch {}
+}
+
+function Stop-MediaProgressMonitor {
+    if ($script:mediaProgressTimer) {
+        try { $script:mediaProgressTimer.Stop() } catch {}
+        $script:mediaProgressTimer = $null
+    }
+}
+
+function Start-MediaProgressMonitor {
+    param(
+        [string]$ProgressPath = $null,
+        [string]$OutputPath = $null,
+        [string]$InitialMessage = 'Vorgang läuft...'
+    )
+
+    Stop-MediaProgressMonitor
+
+    $script:mediaProgressPath = $ProgressPath
+    $script:mediaOutputPath = $OutputPath
+    $script:mediaBusyStartedAt = Get-Date
+    Set-MediaBuildStatus -Message $InitialMessage -Detail 'DISM kann einige Minuten brauchen.' -SizeBytes 0
+    Add-MediaBuildLog $InitialMessage
+
+    $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
+    if (-not $page -or -not $page.Dispatcher) { return }
+
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds(1)
+    $timer.Add_Tick({
+        try {
+            $msg = $null
+            $detail = $null
+            $size = 0
+
+            if (-not [string]::IsNullOrWhiteSpace($script:mediaProgressPath) -and (Test-Path -LiteralPath $script:mediaProgressPath -PathType Leaf)) {
+                $progress = Get-Content -LiteralPath $script:mediaProgressPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                $msg = [string]$progress.Message
+                if ([int]$progress.Total -gt 0) {
+                    $detail = ('Schritt {0} von {1} | {2}' -f [int]$progress.Current, [int]$progress.Total, [string]$progress.Status)
+                } else {
+                    $detail = [string]$progress.Status
+                }
+                $size = [long]$progress.SizeBytes
+            }
+
+            if ($size -le 0 -and -not [string]::IsNullOrWhiteSpace($script:mediaOutputPath) -and (Test-Path -LiteralPath $script:mediaOutputPath -PathType Leaf)) {
+                $size = (Get-Item -LiteralPath $script:mediaOutputPath).Length
+            }
+
+            if ([string]::IsNullOrWhiteSpace($msg)) { $msg = 'Vorgang läuft...' }
+            Set-MediaBuildStatus -Message $msg -Detail $detail -SizeBytes $size
+        } catch {
+            Set-MediaBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0
+        }
+    }.GetNewClosure())
+
+    $script:mediaProgressTimer = $timer
+    $timer.Start()
+}
+
 function Set-MediaBusy {
     param(
         [Parameter(Mandatory)][bool]$Busy,
@@ -43,6 +168,11 @@ function Set-MediaBusy {
 
     $script:mediaBusy = $Busy
     if (-not $script:ctx) { return }
+
+    if (-not $Busy) {
+        Stop-MediaProgressMonitor
+        $script:mediaBusyStartedAt = $null
+    }
 
     $targets = @(
         $script:ctx.BtnMediaPickInstallImage,
@@ -223,6 +353,7 @@ function Start-MediaBuildIsoAsync {
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
         Set-MediaBusy -Busy $true -Reason 'Neue ISO wird gebaut...'
+        Start-MediaProgressMonitor -OutputPath $dest -InitialMessage 'Neue ISO wird gebaut...'
 
         $bootstrapPath = (Resolve-ProjectPath 'Core\Bootstrap.psm1' -MustExist).Replace("'", "''")
         $projectRoot = (Get-ProjectRoot).Replace("'", "''")
@@ -234,9 +365,9 @@ function Start-MediaBuildIsoAsync {
 
         $code = @'
 $ErrorActionPreference = 'Stop'
-Import-Module '__BOOTSTRAP__' -Force
+Import-Module '__BOOTSTRAP__' -Force -DisableNameChecking
 Set-ProjectRoot -Path '__PROJECTROOT__' | Out-Null
-Import-Module '__SERVICE__' -Force
+Import-Module '__SERVICE__' -Force -DisableNameChecking
 
 $params = @{
     SourceRoot = '__SOURCE__'
@@ -266,6 +397,7 @@ Build-WindowsIso @params
                 if ($script:ctx.SetStatus -and $item) {
                     & $script:ctx.SetStatus ("ISO erstellt: {0}" -f $item.OutputPath)
                 }
+                Add-MediaBuildLog ("ISO fertig: {0}" -f $item.OutputPath)
             } finally {
                 Set-MediaBusy -Busy $false
                 Refresh-MediaBuilderUI
@@ -354,17 +486,21 @@ function Start-MediaBuildInstallEsdAsync {
         $servicePath = (Resolve-ProjectPath 'Services\ImageCompositionService.psm1' -MustExist).Replace("'", "''")
         $safeDest = $dest.Replace("'", "''")
         $manifestPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-compose-{0}.json' -f ([guid]::NewGuid().ToString('N')))
+        $progressPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-progress-{0}.json' -f ([guid]::NewGuid().ToString('N')))
         @($script:composeItems.ToArray()) | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
         $safeManifest = $manifestPath.Replace("'", "''")
+        $safeProgress = $progressPath.Replace("'", "''")
+
+        Start-MediaProgressMonitor -ProgressPath $progressPath -OutputPath $dest -InitialMessage 'install.esd wird gebaut...'
 
         $code = @'
 $ErrorActionPreference = 'Stop'
-Import-Module '__BOOTSTRAP__' -Force
+Import-Module '__BOOTSTRAP__' -Force -DisableNameChecking
 Set-ProjectRoot -Path '__PROJECTROOT__' | Out-Null
-Import-Module '__SERVICE__' -Force
+Import-Module '__SERVICE__' -Force -DisableNameChecking
 try {
     $specs = Get-Content -LiteralPath '__MANIFEST__' -Raw -Encoding UTF8 | ConvertFrom-Json
-    Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__'
+    Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__' -ProgressPath '__PROGRESS__'
 }
 finally {
     if (Test-Path -LiteralPath '__MANIFEST__') {
@@ -376,6 +512,7 @@ finally {
             Replace('__PROJECTROOT__', $projectRoot).
             Replace('__SERVICE__', $servicePath).
             Replace('__MANIFEST__', $safeManifest).
+            Replace('__PROGRESS__', $safeProgress).
             Replace('__DEST__', $safeDest)
 
         Start-UiTask -Label 'MediaBuilder:BuildInstallEsd' -TimeoutSec 14400 -Work ([scriptblock]::Create($code)) -OnCompleted {
@@ -385,15 +522,19 @@ finally {
                 if ($script:ctx.SetStatus -and $item) {
                     & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f $item.OutputPath)
                 }
+                Add-MediaBuildLog ("install.esd fertig: {0}" -f $item.OutputPath)
             } finally {
                 Set-MediaBusy -Busy $false
+                try { Remove-Item -LiteralPath $progressPath -Force -ErrorAction SilentlyContinue } catch {}
                 Refresh-MediaBuilderUI
             }
         } -OnError {
             param($ex)
+            Add-MediaBuildLog ("Fehler: {0}" -f $ex.Message)
             try { Show-UiError -Message $ex.Message }
             finally {
                 Set-MediaBusy -Busy $false
+                try { Remove-Item -LiteralPath $progressPath -Force -ErrorAction SilentlyContinue } catch {}
                 Refresh-MediaBuilderUI
                 if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
             }
@@ -431,6 +572,11 @@ function Initialize-MediaBuilderController {
         BtnMediaBuildInstallEsd     = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaBuildInstallEsd'
         BusyOverlay                 = Find-Ui -Root $MediaBuilderPage -Name 'BusyOverlay'
         TxtBusyMessage              = Find-Ui -Root $MediaBuilderPage -Name 'TxtBusyMessage'
+        TxtMediaCurrentStep         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaCurrentStep'
+        TxtMediaCurrentDetail       = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaCurrentDetail'
+        TxtMediaCurrentSize         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaCurrentSize'
+        TxtMediaElapsed             = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaElapsed'
+        LstMediaBuildLog            = Find-Ui -Root $MediaBuilderPage -Name 'LstMediaBuildLog'
     }
 
     if ($script:ctx.BtnMediaPickInstallImage) {
@@ -492,6 +638,7 @@ function Initialize-MediaBuilderController {
     }
 
     Refresh-MediaBuilderUI
+    Set-MediaBuildStatus -Message 'Bereit' -Detail 'Noch kein Build gestartet.' -SizeBytes 0
 }
 
 Export-ModuleMember -Function Initialize-MediaBuilderController, Refresh-MediaBuilderUI

@@ -1,9 +1,9 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force
+Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking
 
 $script:ctx = $null
 $script:suppressSettingsEvents = $false
@@ -296,13 +296,13 @@ function Start-SettingsHealthRefresh {
 
     $code = @"
 `$ErrorActionPreference = 'Stop'
-Import-Module '$safeBoot' -Force
+Import-Module '$safeBoot' -Force -DisableNameChecking
 Set-ProjectRoot -Path '$safeProjectRoot' | Out-Null
-Import-Module '$safeCfg' -Force
-Import-Module '$safeLog' -Force
-Import-Module '$safeDism' -Force
-Import-Module '$safeMount' -Force
-Import-Module '$safeMntSvc' -Force
+Import-Module '$safeCfg' -Force -DisableNameChecking
+Import-Module '$safeLog' -Force -DisableNameChecking
+Import-Module '$safeDism' -Force -DisableNameChecking
+Import-Module '$safeMount' -Force -DisableNameChecking
+Import-Module '$safeMntSvc' -Force -DisableNameChecking
 
 function Test-HealthAdmin {
     try {
@@ -399,13 +399,13 @@ function Start-SettingsUnmountAllDiscard {
 
     $code = @"
 `$ErrorActionPreference = 'Stop'
-Import-Module '$safeBoot' -Force
+Import-Module '$safeBoot' -Force -DisableNameChecking
 Set-ProjectRoot -Path '$safeProjectRoot' | Out-Null
-Import-Module '$safeCfg' -Force
-Import-Module '$safeLog' -Force
-Import-Module '$safeDism' -Force
-Import-Module '$safeMount' -Force
-Import-Module '$safeMntSvc' -Force
+Import-Module '$safeCfg' -Force -DisableNameChecking
+Import-Module '$safeLog' -Force -DisableNameChecking
+Import-Module '$safeDism' -Force -DisableNameChecking
+Import-Module '$safeMount' -Force -DisableNameChecking
+Import-Module '$safeMntSvc' -Force -DisableNameChecking
 
 `$mounts = @(Get-MountedWimList)
 `$done = New-Object System.Collections.Generic.List[string]
@@ -461,11 +461,11 @@ function Start-SettingsCleanupEmptyMountDirs {
 
     $code = @"
 `$ErrorActionPreference = 'Stop'
-Import-Module '$safeBoot' -Force
+Import-Module '$safeBoot' -Force -DisableNameChecking
 Set-ProjectRoot -Path '$safeProjectRoot' | Out-Null
-Import-Module '$safeCfg' -Force
-Import-Module '$safeLog' -Force
-Import-Module '$safeMount' -Force
+Import-Module '$safeCfg' -Force -DisableNameChecking
+Import-Module '$safeLog' -Force -DisableNameChecking
+Import-Module '$safeMount' -Force -DisableNameChecking
 
 function Test-WorkerPathWithinRoot {
     param(

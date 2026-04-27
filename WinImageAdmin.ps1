@@ -244,7 +244,7 @@ $bootstrapPath = Join-Path $scriptDir "Core\Bootstrap.psm1"
 if (-not (Test-Path -LiteralPath $bootstrapPath)) {
     throw "Bootstrap nicht gefunden: $bootstrapPath"
 }
-Import-Module $bootstrapPath -Force
+Import-Module $bootstrapPath -Force -DisableNameChecking
 
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { $ProjectRoot = $scriptDir }
 Set-ProjectRoot -Path $ProjectRoot | Out-Null
@@ -257,9 +257,9 @@ $null = New-Item -ItemType Directory -Path (Resolve-ProjectPath "Work\Logs")   -
 $null = New-Item -ItemType Directory -Path (Resolve-ProjectPath "Work\Temp")   -Force -ErrorAction SilentlyContinue
 
 Update-StartupSplash -SplashWindow $splash -Status 'Core-Module werden geladen...'
-Import-Module (Resolve-ProjectPath "Core\Config.psm1"   -MustExist) -Force
-Import-Module (Resolve-ProjectPath "Core\AppState.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "Core\Logger.psm1"   -MustExist) -Force
+Import-Module (Resolve-ProjectPath "Core\Config.psm1"   -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "Core\AppState.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "Core\Logger.psm1"   -MustExist) -Force -DisableNameChecking
 
 $configOverrides = @{}
 if ($PSBoundParameters.ContainsKey('StartPage')) {
@@ -286,10 +286,10 @@ $legacy2 = Resolve-ProjectPath "Mount"
 
 try {
     if (Test-Path -LiteralPath $legacy1) {
-        Write-Log -Level WARN -Message ("Legacy folder present (unused): {0}" -f $legacy1) -ToConsole
+        Write-Log -Level DEBUG -Message ("Legacy folder present (unused): {0}" -f $legacy1)
     }
     if (Test-Path -LiteralPath $legacy2) {
-        Write-Log -Level WARN -Message ("Legacy folder present (unused): {0}" -f $legacy2) -ToConsole
+        Write-Log -Level DEBUG -Message ("Legacy folder present (unused): {0}" -f $legacy2)
     }
 } catch {}
 
@@ -319,15 +319,15 @@ foreach ($p in @(
     if (-not (Test-Path -LiteralPath $p)) { throw "Fehlt: $p" }
 }
 
-Import-Module $isoServicePath        -Force
-Import-Module $isoDetectServicePath  -Force
-Import-Module $imageServicePath      -Force
-Import-Module $dismServicePath       -Force
-Import-Module $wimInfoServicePath    -Force
-Import-Module $mountServicePath      -Force
-Import-Module $mountedWimServicePath -Force
-Import-Module $isoBuildServicePath   -Force
-Import-Module $imageComposePath      -Force
+Import-Module $isoServicePath        -Force -DisableNameChecking
+Import-Module $isoDetectServicePath  -Force -DisableNameChecking
+Import-Module $imageServicePath      -Force -DisableNameChecking
+Import-Module $dismServicePath       -Force -DisableNameChecking
+Import-Module $wimInfoServicePath    -Force -DisableNameChecking
+Import-Module $mountServicePath      -Force -DisableNameChecking
+Import-Module $mountedWimServicePath -Force -DisableNameChecking
+Import-Module $isoBuildServicePath   -Force -DisableNameChecking
+Import-Module $imageComposePath      -Force -DisableNameChecking
 
 Write-Log -Level INFO -Message "SERVICES_OK: Iso + IsoDetect + Image + DISM + WimInfo + Mount + MountedWim importiert" -ToConsole
 
@@ -345,8 +345,8 @@ foreach ($fn in @(
 }
 
 Update-StartupSplash -SplashWindow $splash -Status 'Benutzeroberfläche wird vorbereitet...'
-Import-Module (Resolve-ProjectPath "UI\Xaml.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\MainWindow.psm1" -MustExist) -Force
+Import-Module (Resolve-ProjectPath "UI\Xaml.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\MainWindow.psm1" -MustExist) -Force -DisableNameChecking
 
 Write-Log -Level INFO -Message "UI initialisiert -> Start-MainWindow" -ToConsole
 Update-StartupSplash -SplashWindow $splash -Status 'Hauptfenster wird geöffnet...'

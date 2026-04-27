@@ -1,15 +1,15 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1"   -MustExist) -Force
+Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1"   -MustExist) -Force -DisableNameChecking
 
-Import-Module (Resolve-ProjectPath "UI\Controllers\ImagesController.psm1"    -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\Controllers\DashboardController.psm1" -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\Controllers\SettingsController.psm1"  -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\Controllers\DriverController.psm1"    -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\Controllers\UpdatesController.psm1"   -MustExist) -Force
-Import-Module (Resolve-ProjectPath "UI\Controllers\MediaBuilderController.psm1" -MustExist) -Force
+Import-Module (Resolve-ProjectPath "UI\Controllers\ImagesController.psm1"    -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\Controllers\DashboardController.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\Controllers\SettingsController.psm1"  -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\Controllers\DriverController.psm1"    -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\Controllers\UpdatesController.psm1"   -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\Controllers\MediaBuilderController.psm1" -MustExist) -Force -DisableNameChecking
 
 $partsRoot = Join-Path $PSScriptRoot "MainWindow"
 if (-not (Test-Path -LiteralPath $partsRoot)) { throw "MainWindow parts folder fehlt: $partsRoot" }
