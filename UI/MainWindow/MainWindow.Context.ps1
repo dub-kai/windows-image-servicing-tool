@@ -47,6 +47,7 @@
         SetStatus     = $setStatus
 
         OnStateChanged = $null
+        ControllerInitialized = @{}
 
         NavigateDashboard = $null
         NavigateImages    = $null
