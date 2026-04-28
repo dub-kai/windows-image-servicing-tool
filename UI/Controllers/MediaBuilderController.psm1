@@ -112,7 +112,10 @@ function Start-MediaProgressMonitor {
     param(
         [string]$ProgressPath = $null,
         [string]$OutputPath = $null,
-        [string]$InitialMessage = 'Vorgang läuft...'
+        [string]$InitialMessage = 'Vorgang läuft...',
+        [System.Diagnostics.Process]$Process = $null,
+        [string]$ResultPath = $null,
+        [string[]]$CleanupPaths = @()
     )
 
     Stop-MediaProgressMonitor
@@ -130,6 +133,48 @@ function Start-MediaProgressMonitor {
     $timer.Interval = [TimeSpan]::FromSeconds(1)
     $timer.Add_Tick({
         try {
+            if ($Process) {
+                try { $Process.Refresh() } catch {}
+                if ($Process.HasExited) {
+                    $exitCode = -1
+                    try { $exitCode = [int]$Process.ExitCode } catch {}
+
+                    $result = $null
+                    if (-not [string]::IsNullOrWhiteSpace($ResultPath) -and (Test-Path -LiteralPath $ResultPath -PathType Leaf)) {
+                        try { $result = Get-Content -LiteralPath $ResultPath -Raw -Encoding UTF8 | ConvertFrom-Json } catch {}
+                    }
+
+                    if ($exitCode -eq 0 -and $result -and $result.Success) {
+                        $size = 0
+                        try { $size = [long]$result.SizeBytes } catch {}
+                        Set-MediaBuildStatus -Message 'install.esd wurde erstellt.' -Detail ([string]$result.OutputPath) -SizeBytes $size
+                        Add-MediaBuildLog ("install.esd fertig: {0}" -f [string]$result.OutputPath)
+                        if ($script:ctx.SetStatus) {
+                            & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f [string]$result.OutputPath)
+                        }
+                    } else {
+                        $msg = "install.esd konnte nicht erstellt werden. ExitCode=$exitCode"
+                        if ($result -and -not [string]::IsNullOrWhiteSpace([string]$result.Message)) {
+                            $msg = [string]$result.Message
+                        }
+                        Add-MediaBuildLog ("Fehler: {0}" -f $msg)
+                        try { Show-UiError -Message $msg } catch {}
+                        if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
+                    }
+
+                    try { $Process.Dispose() } catch {}
+                    foreach ($cleanupPath in @($CleanupPaths)) {
+                        if (-not [string]::IsNullOrWhiteSpace($cleanupPath) -and (Test-Path -LiteralPath $cleanupPath)) {
+                            try { Remove-Item -LiteralPath $cleanupPath -Force -ErrorAction SilentlyContinue } catch {}
+                        }
+                    }
+
+                    Set-MediaBusy -Busy $false
+                    Refresh-MediaBuilderUI
+                    return
+                }
+            }
+
             $msg = $null
             $detail = $null
             $size = 0
@@ -150,6 +195,9 @@ function Start-MediaProgressMonitor {
             }
 
             if ([string]::IsNullOrWhiteSpace($msg)) { $msg = 'Vorgang läuft...' }
+            if ([string]::IsNullOrWhiteSpace($detail) -and $Process) {
+                $detail = 'DISM arbeitet im Hintergrund. Das kann bei großen Images lange dauern.'
+            }
             Set-MediaBuildStatus -Message $msg -Detail $detail -SizeBytes $size
         } catch {
             Set-MediaBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0
@@ -487,11 +535,12 @@ function Start-MediaBuildInstallEsdAsync {
         $safeDest = $dest.Replace("'", "''")
         $manifestPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-compose-{0}.json' -f ([guid]::NewGuid().ToString('N')))
         $progressPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-progress-{0}.json' -f ([guid]::NewGuid().ToString('N')))
+        $resultPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-result-{0}.json' -f ([guid]::NewGuid().ToString('N')))
+        $workerPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-worker-{0}.ps1' -f ([guid]::NewGuid().ToString('N')))
         @($script:composeItems.ToArray()) | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
         $safeManifest = $manifestPath.Replace("'", "''")
         $safeProgress = $progressPath.Replace("'", "''")
-
-        Start-MediaProgressMonitor -ProgressPath $progressPath -OutputPath $dest -InitialMessage 'install.esd wird gebaut...'
+        $safeResult = $resultPath.Replace("'", "''")
 
         $code = @'
 $ErrorActionPreference = 'Stop'
@@ -500,7 +549,22 @@ Set-ProjectRoot -Path '__PROJECTROOT__' | Out-Null
 Import-Module '__SERVICE__' -Force -DisableNameChecking
 try {
     $specs = Get-Content -LiteralPath '__MANIFEST__' -Raw -Encoding UTF8 | ConvertFrom-Json
-    Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__' -ProgressPath '__PROGRESS__'
+    $result = Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__' -ProgressPath '__PROGRESS__'
+    [pscustomobject]@{
+        Success   = $true
+        OutputPath = [string]$result.OutputPath
+        ImageCount = [int]$result.ImageCount
+        SizeBytes  = [long]$result.SizeBytes
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath '__RESULT__' -Encoding UTF8
+    exit 0
+}
+catch {
+    [pscustomobject]@{
+        Success = $false
+        Message = $_.Exception.Message
+        Details = [string]$_
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath '__RESULT__' -Encoding UTF8
+    exit 1
 }
 finally {
     if (Test-Path -LiteralPath '__MANIFEST__') {
@@ -513,33 +577,34 @@ finally {
             Replace('__SERVICE__', $servicePath).
             Replace('__MANIFEST__', $safeManifest).
             Replace('__PROGRESS__', $safeProgress).
+            Replace('__RESULT__', $safeResult).
             Replace('__DEST__', $safeDest)
 
-        Start-UiTask -Label 'MediaBuilder:BuildInstallEsd' -TimeoutSec 14400 -Work ([scriptblock]::Create($code)) -OnCompleted {
-            param($result)
-            try {
-                $item = @($result) | Select-Object -First 1
-                if ($script:ctx.SetStatus -and $item) {
-                    & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f $item.OutputPath)
-                }
-                Add-MediaBuildLog ("install.esd fertig: {0}" -f $item.OutputPath)
-            } finally {
-                Set-MediaBusy -Busy $false
-                try { Remove-Item -LiteralPath $progressPath -Force -ErrorAction SilentlyContinue } catch {}
-                Refresh-MediaBuilderUI
-            }
-        } -OnError {
-            param($ex)
-            Add-MediaBuildLog ("Fehler: {0}" -f $ex.Message)
-            try { Show-UiError -Message $ex.Message }
-            finally {
-                Set-MediaBusy -Busy $false
-                try { Remove-Item -LiteralPath $progressPath -Force -ErrorAction SilentlyContinue } catch {}
-                Refresh-MediaBuilderUI
-                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
-            }
-        }
+        [System.IO.File]::WriteAllText($workerPath, $code, [System.Text.UTF8Encoding]::new($true))
+
+        $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        if (-not (Test-Path -LiteralPath $psExe)) { $psExe = 'powershell.exe' }
+
+        $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+        $pinfo.FileName = $psExe
+        $pinfo.Arguments = ('-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $workerPath.Replace('"','""'))
+        $pinfo.UseShellExecute = $false
+        $pinfo.CreateNoWindow = $true
+
+        $proc = New-Object System.Diagnostics.Process
+        $proc.StartInfo = $pinfo
+        $null = $proc.Start()
+
+        Add-MediaBuildLog ("Worker gestartet: PID {0}" -f $proc.Id)
+        Start-MediaProgressMonitor `
+            -ProgressPath $progressPath `
+            -OutputPath $dest `
+            -InitialMessage 'install.esd wird gebaut...' `
+            -Process $proc `
+            -ResultPath $resultPath `
+            -CleanupPaths @($manifestPath, $workerPath, $resultPath, $progressPath)
     } catch {
+        Set-MediaBusy -Busy $false
         Show-UiError -Message $_.Exception.Message
     }
 }
