@@ -104,6 +104,11 @@ function Build-CombinedInstallImage {
         $null = New-Item -ItemType Directory -Path $outputDir -Force
     }
 
+    $scratchDir = Resolve-ProjectPath 'Work\Temp\DismScratch'
+    if (-not (Test-Path -LiteralPath $scratchDir -PathType Container)) {
+        $null = New-Item -ItemType Directory -Path $scratchDir -Force
+    }
+
     if (Test-Path -LiteralPath $outputFull -PathType Leaf) {
         Remove-Item -LiteralPath $outputFull -Force
     }
@@ -145,7 +150,8 @@ function Build-CombinedInstallImage {
                 ('/SourceIndex:{0}' -f $index),
                 ('/DestinationImageFile:"{0}"' -f $outputFull),
                 '/Compress:recovery',
-                '/CheckIntegrity'
+                '/CheckIntegrity',
+                ('/ScratchDir:"{0}"' -f $scratchDir)
             )
 
             $result = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 7200

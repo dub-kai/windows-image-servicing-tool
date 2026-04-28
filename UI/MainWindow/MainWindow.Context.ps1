@@ -6,6 +6,21 @@
 
     Initialize-UiAsync -Window $window
 
+    try {
+        $window.Dispatcher.add_UnhandledException({
+            param($sender, $eventArgs)
+            try {
+                $msg = "UI Dispatcher Exception: {0}" -f $eventArgs.Exception.Message
+                Write-Log -Level ERROR -Message $msg -ToConsole
+                if ($eventArgs.Exception.StackTrace) {
+                    Write-Log -Level ERROR -Message ("STACK:`n{0}" -f $eventArgs.Exception.StackTrace)
+                }
+            } catch {}
+            try { $eventArgs.Handled = $true } catch {}
+            try { Show-UiError -Message $eventArgs.Exception.Message } catch {}
+        })
+    } catch {}
+
     $bannerPath = Resolve-ProjectPath "UI\Assets\banner.png"
     $banner = New-BitmapImageFromFile -FilePath $bannerPath
     if ($banner) {

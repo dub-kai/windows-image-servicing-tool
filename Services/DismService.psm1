@@ -101,6 +101,7 @@ exit `$LASTEXITCODE
 
         $start = [DateTime]::UtcNow
         $null = $proc.Start()
+        try { $proc.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}
 
         $timeoutMs = [int]($TimeoutSec * 1000)
         $deadline = [DateTime]::UtcNow.AddMilliseconds($timeoutMs)
