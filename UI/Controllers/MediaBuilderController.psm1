@@ -52,6 +52,191 @@ function Format-MediaBytes {
     return ('{0} B' -f $Bytes)
 }
 
+function Test-MediaIsAdministrator {
+    try {
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($id)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Get-MediaDriveInfo {
+    param([Parameter(Mandatory)][string]$Path)
+
+    try {
+        $fullPath = [System.IO.Path]::GetFullPath($Path)
+        $root = [System.IO.Path]::GetPathRoot($fullPath)
+        if ([string]::IsNullOrWhiteSpace($root)) { return $null }
+        return New-Object System.IO.DriveInfo($root)
+    } catch {
+        return $null
+    }
+}
+
+function Test-MediaInstallBuildPrerequisites {
+    param(
+        [Parameter(Mandatory)][object[]]$Items,
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$Mode
+    )
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $warnings = New-Object System.Collections.Generic.List[string]
+    $isAdmin = Test-MediaIsAdministrator
+
+    if (-not $isAdmin) {
+        [void]$errors.Add('Das Programm läuft nicht als Administrator. DISM-Export braucht Adminrechte.')
+    }
+
+    $dismExe = Join-Path $env:WINDIR 'System32\dism.exe'
+    if (-not (Test-Path -LiteralPath $dismExe -PathType Leaf)) {
+        try {
+            $dismCmd = Get-Command dism.exe -ErrorAction Stop
+            $dismExe = [string]$dismCmd.Source
+        } catch {
+            [void]$errors.Add('DISM wurde nicht gefunden. Ohne DISM kann kein Install-Image gebaut werden.')
+        }
+    }
+
+    if ($Items.Count -lt 1) {
+        [void]$errors.Add('Es ist keine Quell-WIM/ESD ausgewählt.')
+    }
+
+    $destinationFull = $null
+    $destinationDir = $null
+    try {
+        $destinationFull = [System.IO.Path]::GetFullPath($DestinationPath)
+        $destinationDir = [System.IO.Path]::GetDirectoryName($destinationFull)
+    } catch {
+        [void]$errors.Add("Der Zielpfad ist ungültig: $DestinationPath")
+    }
+
+    if ([string]::IsNullOrWhiteSpace($destinationDir)) {
+        [void]$errors.Add("Der Zielordner konnte nicht bestimmt werden: $DestinationPath")
+    } else {
+        try {
+            if (-not (Test-Path -LiteralPath $destinationDir -PathType Container)) {
+                $null = New-Item -ItemType Directory -Path $destinationDir -Force
+            }
+
+            $probe = Join-Path $destinationDir ('.winimageadmin-write-test-{0}.tmp' -f ([guid]::NewGuid().ToString('N')))
+            [System.IO.File]::WriteAllText($probe, 'test', [System.Text.UTF8Encoding]::new($true))
+            Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+        } catch {
+            [void]$errors.Add("Der Zielordner ist nicht beschreibbar: $destinationDir")
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($destinationFull) -and (Test-Path -LiteralPath $destinationFull -PathType Leaf)) {
+        try {
+            $existing = Get-Item -LiteralPath $destinationFull -ErrorAction Stop
+            if ($existing.Attributes -band [System.IO.FileAttributes]::ReadOnly) {
+                [void]$errors.Add("Die Zieldatei ist schreibgeschützt: $destinationFull")
+            } elseif ($existing.Length -le 4096) {
+                Remove-Item -LiteralPath $destinationFull -Force -ErrorAction Stop
+                [void]$warnings.Add('Eine alte, unvollständige Zieldatei wurde entfernt.')
+            }
+        } catch {
+            [void]$errors.Add("Die vorhandene Zieldatei kann nicht ersetzt werden: $destinationFull")
+        }
+    }
+
+    $totalSourceBytes = [int64]0
+    $largestSourceBytes = [int64]0
+    $seenSources = @{}
+
+    foreach ($item in @($Items)) {
+        $path = [string]$item.Path
+        $index = 0
+        if ($null -ne $item.Index) {
+            [void][int]::TryParse([string]$item.Index, [ref]$index)
+        }
+
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            [void]$errors.Add('Ein Quell-Eintrag hat keinen Dateipfad.')
+            continue
+        }
+
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            [void]$errors.Add("Quell-Datei nicht gefunden: $path")
+            continue
+        }
+
+        $ext = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
+        if ($ext -notin @('.wim', '.esd')) {
+            [void]$errors.Add("Quell-Datei ist keine WIM/ESD: $path")
+        }
+
+        if ($index -lt 1) {
+            [void]$errors.Add("Ungültiger Image-Index bei $path")
+        }
+
+        try {
+            $fullSource = [System.IO.Path]::GetFullPath($path)
+            if ($destinationFull -and ([string]::Equals($fullSource, $destinationFull, [System.StringComparison]::OrdinalIgnoreCase))) {
+                [void]$errors.Add('Quelle und Ziel dürfen nicht dieselbe Datei sein.')
+            }
+
+            if (-not $seenSources.ContainsKey($fullSource)) {
+                $sourceInfo = Get-Item -LiteralPath $fullSource -ErrorAction Stop
+                $seenSources[$fullSource] = $true
+                $totalSourceBytes += [int64]$sourceInfo.Length
+                if ([int64]$sourceInfo.Length -gt $largestSourceBytes) { $largestSourceBytes = [int64]$sourceInfo.Length }
+            }
+        } catch {
+            [void]$errors.Add("Quell-Datei konnte nicht gelesen werden: $path")
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($destinationFull)) {
+        $drive = Get-MediaDriveInfo -Path $destinationFull
+        if ($drive -and $drive.IsReady) {
+            $recommendedBytes = if ($Mode -eq 'Esd') {
+                [int64]([Math]::Max(8GB, [Math]::Max($largestSourceBytes * 0.9, $totalSourceBytes * 0.45)))
+            } else {
+                [int64]([Math]::Max(12GB, [Math]::Max($largestSourceBytes * 1.2, $totalSourceBytes * 0.75)))
+            }
+
+            $minimumBytes = [int64]([Math]::Max(4GB, $recommendedBytes * 0.5))
+            if ([int64]$drive.AvailableFreeSpace -lt $minimumBytes) {
+                [void]$errors.Add(("Zu wenig freier Speicher auf {0} Frei: {1}, Minimum: {2}." -f $drive.Name, (Format-MediaBytes $drive.AvailableFreeSpace), (Format-MediaBytes $minimumBytes)))
+            } elseif ([int64]$drive.AvailableFreeSpace -lt $recommendedBytes) {
+                [void]$warnings.Add(("Speicherplatz ist knapp auf {0} Frei: {1}, empfohlen: {2}." -f $drive.Name, (Format-MediaBytes $drive.AvailableFreeSpace), (Format-MediaBytes $recommendedBytes)))
+            }
+        } elseif ($drive) {
+            [void]$errors.Add(("Ziellaufwerk ist nicht bereit: {0}" -f $drive.Name))
+        }
+    }
+
+    if ($isAdmin -and (Get-Command Get-MountedWimList -ErrorAction SilentlyContinue)) {
+        try {
+            $mounted = @(Get-MountedWimList)
+            if ($mounted.Count -gt 0) {
+                $badMounts = @($mounted | Where-Object {
+                    -not [string]::IsNullOrWhiteSpace([string]$_.Status) -and
+                    ([string]$_.Status -notmatch '^(Ok|OK|Mounted)$')
+                })
+
+                if ($badMounts.Count -gt 0) {
+                    [void]$errors.Add(("Es gibt problematische gemountete WIMs. Bitte erst im Mount-Bereich bereinigen: {0}" -f (($badMounts | ForEach-Object { $_.MountDir }) -join ', ')))
+                } else {
+                    [void]$warnings.Add(("Es sind {0} WIM-Mount(s) aktiv. Das ist ok, kann DISM aber verlangsamen." -f $mounted.Count))
+                }
+            }
+        } catch {
+            [void]$warnings.Add("Gemountete WIMs konnten nicht geprüft werden: $($_.Exception.Message)")
+        }
+    }
+
+    return [pscustomobject]@{
+        Success  = ($errors.Count -eq 0)
+        Errors   = @($errors.ToArray())
+        Warnings = @($warnings.ToArray())
+    }
+}
+
 function Add-MediaBuildLog {
     param([Parameter(Mandatory)][string]$Message)
 
@@ -655,6 +840,28 @@ function Start-MediaBuildInstallEsdAsync {
         $dest = [string]$dlg.FileName
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
+        $precheck = Test-MediaInstallBuildPrerequisites -Items @($script:composeItems.ToArray()) -DestinationPath $dest -Mode $mode
+        foreach ($warning in @($precheck.Warnings)) {
+            Add-MediaBuildLog ("Check: {0}" -f $warning)
+        }
+
+        if (-not $precheck.Success) {
+            $message = "Der Build wurde nicht gestartet, weil der Vorab-Check Probleme gefunden hat:`r`n`r`n"
+            $message += (($precheck.Errors | ForEach-Object { "- $_" }) -join "`r`n")
+            if ($precheck.Warnings.Count -gt 0) {
+                $message += "`r`n`r`nHinweise:`r`n"
+                $message += (($precheck.Warnings | ForEach-Object { "- $_" }) -join "`r`n")
+            }
+
+            foreach ($err in @($precheck.Errors)) {
+                Add-MediaBuildLog ("Check fehlgeschlagen: {0}" -f $err)
+            }
+            Set-MediaBuildStatus -Message 'Build nicht gestartet.' -Detail 'Der Vorab-Check hat Probleme gefunden.' -SizeBytes 0 -SizeText 'Check fehlgeschlagen'
+            Show-UiError -Message $message
+            return
+        }
+
+        Add-MediaBuildLog 'Vorab-Check erfolgreich.'
         $script:mediaBuildCancelled = $false
         Set-MediaBusy -Busy $true -Reason ("{0} wird gebaut..." -f $targetName)
 
