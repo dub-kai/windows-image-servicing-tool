@@ -129,6 +129,12 @@ function Start-MediaProgressMonitor {
     $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
     if (-not $page -or -not $page.Dispatcher) { return }
 
+    $fnSetBuildStatus = (Get-Item function:Set-MediaBuildStatus -ErrorAction Stop).ScriptBlock
+    $fnAddBuildLog    = (Get-Item function:Add-MediaBuildLog -ErrorAction Stop).ScriptBlock
+    $fnSetBusy        = (Get-Item function:Set-MediaBusy -ErrorAction Stop).ScriptBlock
+    $fnRefreshUi      = (Get-Item function:Refresh-MediaBuilderUI -ErrorAction Stop).ScriptBlock
+    $fnShowUiError    = (Get-Item function:Show-UiError -ErrorAction SilentlyContinue).ScriptBlock
+
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(1)
     $timer.Add_Tick({
@@ -147,8 +153,8 @@ function Start-MediaProgressMonitor {
                     if ($exitCode -eq 0 -and $result -and $result.Success) {
                         $size = 0
                         try { $size = [long]$result.SizeBytes } catch {}
-                        Set-MediaBuildStatus -Message 'install.esd wurde erstellt.' -Detail ([string]$result.OutputPath) -SizeBytes $size
-                        Add-MediaBuildLog ("install.esd fertig: {0}" -f [string]$result.OutputPath)
+                        & $fnSetBuildStatus -Message 'install.esd wurde erstellt.' -Detail ([string]$result.OutputPath) -SizeBytes $size
+                        & $fnAddBuildLog ("install.esd fertig: {0}" -f [string]$result.OutputPath)
                         if ($script:ctx.SetStatus) {
                             & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f [string]$result.OutputPath)
                         }
@@ -157,8 +163,8 @@ function Start-MediaProgressMonitor {
                         if ($result -and -not [string]::IsNullOrWhiteSpace([string]$result.Message)) {
                             $msg = [string]$result.Message
                         }
-                        Add-MediaBuildLog ("Fehler: {0}" -f $msg)
-                        try { Show-UiError -Message $msg } catch {}
+                        & $fnAddBuildLog ("Fehler: {0}" -f $msg)
+                        if ($fnShowUiError) { try { & $fnShowUiError -Message $msg } catch {} }
                         if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
                     }
 
@@ -169,8 +175,8 @@ function Start-MediaProgressMonitor {
                         }
                     }
 
-                    Set-MediaBusy -Busy $false
-                    Refresh-MediaBuilderUI
+                    & $fnSetBusy -Busy $false
+                    & $fnRefreshUi
                     return
                 }
             }
@@ -198,9 +204,9 @@ function Start-MediaProgressMonitor {
             if ([string]::IsNullOrWhiteSpace($detail) -and $Process) {
                 $detail = 'DISM arbeitet im Hintergrund. Das kann bei großen Images lange dauern.'
             }
-            Set-MediaBuildStatus -Message $msg -Detail $detail -SizeBytes $size
+            & $fnSetBuildStatus -Message $msg -Detail $detail -SizeBytes $size
         } catch {
-            Set-MediaBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0
+            try { & $fnSetBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0 } catch {}
         }
     }.GetNewClosure())
 
