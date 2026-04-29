@@ -11,6 +11,10 @@ $script:mediaProgressTimer = $null
 $script:mediaBusyStartedAt = $null
 $script:mediaProgressPath = $null
 $script:mediaOutputPath = $null
+$script:mediaBuildProcess = $null
+$script:mediaBuildCleanupPaths = @()
+$script:mediaBuildOutputPath = $null
+$script:mediaBuildCancelled = $false
 
 function Get-MediaCtxValue {
     param(
@@ -114,10 +118,78 @@ function Stop-MediaProgressMonitor {
     }
 }
 
+function Stop-MediaProcessTree {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process) { return }
+
+    $ids = New-Object System.Collections.Generic.List[int]
+    function Add-ChildProcessIds {
+        param([int]$ParentId)
+
+        try {
+            $children = @(Get-CimInstance Win32_Process -Filter ("ParentProcessId={0}" -f $ParentId))
+            foreach ($child in $children) {
+                Add-ChildProcessIds -ParentId ([int]$child.ProcessId)
+                [void]$ids.Add([int]$child.ProcessId)
+            }
+        } catch {}
+    }
+
+    try { Add-ChildProcessIds -ParentId ([int]$Process.Id) } catch {}
+    try { [void]$ids.Add([int]$Process.Id) } catch {}
+
+    foreach ($id in @($ids.ToArray() | Select-Object -Unique)) {
+        try { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+function Remove-MediaBuildArtifacts {
+    param(
+        [string[]]$Paths = @(),
+        [string]$OutputPath = $null
+    )
+
+    foreach ($path in @($Paths)) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path)) {
+            try { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue } catch {}
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($OutputPath) -and (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
+        try {
+            $len = (Get-Item -LiteralPath $OutputPath).Length
+            if ($len -le 4096) {
+                Remove-Item -LiteralPath $OutputPath -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
+    }
+}
+
+function Stop-MediaBuild {
+    if (-not $script:mediaBusy) { return }
+
+    $script:mediaBuildCancelled = $true
+    Add-MediaBuildLog 'Abbruch angefordert...'
+
+    try { Stop-MediaProcessTree -Process $script:mediaBuildProcess } catch {}
+    Remove-MediaBuildArtifacts -Paths $script:mediaBuildCleanupPaths -OutputPath $script:mediaBuildOutputPath
+
+    $script:mediaBuildProcess = $null
+    $script:mediaBuildCleanupPaths = @()
+    $script:mediaBuildOutputPath = $null
+
+    Set-MediaBusy -Busy $false
+    Set-MediaBuildStatus -Message 'Build abgebrochen.' -Detail 'Worker und DISM wurden beendet.' -SizeBytes 0 -SizeText 'abgebrochen'
+    if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Build abgebrochen' }
+    Refresh-MediaBuilderUI
+}
+
 function Start-MediaProgressMonitor {
     param(
         [string]$ProgressPath = $null,
         [string]$OutputPath = $null,
+        [string]$TargetName = 'Install-Image',
         [string]$InitialMessage = 'Vorgang läuft...',
         [System.Diagnostics.Process]$Process = $null,
         [string]$ResultPath = $null,
@@ -139,6 +211,7 @@ function Start-MediaProgressMonitor {
     $fnAddBuildLog    = (Get-Item function:Add-MediaBuildLog -ErrorAction Stop).ScriptBlock
     $fnSetBusy        = (Get-Item function:Set-MediaBusy -ErrorAction Stop).ScriptBlock
     $fnRefreshUi      = (Get-Item function:Refresh-MediaBuilderUI -ErrorAction Stop).ScriptBlock
+    $fnCleanup        = (Get-Item function:Remove-MediaBuildArtifacts -ErrorAction Stop).ScriptBlock
     $fnShowUiError    = (Get-Item function:Show-UiError -ErrorAction SilentlyContinue).ScriptBlock
 
     $timer = New-Object System.Windows.Threading.DispatcherTimer
@@ -159,27 +232,29 @@ function Start-MediaProgressMonitor {
                     if ($exitCode -eq 0 -and $result -and $result.Success) {
                         $size = 0
                         try { $size = [long]$result.SizeBytes } catch {}
-                        & $fnSetBuildStatus -Message 'install.esd wurde erstellt.' -Detail ([string]$result.OutputPath) -SizeBytes $size
-                        & $fnAddBuildLog ("install.esd fertig: {0}" -f [string]$result.OutputPath)
+                        & $fnSetBuildStatus -Message ("{0} wurde erstellt." -f $TargetName) -Detail ([string]$result.OutputPath) -SizeBytes $size
+                        & $fnAddBuildLog ("{0} fertig: {1}" -f $TargetName, [string]$result.OutputPath)
                         if ($script:ctx.SetStatus) {
-                            & $script:ctx.SetStatus ("install.esd erstellt: {0}" -f [string]$result.OutputPath)
+                            & $script:ctx.SetStatus ("{0} erstellt: {1}" -f $TargetName, [string]$result.OutputPath)
                         }
                     } else {
-                        $msg = "install.esd konnte nicht erstellt werden. ExitCode=$exitCode"
-                        if ($result -and -not [string]::IsNullOrWhiteSpace([string]$result.Message)) {
+                        $msg = "Install-Image konnte nicht erstellt werden. ExitCode=$exitCode"
+                        if ($script:mediaBuildCancelled) {
+                            $msg = 'Build wurde abgebrochen.'
+                        }
+                        if (-not $script:mediaBuildCancelled -and $result -and -not [string]::IsNullOrWhiteSpace([string]$result.Message)) {
                             $msg = [string]$result.Message
                         }
                         & $fnAddBuildLog ("Fehler: {0}" -f $msg)
-                        if ($fnShowUiError) { try { & $fnShowUiError -Message $msg } catch {} }
+                        if (-not $script:mediaBuildCancelled -and $fnShowUiError) { try { & $fnShowUiError -Message $msg } catch {} }
                         if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
                     }
 
                     try { $Process.Dispose() } catch {}
-                    foreach ($cleanupPath in @($CleanupPaths)) {
-                        if (-not [string]::IsNullOrWhiteSpace($cleanupPath) -and (Test-Path -LiteralPath $cleanupPath)) {
-                            try { Remove-Item -LiteralPath $cleanupPath -Force -ErrorAction SilentlyContinue } catch {}
-                        }
-                    }
+                    & $fnCleanup -Paths $CleanupPaths -OutputPath $script:mediaBuildOutputPath
+                    $script:mediaBuildProcess = $null
+                    $script:mediaBuildCleanupPaths = @()
+                    $script:mediaBuildOutputPath = $null
 
                     & $fnSetBusy -Busy $false
                     & $fnRefreshUi
@@ -250,11 +325,20 @@ function Set-MediaBusy {
         $script:ctx.BtnMediaAddSourceImage,
         $script:ctx.BtnMediaRemoveSourceImage,
         $script:ctx.BtnMediaBuildInstallEsd,
+        $script:ctx.RbMediaBuildWim,
+        $script:ctx.RbMediaBuildEsd,
         $script:ctx.LstMediaComposeItems
     ) | Where-Object { $_ -ne $null }
 
     foreach ($ctrl in $targets) {
         try { $ctrl.IsEnabled = (-not $Busy) } catch {}
+    }
+
+    foreach ($cancelCtrl in @($script:ctx.BtnMediaCancelBuild, $script:ctx.BtnMediaCancelBuildOverlay)) {
+        if ($cancelCtrl) {
+            try { $cancelCtrl.IsEnabled = $Busy } catch {}
+            try { $cancelCtrl.Visibility = if ($Busy) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } } catch {}
+        }
     }
 
     $overlay = Get-MediaCtxValue -Obj $script:ctx -Key 'BusyOverlay'
@@ -327,12 +411,24 @@ function Refresh-MediaBuilderComposeList {
     try {
         if ($script:ctx.TxtMediaComposeSummary) {
             if ($items.Count -gt 0) {
-                $script:ctx.TxtMediaComposeSummary.Text = ("{0} Eintrag/Einträge vorgemerkt. Daraus wird eine gemeinsame install.esd gebaut." -f $items.Count)
+                $mode = Get-MediaInstallBuildMode
+                $target = if ($mode -eq 'Esd') { 'install.esd' } else { 'install.wim' }
+                $hint = if ($mode -eq 'Esd') { 'kleiner, aber sehr langsam bei großen Images' } else { 'empfohlen und deutlich schneller' }
+                $script:ctx.TxtMediaComposeSummary.Text = ("{0} Eintrag/Einträge vorgemerkt. Ziel: {1} ({2})." -f $items.Count, $target, $hint)
             } else {
                 $script:ctx.TxtMediaComposeSummary.Text = "Noch keine Quell-Dateien ausgewählt."
             }
         }
     } catch {}
+}
+
+function Get-MediaInstallBuildMode {
+    try {
+        if ($script:ctx -and $script:ctx.RbMediaBuildEsd -and $script:ctx.RbMediaBuildEsd.IsChecked -eq $true) {
+            return 'Esd'
+        }
+    } catch {}
+    return 'Wim'
 }
 
 function Refresh-MediaBuilderUI {
@@ -360,8 +456,16 @@ function Refresh-MediaBuilderUI {
 
     try {
         if ($script:ctx.BtnMediaBuildInstallEsd) {
+            $mode = Get-MediaInstallBuildMode
+            $target = if ($mode -eq 'Esd') { 'install.esd bauen' } else { 'install.wim bauen' }
+            $script:ctx.BtnMediaBuildInstallEsd.Content = $target
             $script:ctx.BtnMediaBuildInstallEsd.IsEnabled = ((-not $script:mediaBusy) -and ($script:composeItems.Count -gt 0))
         }
+    } catch {}
+
+    try {
+        if ($script:ctx.RbMediaBuildWim) { $script:ctx.RbMediaBuildWim.IsEnabled = (-not $script:mediaBusy) }
+        if ($script:ctx.RbMediaBuildEsd) { $script:ctx.RbMediaBuildEsd.IsEnabled = (-not $script:mediaBusy) }
     } catch {}
 
     try {
@@ -533,25 +637,32 @@ function Start-MediaBuildInstallEsdAsync {
     if ($script:composeItems.Count -lt 1) { return }
 
     try {
+        $mode = Get-MediaInstallBuildMode
+        $isEsd = ($mode -eq 'Esd')
+        $targetName = if ($isEsd) { 'install.esd' } else { 'install.wim' }
+        $compression = if ($isEsd) { 'recovery' } else { 'max' }
+
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
         $dlg = New-Object Microsoft.Win32.SaveFileDialog
-        $dlg.Title = 'install.esd speichern unter'
-        $dlg.Filter = 'ESD (*.esd)|*.esd|WIM (*.wim)|*.wim|Alle Dateien (*.*)|*.*'
-        $dlg.DefaultExt = '.esd'
+        $dlg.Title = "$targetName speichern unter"
+        $dlg.Filter = if ($isEsd) { 'ESD (*.esd)|*.esd|WIM (*.wim)|*.wim|Alle Dateien (*.*)|*.*' } else { 'WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|Alle Dateien (*.*)|*.*' }
+        $dlg.DefaultExt = if ($isEsd) { '.esd' } else { '.wim' }
         $dlg.AddExtension = $true
         $dlg.OverwritePrompt = $true
-        $dlg.FileName = 'install.esd'
+        $dlg.FileName = $targetName
         if ($dlg.ShowDialog() -ne $true) { return }
 
         $dest = [string]$dlg.FileName
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
-        Set-MediaBusy -Busy $true -Reason 'install.esd wird gebaut...'
+        $script:mediaBuildCancelled = $false
+        Set-MediaBusy -Busy $true -Reason ("{0} wird gebaut..." -f $targetName)
 
         $bootstrapPath = (Resolve-ProjectPath 'Core\Bootstrap.psm1' -MustExist).Replace("'", "''")
         $projectRoot = (Get-ProjectRoot).Replace("'", "''")
         $servicePath = (Resolve-ProjectPath 'Services\ImageCompositionService.psm1' -MustExist).Replace("'", "''")
         $safeDest = $dest.Replace("'", "''")
+        $safeCompression = $compression.Replace("'", "''")
         $manifestPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-compose-{0}.json' -f ([guid]::NewGuid().ToString('N')))
         $progressPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-progress-{0}.json' -f ([guid]::NewGuid().ToString('N')))
         $resultPath = Join-Path ([System.IO.Path]::GetTempPath()) ('media-builder-result-{0}.json' -f ([guid]::NewGuid().ToString('N')))
@@ -568,7 +679,7 @@ Set-ProjectRoot -Path '__PROJECTROOT__' | Out-Null
 Import-Module '__SERVICE__' -Force -DisableNameChecking
 try {
     $specs = Get-Content -LiteralPath '__MANIFEST__' -Raw -Encoding UTF8 | ConvertFrom-Json
-    $result = Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__' -ProgressPath '__PROGRESS__'
+    $result = Build-CombinedInstallImage -ImageSpecs @($specs) -OutputPath '__DEST__' -ProgressPath '__PROGRESS__' -Compression '__COMPRESSION__'
     [pscustomobject]@{
         Success   = $true
         OutputPath = [string]$result.OutputPath
@@ -597,6 +708,7 @@ finally {
             Replace('__MANIFEST__', $safeManifest).
             Replace('__PROGRESS__', $safeProgress).
             Replace('__RESULT__', $safeResult).
+            Replace('__COMPRESSION__', $safeCompression).
             Replace('__DEST__', $safeDest)
 
         [System.IO.File]::WriteAllText($workerPath, $code, [System.Text.UTF8Encoding]::new($true))
@@ -614,16 +726,24 @@ finally {
         $proc.StartInfo = $pinfo
         $null = $proc.Start()
 
+        $script:mediaBuildProcess = $proc
+        $script:mediaBuildCleanupPaths = @($manifestPath, $workerPath, $resultPath, $progressPath)
+        $script:mediaBuildOutputPath = $dest
+
         Add-MediaBuildLog ("Worker gestartet: PID {0}" -f $proc.Id)
         Start-MediaProgressMonitor `
             -ProgressPath $progressPath `
             -OutputPath $dest `
-            -InitialMessage 'install.esd wird gebaut...' `
+            -TargetName $targetName `
+            -InitialMessage ("{0} wird gebaut..." -f $targetName) `
             -Process $proc `
             -ResultPath $resultPath `
             -CleanupPaths @($manifestPath, $workerPath, $resultPath, $progressPath)
     } catch {
         Set-MediaBusy -Busy $false
+        $script:mediaBuildProcess = $null
+        $script:mediaBuildCleanupPaths = @()
+        $script:mediaBuildOutputPath = $null
         Show-UiError -Message $_.Exception.Message
     }
 }
@@ -654,6 +774,10 @@ function Initialize-MediaBuilderController {
         BtnMediaAddSourceImage      = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaAddSourceImage'
         BtnMediaRemoveSourceImage   = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaRemoveSourceImage'
         BtnMediaBuildInstallEsd     = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaBuildInstallEsd'
+        BtnMediaCancelBuild         = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuild'
+        BtnMediaCancelBuildOverlay  = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuildOverlay'
+        RbMediaBuildWim             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildWim'
+        RbMediaBuildEsd             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildEsd'
         BusyOverlay                 = Find-Ui -Root $MediaBuilderPage -Name 'BusyOverlay'
         TxtBusyMessage              = Find-Ui -Root $MediaBuilderPage -Name 'TxtBusyMessage'
         TxtMediaCurrentStep         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaCurrentStep'
@@ -711,6 +835,22 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaBuildInstallEsd) {
         $script:ctx.BtnMediaBuildInstallEsd.Add_Click({ Start-MediaBuildInstallEsdAsync })
+    }
+
+    if ($script:ctx.BtnMediaCancelBuild) {
+        $script:ctx.BtnMediaCancelBuild.Add_Click({ Stop-MediaBuild })
+    }
+
+    if ($script:ctx.BtnMediaCancelBuildOverlay) {
+        $script:ctx.BtnMediaCancelBuildOverlay.Add_Click({ Stop-MediaBuild })
+    }
+
+    if ($script:ctx.RbMediaBuildWim) {
+        $script:ctx.RbMediaBuildWim.Add_Checked({ Refresh-MediaBuilderUI })
+    }
+
+    if ($script:ctx.RbMediaBuildEsd) {
+        $script:ctx.RbMediaBuildEsd.Add_Checked({ Refresh-MediaBuilderUI })
     }
 
     if ($script:ctx.LstMediaComposeItems) {

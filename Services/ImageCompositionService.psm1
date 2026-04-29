@@ -84,7 +84,11 @@ function Build-CombinedInstallImage {
         [string]$OutputPath,
 
         [Parameter()]
-        [string]$ProgressPath
+        [string]$ProgressPath,
+
+        [Parameter()]
+        [ValidateSet('max', 'recovery')]
+        [string]$Compression = 'recovery'
     )
 
     $items = @(@($ImageSpecs) | Where-Object { $_ -ne $null })
@@ -149,7 +153,7 @@ function Build-CombinedInstallImage {
                 ('/SourceImageFile:"{0}"' -f $path),
                 ('/SourceIndex:{0}' -f $index),
                 ('/DestinationImageFile:"{0}"' -f $outputFull),
-                '/Compress:recovery',
+                ('/Compress:{0}' -f $Compression),
                 '/CheckIntegrity',
                 ('/ScratchDir:"{0}"' -f $scratchDir)
             )
