@@ -66,7 +66,8 @@ function Set-MediaBuildStatus {
     param(
         [string]$Message = $null,
         [string]$Detail = $null,
-        [Nullable[long]]$SizeBytes = $null
+        [Nullable[long]]$SizeBytes = $null,
+        [string]$SizeText = $null
     )
 
     if (-not $script:ctx) { return }
@@ -84,8 +85,13 @@ function Set-MediaBuildStatus {
     } catch {}
 
     try {
-        if ($script:ctx.TxtMediaCurrentSize -and $null -ne $SizeBytes) {
-            $script:ctx.TxtMediaCurrentSize.Text = (Format-MediaBytes -Bytes ([long]$SizeBytes))
+        if ($script:ctx.TxtMediaCurrentSize) {
+            if (-not [string]::IsNullOrWhiteSpace($SizeText)) {
+                $script:ctx.TxtMediaCurrentSize.Text = $SizeText
+            }
+            elseif ($null -ne $SizeBytes) {
+                $script:ctx.TxtMediaCurrentSize.Text = (Format-MediaBytes -Bytes ([long]$SizeBytes))
+            }
         }
     } catch {}
 
@@ -123,7 +129,7 @@ function Start-MediaProgressMonitor {
     $script:mediaProgressPath = $ProgressPath
     $script:mediaOutputPath = $OutputPath
     $script:mediaBusyStartedAt = Get-Date
-    Set-MediaBuildStatus -Message $InitialMessage -Detail 'DISM kann einige Minuten brauchen.' -SizeBytes 0
+    Set-MediaBuildStatus -Message $InitialMessage -Detail 'DISM kann bei install.esd lange rechnen; die Datei bleibt dabei oft bis kurz vor Ende klein.' -SizeBytes 0 -SizeText 'wartet auf DISM'
     Add-MediaBuildLog $InitialMessage
 
     $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
@@ -184,6 +190,7 @@ function Start-MediaProgressMonitor {
             $msg = $null
             $detail = $null
             $size = 0
+            $sizeText = $null
 
             if (-not [string]::IsNullOrWhiteSpace($script:mediaProgressPath) -and (Test-Path -LiteralPath $script:mediaProgressPath -PathType Leaf)) {
                 $progress = Get-Content -LiteralPath $script:mediaProgressPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -204,9 +211,15 @@ function Start-MediaProgressMonitor {
             if ([string]::IsNullOrWhiteSpace($detail) -and $Process) {
                 $detail = 'DISM arbeitet im Hintergrund. Das kann bei großen Images lange dauern.'
             }
-            & $fnSetBuildStatus -Message $msg -Detail $detail -SizeBytes $size
+            if ($Process -and $size -le 0) {
+                $sizeText = '0 B (DISM schreibt oft erst am Ende)'
+            }
+            elseif ($Process -and $size -le 208) {
+                $sizeText = 'wartet auf DISM-Ausgabe'
+            }
+            & $fnSetBuildStatus -Message $msg -Detail $detail -SizeBytes $size -SizeText $sizeText
         } catch {
-            try { & $fnSetBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0 } catch {}
+            try { & $fnSetBuildStatus -Message 'Vorgang läuft...' -Detail 'Warte auf Statusdaten...' -SizeBytes 0 -SizeText 'warte...' } catch {}
         }
     }.GetNewClosure())
 
