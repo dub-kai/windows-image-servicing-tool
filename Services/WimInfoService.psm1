@@ -1,12 +1,25 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Import-WimInfoDependencies {
+    [CmdletBinding()]
+    param()
+
+    $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
+    Import-Module $bootstrapPath -Global -Force -DisableNameChecking | Out-Null
+
+    $dismPath = Resolve-ProjectPath 'Services\DismService.psm1' -MustExist
+    Import-Module $dismPath -Global -Force -DisableNameChecking | Out-Null
+}
+
 function Get-WimImageList {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$ImagePath
     )
+
+    Import-WimInfoDependencies
 
     if (-not (Test-Path -LiteralPath $ImagePath)) {
         throw "ImagePath nicht gefunden: $ImagePath"

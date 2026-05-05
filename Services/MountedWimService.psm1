@@ -1,10 +1,22 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Import-MountedWimDependencies {
+    [CmdletBinding()]
+    param()
+
+    $bootstrapPath = Join-Path $PSScriptRoot '..\Core\Bootstrap.psm1'
+    Import-Module $bootstrapPath -Global -Force -DisableNameChecking | Out-Null
+
+    $dismPath = Resolve-ProjectPath 'Services\DismService.psm1' -MustExist
+    Import-Module $dismPath -Global -Force -DisableNameChecking | Out-Null
+}
+
 function Get-MountedWimList {
     [CmdletBinding()]
     param()
 
+    Import-MountedWimDependencies
     $res = Invoke-Dism -Arguments @("/Get-MountedWimInfo") -EnsureEnglish
 
     if ($res.ExitCode -ne 0) {

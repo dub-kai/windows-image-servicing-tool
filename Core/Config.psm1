@@ -107,7 +107,7 @@ function Test-ConfigKeyPersistable {
         [string]$Key
     )
 
-    return $Key -in @(
+    $persistableKeys = @(
         "StartPage",
         "AppDebug",
         "MountRoot",
@@ -118,6 +118,8 @@ function Test-ConfigKeyPersistable {
         "WinPeRoot",
         "OscdimgPath"
     )
+
+    return ($persistableKeys -contains [string]$Key)
 }
 
 function New-DefaultConfig {
@@ -216,12 +218,13 @@ function Save-Config {
 
     $persisted = [ordered]@{}
     foreach ($key in ($cfg.Keys | Sort-Object)) {
-        if (-not (Test-ConfigKeyPersistable -Key [string]$key)) { continue }
+        if (-not (Test-ConfigKeyPersistable -Key ([string]$key))) { continue }
         $persisted[[string]$key] = $cfg[$key]
     }
 
-    $json = $persisted | ConvertTo-Json -Depth 8
-    Set-Content -LiteralPath $path -Value $json -Encoding UTF8
+    # ConvertTo-Json must receive the dictionary as a single input object.
+    $json = ConvertTo-Json -InputObject $persisted -Depth 8
+    [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($true))
     return $path
 }
 
