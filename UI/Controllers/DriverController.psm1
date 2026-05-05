@@ -8,8 +8,8 @@ $script:reloadPending = $false
 
 $uiRoot = Split-Path -Parent $PSScriptRoot
 
-Import-Module (Join-Path $uiRoot "UiHelpers.psm1") -Force -DisableNameChecking
-Import-Module (Join-Path $uiRoot "UiAsync.psm1")   -Force -DisableNameChecking
+Import-Module (Join-Path $uiRoot "UiHelpers.psm1") -Force -DisableNameChecking -Global
+Import-Module (Join-Path $uiRoot "UiAsync.psm1")   -Force -DisableNameChecking -Global
 
 $driverDir = Join-Path $PSScriptRoot "Driver"
 

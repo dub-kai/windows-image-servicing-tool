@@ -109,6 +109,7 @@ function Test-ConfigKeyPersistable {
 
     $persistableKeys = @(
         "StartPage",
+        "UiLanguage",
         "AppDebug",
         "MountRoot",
         "DriverLoadAllDefault",
@@ -139,6 +140,7 @@ function New-DefaultConfig {
 
     return @{
         StartPage                 = "Dashboard"
+        UiLanguage                = "de"
         AppDebug                  = $false
         DriverLoadAllDefault      = $false
         UpdatesAutoCatalogDefault = $true

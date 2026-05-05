@@ -1,8 +1,8 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Resolve-ProjectPath 'UI\UiHelpers.psm1' -MustExist) -Force -DisableNameChecking
-Import-Module (Resolve-ProjectPath 'UI\UiAsync.psm1'   -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath 'UI\UiHelpers.psm1' -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath 'UI\UiAsync.psm1'   -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath 'Services\UpdateService.psm1'               -MustExist) -Force -DisableNameChecking
 Import-Module (Resolve-ProjectPath 'Services\WindowsUpdateCatalogService.psm1' -MustExist) -Force -DisableNameChecking
 Import-Module (Resolve-ProjectPath 'Services\MountedWimService.psm1'           -MustExist) -Force -DisableNameChecking

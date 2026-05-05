@@ -9,7 +9,7 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <TextBlock Grid.Row="0"
+    <TextBlock Name="TxtSettingsPageTitle" Grid.Row="0"
                FontSize="24"
                FontWeight="SemiBold"
                Foreground="#0F172A"
@@ -21,7 +21,7 @@
                   HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
 
-        <GroupBox Header="Standardverhalten" Margin="0,0,0,12">
+        <GroupBox Name="GrpSettingsDefaults" Header="Standardverhalten" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="260"/>
@@ -35,31 +35,37 @@
               <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Startseite:"/>
+            <TextBlock Name="TxtSettingsStartPageLabel" Grid.Row="0" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Startseite:"/>
             <ComboBox Grid.Row="0" Grid.Column="1" Name="CmbSettingsStartPage" Height="28" MinWidth="220" SelectedIndex="0" Margin="0,0,0,12">
-              <ComboBoxItem Content="Dashboard"/>
-              <ComboBoxItem Content="Images"/>
-              <ComboBoxItem Content="Media"/>
-              <ComboBoxItem Content="Driver"/>
-              <ComboBoxItem Content="Updates"/>
-              <ComboBoxItem Content="Settings"/>
+              <ComboBoxItem Name="CmbItemStartPageDashboard" Tag="Dashboard" Content="Dashboard"/>
+              <ComboBoxItem Name="CmbItemStartPageImages" Tag="Images" Content="Images"/>
+              <ComboBoxItem Name="CmbItemStartPageMedia" Tag="Media" Content="Media Builder"/>
+              <ComboBoxItem Name="CmbItemStartPageDriver" Tag="Driver" Content="Driver"/>
+              <ComboBoxItem Name="CmbItemStartPageUpdates" Tag="Updates" Content="Updates"/>
+              <ComboBoxItem Name="CmbItemStartPageSettings" Tag="Settings" Content="Settings"/>
             </ComboBox>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Driver-Ansicht:"/>
-            <CheckBox Grid.Row="1" Grid.Column="1" Name="ChkSettingsDriverLoadAllDefault" Margin="0,0,0,12" Content="Treiber standardmäßig vollständig inkl. Inbox laden"/>
+            <TextBlock Name="TxtSettingsLanguageLabel" Grid.Row="1" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Sprache:"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" Name="CmbSettingsLanguage" Height="28" MinWidth="220" Margin="0,0,0,12">
+              <ComboBoxItem Name="CmbItemLanguageDe" Tag="de" Content="Deutsch"/>
+              <ComboBoxItem Name="CmbItemLanguageEn" Tag="en" Content="Englisch"/>
+            </ComboBox>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Updates:"/>
-            <CheckBox Grid.Row="2" Grid.Column="1" Name="ChkSettingsUpdatesAutoCatalogDefault" Margin="0,0,0,12" Content="Catalog bei Mount-Wechsel automatisch laden"/>
+            <TextBlock Name="TxtSettingsDriverViewLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Driver-Ansicht:"/>
+            <CheckBox Grid.Row="2" Grid.Column="1" Name="ChkSettingsDriverLoadAllDefault" Margin="0,0,0,12" Content="Treiber standardmäßig vollständig inkl. Inbox laden"/>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Neue Mounts:"/>
-            <CheckBox Grid.Row="3" Grid.Column="1" Name="ChkSettingsImageMountReadOnlyDefault" Margin="0,0,0,12" Content="Neue Mounts standardmäßig als ReadOnly anlegen"/>
+            <TextBlock Name="TxtSettingsUpdatesLabel" Grid.Row="3" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Updates:"/>
+            <CheckBox Grid.Row="3" Grid.Column="1" Name="ChkSettingsUpdatesAutoCatalogDefault" Margin="0,0,0,12" Content="Catalog bei Mount-Wechsel automatisch laden"/>
 
-            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center" Text="Debug:"/>
-            <CheckBox Grid.Row="4" Grid.Column="1" Name="ChkSettingsAppDebug" Content="Erweitertes Debug-Verhalten aktivieren"/>
+            <TextBlock Name="TxtSettingsNewMountsLabel" Grid.Row="4" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Neue Mounts:"/>
+            <CheckBox Grid.Row="4" Grid.Column="1" Name="ChkSettingsImageMountReadOnlyDefault" Margin="0,0,0,12" Content="Neue Mounts standardmäßig als ReadOnly anlegen"/>
+
+            <TextBlock Name="TxtSettingsDebugLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center" Text="Debug:"/>
+            <CheckBox Grid.Row="5" Grid.Column="1" Name="ChkSettingsAppDebug" Content="Erweitertes Debug-Verhalten aktivieren"/>
           </Grid>
         </GroupBox>
 
-        <GroupBox Header="ADK &amp; WinPE" Margin="0,0,0,12">
+        <GroupBox Name="GrpSettingsAdk" Header="ADK &amp; WinPE" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
@@ -129,7 +135,7 @@
           </Grid>
         </GroupBox>
 
-        <GroupBox Header="Maintenance &amp; Health" Margin="0,0,0,12">
+        <GroupBox Name="GrpSettingsHealth" Header="Maintenance &amp; Health" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
@@ -190,10 +196,10 @@
               <TextBlock Grid.Row="2" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="MountRoot:"/>
               <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtSettingsHealthMountRoot" Margin="0,0,0,6" Text="-" TextWrapping="Wrap"/>
 
-              <TextBlock Grid.Row="3" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="Freier Platz:"/>
+              <TextBlock Name="TxtSettingsHealthFreeSpaceLabel" Grid.Row="3" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="Freier Platz:"/>
               <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtSettingsHealthDrive" Margin="0,0,0,6" Text="-" TextWrapping="Wrap"/>
 
-              <TextBlock Grid.Row="4" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="Aktive Mounts:"/>
+              <TextBlock Name="TxtSettingsHealthActiveMountsLabel" Grid.Row="4" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="Aktive Mounts:"/>
               <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtSettingsHealthMountCount" Margin="0,0,0,6" Text="-" TextWrapping="Wrap"/>
 
               <TextBlock Grid.Row="5" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,0" Text="Logdatei:"/>
@@ -208,7 +214,7 @@
                     Padding="10"
                     Margin="0,0,0,10">
               <StackPanel>
-                <TextBlock FontWeight="SemiBold"
+                <TextBlock Name="TxtSettingsMountedImagesTitle" FontWeight="SemiBold"
                            Foreground="#0F172A"
                            Margin="0,0,0,8"
                            Text="Gemountete Images"/>
@@ -219,14 +225,14 @@
               </StackPanel>
             </Border>
 
-            <TextBlock Grid.Row="4"
+            <TextBlock Name="TxtSettingsHealthHint" Grid.Row="4"
                        Foreground="#6B7280"
                        TextWrapping="Wrap"
                        Text="Maintenance-Aktionen bleiben bewusst vorsichtig: Unmount nutzt immer Discard, und die Bereinigung entfernt nur leere Unterordner unterhalb des aktiven MountRoot."/>
           </Grid>
         </GroupBox>
 
-        <GroupBox Header="MountRoot (Arbeitsordner für DISM-Mounts)" Margin="0,0,0,12">
+        <GroupBox Name="GrpSettingsMountRoot" Header="MountRoot (Arbeitsordner für DISM-Mounts)" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
@@ -269,7 +275,7 @@
           </Grid>
         </GroupBox>
 
-        <GroupBox Header="Info" Margin="0,0,0,12">
+        <GroupBox Name="GrpSettingsInfo" Header="Info" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>

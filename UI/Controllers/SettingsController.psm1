@@ -1,13 +1,63 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking
-Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1" -MustExist) -Force -DisableNameChecking
-Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1" -MustExist) -Force -DisableNameChecking -Global
+$script:configModule = Get-Module -Name 'Config' | Select-Object -First 1
+if (-not $script:configModule) {
+    $script:configModule = Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -DisableNameChecking -Global -PassThru
+}
+Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking -Global
+
+$script:getConfigValueCommand = $null
+$script:setConfigValueCommand = $null
+$script:getConfigFilePathCommand = $null
+
+try { $script:getConfigValueCommand = $script:configModule.ExportedCommands['Get-ConfigValue'] } catch {}
+try { $script:setConfigValueCommand = $script:configModule.ExportedCommands['Set-ConfigValue'] } catch {}
+try { $script:getConfigFilePathCommand = $script:configModule.ExportedCommands['Get-ConfigFilePath'] } catch {}
 
 $script:ctx = $null
 $script:suppressSettingsEvents = $false
 $script:isHealthBusy = $false
+
+function Get-SettingsConfigValue {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter()]$Default = $null
+    )
+
+    if (-not $script:getConfigValueCommand) {
+        throw "Get-ConfigValue ist nicht verfügbar."
+    }
+
+    return (& $script:getConfigValueCommand -Key $Key -Default $Default)
+}
+
+function Set-SettingsConfigValue {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter()]$Value,
+        [switch]$Persist
+    )
+
+    if (-not $script:setConfigValueCommand) {
+        throw "Set-ConfigValue ist nicht verfügbar."
+    }
+
+    return (& $script:setConfigValueCommand -Key $Key -Value $Value -Persist:$Persist)
+}
+
+function Get-SettingsConfigFilePath {
+    param()
+
+    if (-not $script:getConfigFilePathCommand) {
+        throw "Get-ConfigFilePath ist nicht verfügbar."
+    }
+
+    return (& $script:getConfigFilePathCommand)
+}
 
 function Get-SettingsBoolValue {
     param(
@@ -16,23 +66,23 @@ function Get-SettingsBoolValue {
     )
 
     try {
-        return [bool](Get-ConfigValue -Key $Key -Default $Default)
+        return [bool](Get-SettingsConfigValue -Key $Key -Default $Default)
     } catch {
         return $Default
     }
 }
 
-function Set-SettingsComboToContent {
+function Set-SettingsComboToTag {
     param(
         [Parameter(Mandatory)]$ComboBox,
-        [Parameter(Mandatory)][string]$Content
+        [Parameter(Mandatory)][string]$Tag
     )
 
     if (-not $ComboBox) { return }
 
     foreach ($item in @($ComboBox.Items)) {
         try {
-            if ([string]$item.Content -eq $Content) {
+            if ([string]$item.Tag -eq $Tag) {
                 $ComboBox.SelectedItem = $item
                 return
             }
@@ -40,7 +90,7 @@ function Set-SettingsComboToContent {
     }
 }
 
-function Get-SelectedSettingsComboContent {
+function Get-SelectedSettingsComboTag {
     param(
         [Parameter(Mandatory)]$ComboBox,
         [string]$Default = $null
@@ -50,8 +100,8 @@ function Get-SelectedSettingsComboContent {
 
     try {
         $selected = $ComboBox.SelectedItem
-        if ($selected -and $selected.PSObject.Properties.Match('Content').Count -gt 0) {
-            $text = [string]$selected.Content
+        if ($selected -and $selected.PSObject.Properties.Match('Tag').Count -gt 0) {
+            $text = [string]$selected.Tag
             if (-not [string]::IsNullOrWhiteSpace($text)) {
                 return $text
             }
@@ -59,6 +109,17 @@ function Get-SelectedSettingsComboContent {
     } catch {}
 
     return $Default
+}
+
+function Get-UiLanguageLabel {
+    param(
+        [Parameter(Mandatory)][string]$LanguageCode
+    )
+
+    switch ($LanguageCode) {
+        'en' { return (Get-UiString -Key 'SettingsLangEnglish') }
+        default { return (Get-UiString -Key 'SettingsLangGerman') }
+    }
 }
 
 function Save-SettingsValue {
@@ -69,7 +130,7 @@ function Save-SettingsValue {
     )
 
     try {
-        Set-ConfigValue -Key $Key -Value $Value -Persist | Out-Null
+        Set-SettingsConfigValue -Key $Key -Value $Value -Persist | Out-Null
 
         if ($Key -eq 'StartPage') {
             try { Set-AppStateValue -Key 'StartPage' -Value $Value } catch {}
@@ -85,9 +146,9 @@ function Save-SettingsValue {
 }
 
 function Get-CurrentAdkStatus {
-    $adkRoot = [string](Get-ConfigValue -Key 'AdkRoot' -Default $null)
-    $winPeRoot = [string](Get-ConfigValue -Key 'WinPeRoot' -Default $null)
-    $oscdimgPath = [string](Get-ConfigValue -Key 'OscdimgPath' -Default $null)
+    $adkRoot = [string](Get-SettingsConfigValue -Key 'AdkRoot' -Default $null)
+    $winPeRoot = [string](Get-SettingsConfigValue -Key 'WinPeRoot' -Default $null)
+    $oscdimgPath = [string](Get-SettingsConfigValue -Key 'OscdimgPath' -Default $null)
 
     return Get-AdkStatus -ConfiguredAdkRoot $adkRoot -ConfiguredWinPeRoot $winPeRoot -ConfiguredOscdimgPath $oscdimgPath
 }
@@ -127,9 +188,9 @@ function Refresh-SettingsAdkUI {
             if ($status.HasMakeWinPeMedia) { $parts.Add('MakeWinPEMedia') | Out-Null }
 
             if ($parts.Count -gt 0) {
-                $script:ctx.TxtSettingsAdkSummary.Text = ('ADK-Status: gefunden -> {0}' -f ($parts -join ', '))
+                $script:ctx.TxtSettingsAdkSummary.Text = (Get-UiString -Key 'AdkStatusLabel' -Args @(($parts -join ', ')))
             } else {
-                $script:ctx.TxtSettingsAdkSummary.Text = 'ADK-Status: nichts erkannt. ADK oder WinPE Add-on fehlt noch oder Pfade sind nicht gesetzt.'
+                $script:ctx.TxtSettingsAdkSummary.Text = Get-UiString -Key 'AdkStatusMissing'
             }
         }
     } catch {
@@ -145,7 +206,7 @@ function Pick-SettingsFolderPath {
 
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dlg.Description = $Description
+    $dlg.Description = (Get-LocalizedText -Text $Description)
     if ($InitialPath -and (Test-Path -LiteralPath $InitialPath)) {
         $dlg.SelectedPath = $InitialPath
     }
@@ -165,7 +226,7 @@ function Pick-SettingsFilePath {
 
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = $Title
+    $dlg.Title = (Get-LocalizedText -Text $Title)
     $dlg.Filter = $Filter
     $dlg.CheckFileExists = $true
     $dlg.Multiselect = $false
@@ -187,13 +248,13 @@ function Detect-AndSaveAdkDefaults {
     $status = Get-AdkStatus
 
     if ($status.AdkRoot) {
-        Set-ConfigValue -Key 'AdkRoot' -Value ([string]$status.AdkRoot) -Persist | Out-Null
+        Set-SettingsConfigValue -Key 'AdkRoot' -Value ([string]$status.AdkRoot) -Persist | Out-Null
     }
     if ($status.WinPeRoot) {
-        Set-ConfigValue -Key 'WinPeRoot' -Value ([string]$status.WinPeRoot) -Persist | Out-Null
+        Set-SettingsConfigValue -Key 'WinPeRoot' -Value ([string]$status.WinPeRoot) -Persist | Out-Null
     }
     if ($status.OscdimgPath) {
-        Set-ConfigValue -Key 'OscdimgPath' -Value ([string]$status.OscdimgPath) -Persist | Out-Null
+        Set-SettingsConfigValue -Key 'OscdimgPath' -Value ([string]$status.OscdimgPath) -Persist | Out-Null
     }
 
     Refresh-SettingsAdkUI
@@ -232,23 +293,23 @@ function Show-SettingsHealthData {
 
     try {
         if ($script:ctx.TxtSettingsHealthAdmin) {
-            $script:ctx.TxtSettingsHealthAdmin.Text = (Get-DisplayValue $Data.AdminStatus)
+            $script:ctx.TxtSettingsHealthAdmin.Text = (Get-DisplayValue (Get-LocalizedText -Text ([string]$Data.AdminStatus)))
         }
 
         if ($script:ctx.TxtSettingsHealthDism) {
-            $script:ctx.TxtSettingsHealthDism.Text = (Get-DisplayValue $Data.DismStatus)
+            $script:ctx.TxtSettingsHealthDism.Text = (Get-DisplayValue (Get-LocalizedText -Text ([string]$Data.DismStatus)))
         }
 
         if ($script:ctx.TxtSettingsHealthMountRoot) {
-            $script:ctx.TxtSettingsHealthMountRoot.Text = (Get-DisplayValue $Data.MountRootStatus)
+            $script:ctx.TxtSettingsHealthMountRoot.Text = (Get-DisplayValue (Get-LocalizedText -Text ([string]$Data.MountRootStatus)))
         }
 
         if ($script:ctx.TxtSettingsHealthDrive) {
-            $script:ctx.TxtSettingsHealthDrive.Text = (Get-DisplayValue $Data.DriveStatus)
+            $script:ctx.TxtSettingsHealthDrive.Text = (Get-DisplayValue (Get-LocalizedText -Text ([string]$Data.DriveStatus)))
         }
 
         if ($script:ctx.TxtSettingsHealthMountCount) {
-            $script:ctx.TxtSettingsHealthMountCount.Text = (Get-DisplayValue $Data.MountCountStatus)
+            $script:ctx.TxtSettingsHealthMountCount.Text = (Get-DisplayValue (Get-LocalizedText -Text ([string]$Data.MountCountStatus)))
         }
 
         if ($script:ctx.TxtSettingsHealthLog) {
@@ -261,7 +322,7 @@ function Show-SettingsHealthData {
             $script:ctx.LstSettingsHealthMounts.ItemsSource = $items
         }
 
-        Set-SettingsHealthSummary -Message $Data.Summary
+        Set-SettingsHealthSummary -Message (Get-LocalizedText -Text ([string]$Data.Summary))
     } catch {
         Show-UiError -Message $_.Exception.Message
     }
@@ -276,7 +337,7 @@ function Start-SettingsHealthRefresh {
     if ($script:isHealthBusy) { return }
 
     Set-SettingsHealthBusy -Busy $true
-    Set-SettingsHealthSummary -Message 'Status wird aktualisiert...'
+    Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthLoading')
 
     $projectRoot = Get-ProjectRoot
     $safeProjectRoot = $projectRoot.Replace("'", "''")
@@ -369,8 +430,8 @@ try {
     } -OnError {
         param($ex)
         Set-SettingsHealthBusy -Busy $false
-        Set-SettingsHealthSummary -Message 'Status konnte nicht geladen werden.'
-        Show-UiError -Message $ex.Message -Title 'Health'
+        Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthLoadFailed')
+        Show-UiError -Message $ex.Message -Title (Get-UiString -Key 'HealthTitle')
     }
 }
 
@@ -379,7 +440,7 @@ function Start-SettingsUnmountAllDiscard {
     if ($script:isHealthBusy) { return }
 
     Set-SettingsHealthBusy -Busy $true
-    Set-SettingsHealthSummary -Message 'Alle Mounts werden mit Discard unmountet...'
+    Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthUnmountingAll')
 
     $projectRoot = Get-ProjectRoot
     $safeProjectRoot = $projectRoot.Replace("'", "''")
@@ -430,13 +491,13 @@ foreach (`$m in `$mounts) {
         $item = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
         $count = 0
         if ($item) { try { $count = [int]$item.Count } catch { $count = 0 } }
-        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus ("Settings: {0} Mount(s) mit Discard unmounted" -f $count) } catch {} }
-        Start-SettingsHealthRefresh -StatusText ('Settings: Health nach Unmount aktualisiert ({0} Mount(s))' -f $count)
+        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsUnmountCompleted' -Args @($count)) } catch {} }
+        Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterUnmount' -Args @($count))
     } -OnError {
         param($ex)
         Set-SettingsHealthBusy -Busy $false
-        Set-SettingsHealthSummary -Message 'Unmount aller Mounts fehlgeschlagen.'
-        Show-UiError -Message $ex.Message -Title 'Unmount all'
+        Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthLoadFailed')
+        Show-UiError -Message $ex.Message -Title (Get-UiString -Key 'UnmountAllTitle')
     }
 }
 
@@ -445,7 +506,7 @@ function Start-SettingsCleanupEmptyMountDirs {
     if ($script:isHealthBusy) { return }
 
     Set-SettingsHealthBusy -Busy $true
-    Set-SettingsHealthSummary -Message 'Leere Mount-Ordner werden bereinigt...'
+    Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthCleanupDirs')
 
     $projectRoot = Get-ProjectRoot
     $safeProjectRoot = $projectRoot.Replace("'", "''")
@@ -516,13 +577,13 @@ foreach (`$dir in `$dirs) {
         $item = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
         $count = 0
         if ($item) { try { $count = [int]$item.RemovedCount } catch { $count = 0 } }
-        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus ("Settings: {0} leere Mount-Ordner bereinigt" -f $count) } catch {} }
-        Start-SettingsHealthRefresh -StatusText ('Settings: Health nach Bereinigung aktualisiert ({0} Ordner)' -f $count)
+        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsCleanupCompleted' -Args @($count)) } catch {} }
+        Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterCleanup' -Args @($count))
     } -OnError {
         param($ex)
         Set-SettingsHealthBusy -Busy $false
-        Set-SettingsHealthSummary -Message 'Leere Mount-Ordner konnten nicht bereinigt werden.'
-        Show-UiError -Message $ex.Message -Title 'Cleanup'
+        Set-SettingsHealthSummary -Message (Get-UiString -Key 'HealthLoadFailed')
+        Show-UiError -Message $ex.Message -Title (Get-UiString -Key 'CleanupTitle')
     }
 }
 
@@ -535,9 +596,9 @@ function Refresh-SettingsUI {
         if ($script:ctx.TxtSettingsMountRoot) {
             try {
                 $mr = Get-MountRoot
-                $script:ctx.TxtSettingsMountRoot.Text = ("MountRoot: {0}" -f (Get-DisplayValue $mr))
+                $script:ctx.TxtSettingsMountRoot.Text = (Get-UiString -Key 'SettingsMountRootLabel' -Args @((Get-DisplayValue $mr)))
             } catch {
-                $script:ctx.TxtSettingsMountRoot.Text = "MountRoot: -"
+                $script:ctx.TxtSettingsMountRoot.Text = (Get-UiString -Key 'SettingsMountRootLabel' -Args @('-'))
             }
         }
 
@@ -559,7 +620,7 @@ function Refresh-SettingsUI {
 
         if ($script:ctx.TxtSettingsConfigFile) {
             try {
-                $script:ctx.TxtSettingsConfigFile.Text = (Get-DisplayValue (Get-ConfigFilePath))
+                $script:ctx.TxtSettingsConfigFile.Text = (Get-DisplayValue (Get-SettingsConfigFilePath))
             } catch {
                 $script:ctx.TxtSettingsConfigFile.Text = "-"
             }
@@ -568,8 +629,13 @@ function Refresh-SettingsUI {
         Refresh-SettingsAdkUI
 
         if ($script:ctx.CmbSettingsStartPage) {
-            $startPage = [string](Get-ConfigValue -Key 'StartPage' -Default 'Dashboard')
-            Set-SettingsComboToContent -ComboBox $script:ctx.CmbSettingsStartPage -Content $startPage
+            $startPage = [string](Get-SettingsConfigValue -Key 'StartPage' -Default 'Dashboard')
+            Set-SettingsComboToTag -ComboBox $script:ctx.CmbSettingsStartPage -Tag $startPage
+        }
+
+        if ($script:ctx.CmbSettingsLanguage) {
+            $language = [string](Get-SettingsConfigValue -Key 'UiLanguage' -Default 'de')
+            Set-SettingsComboToTag -ComboBox $script:ctx.CmbSettingsLanguage -Tag $language
         }
 
         if ($script:ctx.ChkSettingsDriverLoadAllDefault) {
@@ -610,6 +676,7 @@ function Initialize-SettingsController {
         BtnSettingsPickMountRoot = $null
         BtnSettingsResetMountRoot = $null
         CmbSettingsStartPage = $null
+        CmbSettingsLanguage = $null
         ChkSettingsDriverLoadAllDefault = $null
         ChkSettingsUpdatesAutoCatalogDefault = $null
         ChkSettingsImageMountReadOnlyDefault = $null
@@ -652,6 +719,7 @@ function Initialize-SettingsController {
     $script:ctx.BtnSettingsPickMountRoot = Find-Ui -Root $p -Name 'BtnSettingsPickMountRoot'
     $script:ctx.BtnSettingsResetMountRoot = Find-Ui -Root $p -Name 'BtnSettingsResetMountRoot'
     $script:ctx.CmbSettingsStartPage = Find-Ui -Root $p -Name 'CmbSettingsStartPage'
+    $script:ctx.CmbSettingsLanguage = Find-Ui -Root $p -Name 'CmbSettingsLanguage'
     $script:ctx.ChkSettingsDriverLoadAllDefault = Find-Ui -Root $p -Name 'ChkSettingsDriverLoadAllDefault'
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
@@ -691,7 +759,7 @@ function Initialize-SettingsController {
             try {
                 Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
                 $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-                $dlg.Description = "MountRoot wählen (lokal, NTFS empfohlen)"
+                $dlg.Description = (Get-UiString -Key 'DialogMountRoot')
 
                 $cur = $null
                 try { $cur = Get-AppStateValue -Key 'MountRoot' -Default $null } catch {}
@@ -704,8 +772,8 @@ function Initialize-SettingsController {
 
                 Refresh-SettingsUI
                 if ($script:ctx.OnStateChanged) { try { & $script:ctx.OnStateChanged } catch {} }
-                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'Settings: MountRoot gesetzt' } catch {} }
-                Start-SettingsHealthRefresh -StatusText 'Settings: Health nach MountRoot-Änderung aktualisiert'
+                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsMountRootSet') } catch {} }
+                Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterMountRootChange')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -716,11 +784,11 @@ function Initialize-SettingsController {
         $script:ctx.BtnSettingsResetMountRoot.Add_Click({
             try {
                 try { Set-AppStateValue -Key 'MountRoot' -Value $null } catch {}
-                try { Set-ConfigValue -Key 'MountRoot' -Value $null -Persist } catch {}
+                try { Set-SettingsConfigValue -Key 'MountRoot' -Value $null -Persist } catch {}
                 Refresh-SettingsUI
                 if ($script:ctx.OnStateChanged) { try { & $script:ctx.OnStateChanged } catch {} }
-                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'Settings: MountRoot reset' } catch {} }
-                Start-SettingsHealthRefresh -StatusText 'Settings: Health nach MountRoot-Reset aktualisiert'
+                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsMountRootReset') } catch {} }
+                Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterMountRootReset')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -730,8 +798,19 @@ function Initialize-SettingsController {
     if ($script:ctx.CmbSettingsStartPage) {
         $script:ctx.CmbSettingsStartPage.Add_SelectionChanged({
             if ($script:suppressSettingsEvents) { return }
-            $selected = Get-SelectedSettingsComboContent -ComboBox $script:ctx.CmbSettingsStartPage -Default 'Dashboard'
-            Save-SettingsValue -Key 'StartPage' -Value $selected -StatusMessage ('Settings: Startseite = {0}' -f $selected)
+            $selected = Get-SelectedSettingsComboTag -ComboBox $script:ctx.CmbSettingsStartPage -Default 'Dashboard'
+            Save-SettingsValue -Key 'StartPage' -Value $selected -StatusMessage (Get-UiString -Key 'SettingsStartPageStatus' -Args @($selected))
+        })
+    }
+
+    if ($script:ctx.CmbSettingsLanguage) {
+        $script:ctx.CmbSettingsLanguage.Add_SelectionChanged({
+            if ($script:suppressSettingsEvents) { return }
+            $selected = Get-SelectedSettingsComboTag -ComboBox $script:ctx.CmbSettingsLanguage -Default 'de'
+            Set-UiLanguage -Language $selected | Out-Null
+            Refresh-SettingsUI
+            if ($script:ctx.OnStateChanged) { try { & $script:ctx.OnStateChanged } catch {} }
+            if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsLanguageStatus' -Args @((Get-UiLanguageLabel -LanguageCode $selected))) } catch {} }
         })
     }
 
@@ -740,7 +819,7 @@ function Initialize-SettingsController {
             try {
                 $status = Detect-AndSaveAdkDefaults
                 if ($script:ctx.SetStatus) {
-                    $msg = if ($status.HasAdkRoot) { 'Settings: ADK automatisch erkannt' } else { 'Settings: ADK nicht gefunden' }
+                    $msg = if ($status.HasAdkRoot) { Get-UiString -Key 'SettingsAdkDetected' } else { Get-UiString -Key 'SettingsAdkNotFound' }
                     try { & $script:ctx.SetStatus $msg } catch {}
                 }
             } catch {
@@ -752,10 +831,10 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsPickAdkRoot) {
         $script:ctx.BtnSettingsPickAdkRoot.Add_Click({
             try {
-                $initial = [string](Get-ConfigValue -Key 'AdkRoot' -Default $null)
-                $picked = Pick-SettingsFolderPath -Description 'ADK-Ordner wählen' -InitialPath $initial
+                $initial = [string](Get-SettingsConfigValue -Key 'AdkRoot' -Default $null)
+                $picked = Pick-SettingsFolderPath -Description (Get-UiString -Key 'DialogAdkFolder') -InitialPath $initial
                 if (-not $picked) { return }
-                Save-SettingsValue -Key 'AdkRoot' -Value $picked -StatusMessage 'Settings: ADK-Ordner gesetzt'
+                Save-SettingsValue -Key 'AdkRoot' -Value $picked -StatusMessage (Get-UiString -Key 'SettingsAdkRootSet')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -766,10 +845,10 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsPickWinPeRoot) {
         $script:ctx.BtnSettingsPickWinPeRoot.Add_Click({
             try {
-                $initial = [string](Get-ConfigValue -Key 'WinPeRoot' -Default $null)
-                $picked = Pick-SettingsFolderPath -Description 'WinPE-Ordner wählen' -InitialPath $initial
+                $initial = [string](Get-SettingsConfigValue -Key 'WinPeRoot' -Default $null)
+                $picked = Pick-SettingsFolderPath -Description (Get-UiString -Key 'DialogWinPeFolder') -InitialPath $initial
                 if (-not $picked) { return }
-                Save-SettingsValue -Key 'WinPeRoot' -Value $picked -StatusMessage 'Settings: WinPE-Ordner gesetzt'
+                Save-SettingsValue -Key 'WinPeRoot' -Value $picked -StatusMessage (Get-UiString -Key 'SettingsWinPeRootSet')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -780,10 +859,10 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsPickOscdimgPath) {
         $script:ctx.BtnSettingsPickOscdimgPath.Add_Click({
             try {
-                $initial = [string](Get-ConfigValue -Key 'OscdimgPath' -Default $null)
-                $picked = Pick-SettingsFilePath -Title 'oscdimg.exe wählen' -Filter 'oscdimg.exe|oscdimg.exe|Executables (*.exe)|*.exe|Alle Dateien (*.*)|*.*' -InitialPath $initial
+                $initial = [string](Get-SettingsConfigValue -Key 'OscdimgPath' -Default $null)
+                $picked = Pick-SettingsFilePath -Title (Get-UiString -Key 'DialogOscdimg') -Filter 'oscdimg.exe|oscdimg.exe|Executables (*.exe)|*.exe|Alle Dateien (*.*)|*.*' -InitialPath $initial
                 if (-not $picked) { return }
-                Save-SettingsValue -Key 'OscdimgPath' -Value $picked -StatusMessage 'Settings: oscdimg.exe gesetzt'
+                Save-SettingsValue -Key 'OscdimgPath' -Value $picked -StatusMessage (Get-UiString -Key 'SettingsOscdimgSet')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -794,7 +873,7 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsResetAdkRoot) {
         $script:ctx.BtnSettingsResetAdkRoot.Add_Click({
             try {
-                Save-SettingsValue -Key 'AdkRoot' -Value $null -StatusMessage 'Settings: ADK-Ordner zurückgesetzt'
+                Save-SettingsValue -Key 'AdkRoot' -Value $null -StatusMessage (Get-UiString -Key 'SettingsAdkRootReset')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -805,7 +884,7 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsResetWinPeRoot) {
         $script:ctx.BtnSettingsResetWinPeRoot.Add_Click({
             try {
-                Save-SettingsValue -Key 'WinPeRoot' -Value $null -StatusMessage 'Settings: WinPE-Ordner zurückgesetzt'
+                Save-SettingsValue -Key 'WinPeRoot' -Value $null -StatusMessage (Get-UiString -Key 'SettingsWinPeRootReset')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -816,7 +895,7 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsResetOscdimgPath) {
         $script:ctx.BtnSettingsResetOscdimgPath.Add_Click({
             try {
-                Save-SettingsValue -Key 'OscdimgPath' -Value $null -StatusMessage 'Settings: oscdimg.exe zurückgesetzt'
+                Save-SettingsValue -Key 'OscdimgPath' -Value $null -StatusMessage (Get-UiString -Key 'SettingsOscdimgReset')
                 Refresh-SettingsUI
             } catch {
                 Show-UiError -Message $_.Exception.Message
@@ -826,26 +905,26 @@ function Initialize-SettingsController {
 
     if ($script:ctx.ChkSettingsDriverLoadAllDefault) {
         $script:ctx.ChkSettingsDriverLoadAllDefault.Add_Click({
-            Save-SettingsValue -Key 'DriverLoadAllDefault' -Value ([bool]$script:ctx.ChkSettingsDriverLoadAllDefault.IsChecked) -StatusMessage 'Settings: Driver-Standard aktualisiert'
+            Save-SettingsValue -Key 'DriverLoadAllDefault' -Value ([bool]$script:ctx.ChkSettingsDriverLoadAllDefault.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsDriverDefaultsUpdated')
         })
     }
 
     if ($script:ctx.ChkSettingsUpdatesAutoCatalogDefault) {
         $script:ctx.ChkSettingsUpdatesAutoCatalogDefault.Add_Click({
-            Save-SettingsValue -Key 'UpdatesAutoCatalogDefault' -Value ([bool]$script:ctx.ChkSettingsUpdatesAutoCatalogDefault.IsChecked) -StatusMessage 'Settings: Updates-Standard aktualisiert'
+            Save-SettingsValue -Key 'UpdatesAutoCatalogDefault' -Value ([bool]$script:ctx.ChkSettingsUpdatesAutoCatalogDefault.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsUpdatesDefaultsUpdated')
         })
     }
 
     if ($script:ctx.ChkSettingsImageMountReadOnlyDefault) {
         $script:ctx.ChkSettingsImageMountReadOnlyDefault.Add_Click({
-            Save-SettingsValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked) -StatusMessage 'Settings: Mount-Standard aktualisiert'
+            Save-SettingsValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsMountDefaultsUpdated')
         })
     }
 
     if ($script:ctx.ChkSettingsAppDebug) {
         $script:ctx.ChkSettingsAppDebug.Add_Click({
-            Save-SettingsValue -Key 'AppDebug' -Value ([bool]$script:ctx.ChkSettingsAppDebug.IsChecked) -StatusMessage 'Settings: Debug-Standard aktualisiert'
-            Start-SettingsHealthRefresh -StatusText 'Settings: Health nach Debug-Änderung aktualisiert'
+            Save-SettingsValue -Key 'AppDebug' -Value ([bool]$script:ctx.ChkSettingsAppDebug.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsDebugUpdated')
+            Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterDebugChange')
         })
     }
 
@@ -869,7 +948,7 @@ function Initialize-SettingsController {
 
     Refresh-SettingsUI
     Set-SettingsHealthBusy -Busy $false
-    Start-SettingsHealthRefresh -StatusText 'Health: Initial geladen'
+    Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'HealthInitiallyLoaded')
 }
 
 Export-ModuleMember -Function Initialize-SettingsController, Refresh-SettingsUI

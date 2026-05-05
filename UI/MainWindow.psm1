@@ -1,8 +1,10 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking
-Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1"   -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1"   -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
 
 Import-Module (Resolve-ProjectPath "UI\Controllers\ImagesController.psm1"    -MustExist) -Force -DisableNameChecking
 Import-Module (Resolve-ProjectPath "UI\Controllers\DashboardController.psm1" -MustExist) -Force -DisableNameChecking

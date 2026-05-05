@@ -1,6 +1,7 @@
 ﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Win Image Admin (Next)"
+        Name="MainWindow"
         Height="760" Width="1120"
         MinWidth="980" MinHeight="680"
         WindowStartupLocation="CenterScreen"
@@ -108,7 +109,7 @@
         <StackPanel Orientation="Vertical" VerticalAlignment="Center">
           <TextBlock Foreground="White" FontSize="21" FontWeight="SemiBold"
                      Text="Win Image Admin (Next)"/>
-          <TextBlock Foreground="#B7C5D2" FontSize="12"
+          <TextBlock Name="TxtMainSubtitle" Foreground="#B7C5D2" FontSize="12"
                      Text="Deployment, Images, Driver und Updates in einer Oberfläche"/>
         </StackPanel>
 
@@ -142,7 +143,7 @@
 
             <Separator Margin="0,10,0,10"/>
 
-            <TextBlock Text="State" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,8"/>
+            <TextBlock Name="TxtShellState" Text="Status" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,8"/>
             <Border Background="White" BorderBrush="#D5DEE6" BorderThickness="1" CornerRadius="12" Padding="12">
               <StackPanel>
                 <TextBlock Name="TxtIso" Foreground="#334155" Text="ISO: -" TextWrapping="Wrap" Margin="0,0,0,8"/>

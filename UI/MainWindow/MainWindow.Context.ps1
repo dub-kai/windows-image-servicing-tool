@@ -43,10 +43,32 @@
     $driverPage    = Import-XamlFile -RelativePath "UI\Pages\Driver.xaml"
     $updatesPage   = Import-XamlFile -RelativePath "UI\Pages\Updates.xaml"
     $settingsPage  = Import-XamlFile -RelativePath "UI\Pages\Settings.xaml"
+    $applyLocalization = ${function:Apply-LocalizationToRoot}
+    $getUiString = ${function:Get-UiString}
+    $getLocalizedText = ${function:Get-LocalizedText}
+    $refreshLocalization = {
+        & $applyLocalization -Root $window
+
+        foreach ($page in @(
+            $dashboardPage,
+            $imagesPage,
+            $mediaPage,
+            $driverPage,
+            $updatesPage,
+            $settingsPage
+        )) {
+            if ($page) {
+                & $applyLocalization -Root $page
+            }
+        }
+    }.GetNewClosure()
+
+    & $refreshLocalization
 
     $setStatus = {
         param([string]$t)
-        if ($txtStatus -and $txtStatus.PSObject.Properties.Match("Text").Count -gt 0) { $txtStatus.Text = $t }
+        $displayText = if ([string]::IsNullOrWhiteSpace($t)) { & $getUiString -Key 'ShellReady' } else { & $getLocalizedText -Text $t }
+        if ($txtStatus -and $txtStatus.PSObject.Properties.Match("Text").Count -gt 0) { $txtStatus.Text = $displayText }
     }.GetNewClosure()
 
     return [pscustomobject]@{
@@ -61,7 +83,9 @@
         SettingsPage  = $settingsPage
         SetStatus     = $setStatus
 
-        OnStateChanged = $null
+        OnStateChanged = {
+            & $refreshLocalization
+        }.GetNewClosure()
         ControllerInitialized = @{}
 
         NavigateDashboard = $null
