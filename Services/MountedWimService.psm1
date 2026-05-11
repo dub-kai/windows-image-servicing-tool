@@ -12,6 +12,196 @@ function Import-MountedWimDependencies {
     Import-Module $dismPath -Global -Force -DisableNameChecking | Out-Null
 }
 
+function Normalize-MountedWimPath {
+    [CmdletBinding()]
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+
+    try {
+        return [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    } catch {
+        return $Path.TrimEnd('\')
+    }
+}
+
+function Convert-MountedWimRegistryStatus {
+    [CmdletBinding()]
+    param([Nullable[int]]$StatusCode)
+
+    if ($null -eq $StatusCode) {
+        return [pscustomobject]@{
+            Health            = 'Unbekannt'
+            HealthHint        = 'DISM hat keinen eindeutigen Mount-Zustand geliefert.'
+            RecommendedAction = 'Refresh oder DISM-Log prüfen'
+            CanCommit         = $false
+            CanDiscard        = $true
+        }
+    }
+
+    switch ([int]$StatusCode) {
+        2 {
+            return [pscustomobject]@{
+                Health            = 'OK'
+                HealthHint        = 'Mount ist normal aktiv.'
+                RecommendedAction = 'Commit oder Discard möglich'
+                CanCommit         = $true
+                CanDiscard        = $true
+            }
+        }
+        3 {
+            return [pscustomobject]@{
+                Health            = 'Teilweise ausgehängt'
+                HealthHint        = 'DISM meldet einen teilweisen Unmount. Commit darf nicht erneut ausgeführt werden.'
+                RecommendedAction = 'Mount bereinigen'
+                CanCommit         = $false
+                CanDiscard        = $true
+            }
+        }
+        default {
+            return [pscustomobject]@{
+                Health            = ("Unklar ({0})" -f [int]$StatusCode)
+                HealthHint        = 'Der Mount hat einen unerwarteten WIMMount-Status.'
+                RecommendedAction = 'DISM-Log prüfen oder ohne Commit bereinigen'
+                CanCommit         = $false
+                CanDiscard        = $true
+            }
+        }
+    }
+}
+
+function Get-WimMountRegistryEntries {
+    [CmdletBinding()]
+    param()
+
+    $base = 'HKLM:\SOFTWARE\Microsoft\WIMMount\Mounted Images'
+    if (-not (Test-Path -LiteralPath $base)) { return @() }
+
+    $items = New-Object System.Collections.Generic.List[object]
+
+    foreach ($key in @(Get-ChildItem -LiteralPath $base -ErrorAction SilentlyContinue)) {
+        try {
+            $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction Stop
+
+            $mountProp = $props.PSObject.Properties['Mount Path']
+            if ($null -eq $mountProp -or [string]::IsNullOrWhiteSpace([string]$mountProp.Value)) { continue }
+
+            $status = $null
+            $statusProp = $props.PSObject.Properties['Status']
+            if ($statusProp) { try { $status = [int]$statusProp.Value } catch { $status = $null } }
+
+            $wimPath = $null
+            $wimProp = $props.PSObject.Properties['WIM Path']
+            if ($wimProp) { $wimPath = [string]$wimProp.Value }
+
+            $imageIndex = $null
+            $indexProp = $props.PSObject.Properties['Image Index']
+            if ($indexProp) { try { $imageIndex = [int]$indexProp.Value } catch { $imageIndex = $null } }
+
+            $health = Convert-MountedWimRegistryStatus -StatusCode $status
+
+            $items.Add([pscustomobject]@{
+                Key               = [string]$key.PSChildName
+                MountDir          = [string]$mountProp.Value
+                MountDirKey       = Normalize-MountedWimPath -Path ([string]$mountProp.Value)
+                ImageFile         = $wimPath
+                ImageIndex        = $imageIndex
+                StatusCode        = $status
+                Health            = [string]$health.Health
+                HealthHint        = [string]$health.HealthHint
+                RecommendedAction = [string]$health.RecommendedAction
+                CanCommit         = [bool]$health.CanCommit
+                CanDiscard        = [bool]$health.CanDiscard
+                RegistryOnly      = $true
+            }) | Out-Null
+        } catch {}
+    }
+
+    return @($items.ToArray())
+}
+
+function Add-MountedWimRegistryHealth {
+    [CmdletBinding()]
+    param([AllowEmptyCollection()][object[]]$Items = @())
+
+    $registryEntries = @(Get-WimMountRegistryEntries)
+    $registryByMount = @{}
+    foreach ($entry in $registryEntries) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$entry.MountDirKey)) {
+            $registryByMount[[string]$entry.MountDirKey] = $entry
+        }
+    }
+
+    $merged = New-Object System.Collections.Generic.List[object]
+    $seen = @{}
+
+    foreach ($item in @($Items)) {
+        $mountDir = [string]$item.MountDir
+        $key = Normalize-MountedWimPath -Path $mountDir
+        $registry = if ($key -and $registryByMount.ContainsKey($key)) { $registryByMount[$key] } else { $null }
+
+        $statusCode = $null
+        $health = $null
+        if ($registry) {
+            $statusCode = $registry.StatusCode
+            $health = Convert-MountedWimRegistryStatus -StatusCode $statusCode
+            $seen[$key] = $true
+        } else {
+            $health = [pscustomobject]@{
+                Health            = 'OK'
+                HealthHint        = 'DISM meldet den Mount als aktiv.'
+                RecommendedAction = 'Commit oder Discard möglich'
+                CanCommit         = $true
+                CanDiscard        = $true
+            }
+        }
+
+        $merged.Add([pscustomobject]@{
+            MountDir          = $mountDir
+            ImageFile         = if ($registry -and -not [string]::IsNullOrWhiteSpace([string]$registry.ImageFile)) { [string]$registry.ImageFile } else { [string]$item.ImageFile }
+            ImageIndex        = if ($registry -and $null -ne $registry.ImageIndex) { $registry.ImageIndex } else { $item.ImageIndex }
+            Status            = [string]$item.Status
+            StatusCode        = $statusCode
+            ReadWrite         = [string]$item.ReadWrite
+            Health            = [string]$health.Health
+            HealthHint        = [string]$health.HealthHint
+            RecommendedAction = [string]$health.RecommendedAction
+            CanCommit         = [bool]$health.CanCommit
+            CanDiscard        = [bool]$health.CanDiscard
+            RegistryOnly      = $false
+        }) | Out-Null
+    }
+
+    foreach ($entry in $registryEntries) {
+        if ([string]::IsNullOrWhiteSpace([string]$entry.MountDirKey)) { continue }
+        if ($seen.ContainsKey([string]$entry.MountDirKey)) { continue }
+
+        $registryOnlyHealth = 'Registry-Rest'
+        $registryOnlyHint = if ($entry.StatusCode -eq 3) {
+            'DISM führt diesen Pfad nur noch in der WIMMount-Registry, aber nicht mehr als gültigen Mount. Normaler Unmount funktioniert hier nicht.'
+        } else {
+            'Der Mount steht noch in der WIMMount-Registry, wird von DISM aber nicht mehr normal gelistet.'
+        }
+
+        $merged.Add([pscustomobject]@{
+            MountDir          = [string]$entry.MountDir
+            ImageFile         = [string]$entry.ImageFile
+            ImageIndex        = $entry.ImageIndex
+            Status            = 'Nicht in DISM-Liste'
+            StatusCode        = $entry.StatusCode
+            ReadWrite         = '-'
+            Health            = $registryOnlyHealth
+            HealthHint        = $registryOnlyHint
+            RecommendedAction = 'DISM Cleanup-Wim'
+            CanCommit         = $false
+            CanDiscard        = $false
+            RegistryOnly      = $true
+        }) | Out-Null
+    }
+
+    return @($merged.ToArray())
+}
+
 function Get-MountedWimList {
     [CmdletBinding()]
     param()
@@ -98,7 +288,7 @@ function Get-MountedWimList {
     }
 
     Flush-Current
-    return @($list.ToArray())
+    return @(Add-MountedWimRegistryHealth -Items @($list.ToArray()))
 }
 
 Export-ModuleMember -Function Get-MountedWimList

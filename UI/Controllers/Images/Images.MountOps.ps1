@@ -289,12 +289,35 @@ function Invoke-UnmountMounted {
         $safeMount = $svcMount.Replace("'", "''")
 
         $safeDir = $MountDir.Replace("'", "''")
+        $preCommitDelaySec = 0
+        if ($Mode -eq "Commit") {
+            $lastRefreshRaw = $null
+            try { $lastRefreshRaw = Get-AppStateValue -Key "LastMountedWimRefreshAtUtc" -Default $null } catch { $lastRefreshRaw = $null }
+            $quietPeriodSec = 15
+            try { $quietPeriodSec = [int](Get-ConfigValue -Key "MountedWimRefreshQuietPeriodSec" -Default 15) } catch { $quietPeriodSec = 15 }
+            if ($quietPeriodSec -lt 0) { $quietPeriodSec = 0 }
+
+            if (-not [string]::IsNullOrWhiteSpace([string]$lastRefreshRaw) -and $quietPeriodSec -gt 0) {
+                $lastRefreshUtc = [DateTime]::MinValue
+                if ([DateTime]::TryParse([string]$lastRefreshRaw, [ref]$lastRefreshUtc)) {
+                    $elapsedSec = [Math]::Max(0, [int]([DateTime]::UtcNow - $lastRefreshUtc.ToUniversalTime()).TotalSeconds)
+                    if ($elapsedSec -lt $quietPeriodSec) {
+                        $preCommitDelaySec = $quietPeriodSec - $elapsedSec
+                    }
+                }
+            }
+        }
 
         $commit  = if ($Mode -eq "Commit") { '$true' } else { '$false' }
         $discard = if ($Mode -eq "Discard") { '$true' } else { '$false' }
+        $safePreCommitDelaySec = [int]$preCommitDelaySec
 
         $code = @"
 `$ErrorActionPreference = 'Stop'
+`$preCommitDelaySec = $safePreCommitDelaySec
+if ($commit -and `$preCommitDelaySec -gt 0) {
+    Start-Sleep -Seconds `$preCommitDelaySec
+}
 Import-Module '$safeBoot'  -Force
 Import-Module '$safeCfg'   -Force
 Import-Module '$safeLog'   -Force
@@ -379,7 +402,15 @@ function Unmount-MountedSelectedCommit {
     if (-not $script:ctx -or -not $script:ctx.LstMountedWims) { return }
     $sel = $script:ctx.LstMountedWims.SelectedItem
     if (-not $sel) { Show-UiError -Message "Bitte ein Mounted Image auswählen."; return }
-    if (-not (Test-MountedWritable -MountedItem $sel)) { Show-UiError -Message "Commit nicht möglich (ReadOnly / nicht RW)." ; return }
+    if (-not (Test-MountedWritable -MountedItem $sel)) {
+        $msg = "Commit ist für diesen Mount nicht möglich."
+        try {
+            $hint = Get-MountedSelectionHint -MountedItem $sel
+            if (-not [string]::IsNullOrWhiteSpace($hint)) { $msg = $hint }
+        } catch {}
+        Show-UiError -Message $msg
+        return
+    }
     $dir = Get-SelectedMountedDir
     if (-not $dir) { Show-UiError -Message "MountDir nicht ermittelbar."; return }
     Invoke-UnmountMounted -MountDir $dir -Mode "Commit"

@@ -378,6 +378,20 @@ function Test-HealthAdmin {
 `$mountRoot = Get-MountRoot
 `$mounts = @()
 try { `$mounts = @(Get-MountedWimList) } catch { `$mounts = @() }
+`$activeMounts = @(`$mounts | Where-Object {
+    `$registryOnly = `$false
+    if (`$_.PSObject.Properties.Match('RegistryOnly').Count -gt 0) {
+        try { `$registryOnly = [bool]`$_.RegistryOnly } catch { `$registryOnly = `$false }
+    }
+    -not `$registryOnly
+})
+`$registryRests = @(`$mounts | Where-Object {
+    `$registryOnly = `$false
+    if (`$_.PSObject.Properties.Match('RegistryOnly').Count -gt 0) {
+        try { `$registryOnly = [bool]`$_.RegistryOnly } catch { `$registryOnly = `$false }
+    }
+    `$registryOnly
+})
 
 `$dismExe = Join-Path `$env:WINDIR 'System32\dism.exe'
 if (-not (Test-Path -LiteralPath `$dismExe)) { `$dismExe = 'dism.exe' }
@@ -395,14 +409,25 @@ try {
 
 `$mountEntries = @(
     foreach (`$m in `$mounts) {
+        `$health = ''
+        `$action = ''
+        `$registryOnly = `$false
+        if (`$m.PSObject.Properties.Match('Health').Count -gt 0) { `$health = [string]`$m.Health }
+        if (`$m.PSObject.Properties.Match('RecommendedAction').Count -gt 0) { `$action = [string]`$m.RecommendedAction }
+        if (`$m.PSObject.Properties.Match('RegistryOnly').Count -gt 0) { try { `$registryOnly = [bool]`$m.RegistryOnly } catch { `$registryOnly = `$false } }
+
         [pscustomobject]@{
-            Text = ('{0} | Index {1} | {2}' -f [string]`$m.MountDir, [string]`$m.ImageIndex, [string]`$m.ReadWrite)
+            Text = if (`$registryOnly) {
+                ('{0} | {1} | {2}' -f [string]`$m.MountDir, `$health, `$action)
+            } else {
+                ('{0} | Index {1} | {2} | {3}' -f [string]`$m.MountDir, [string]`$m.ImageIndex, [string]`$m.ReadWrite, `$health)
+            }
         }
     }
 )
 
-`$summary = if (@(`$mounts).Count -gt 0) {
-    '{0} aktive Mounts erkannt.' -f @(`$mounts).Count
+`$summary = if (@(`$activeMounts).Count -gt 0 -or @(`$registryRests).Count -gt 0) {
+    '{0} aktive Mounts, {1} Registry-Rest(e) erkannt.' -f @(`$activeMounts).Count, @(`$registryRests).Count
 } else {
     'Keine aktiven Mounts erkannt.'
 }
@@ -413,7 +438,7 @@ try {
     DismStatus       = `$(if (Test-Path -LiteralPath `$dismExe) { ('OK - {0}' -f `$dismExe) } else { 'DISM nicht gefunden' })
     MountRootStatus  = `$(if (Test-Path -LiteralPath `$mountRoot) { ('OK - {0}' -f `$mountRoot) } else { ('Fehlt - {0}' -f `$mountRoot) })
     DriveStatus      = `$driveStatus
-    MountCountStatus = ('{0} aktive Mounts' -f @(`$mounts).Count)
+    MountCountStatus = ('{0} aktive Mounts, {1} Registry-Rest(e)' -f @(`$activeMounts).Count, @(`$registryRests).Count)
     LogStatus        = (Get-LogFilePath)
     MountEntries     = `$mountEntries
 }
@@ -470,18 +495,53 @@ Import-Module '$safeMntSvc' -Force -DisableNameChecking
 
 `$mounts = @(Get-MountedWimList)
 `$done = New-Object System.Collections.Generic.List[string]
+`$skippedRegistry = New-Object System.Collections.Generic.List[string]
 
 foreach (`$m in `$mounts) {
     if (`$null -eq `$m) { continue }
     `$dir = [string]`$m.MountDir
     if ([string]::IsNullOrWhiteSpace(`$dir)) { continue }
+
+    `$registryOnly = `$false
+    if (`$m.PSObject.Properties.Match('RegistryOnly').Count -gt 0) {
+        try { `$registryOnly = [bool]`$m.RegistryOnly } catch { `$registryOnly = `$false }
+    }
+
+    `$canDiscard = `$true
+    if (`$m.PSObject.Properties.Match('CanDiscard').Count -gt 0) {
+        try { `$canDiscard = [bool]`$m.CanDiscard } catch { `$canDiscard = `$false }
+    }
+
+    if (`$registryOnly -or -not `$canDiscard) {
+        `$skippedRegistry.Add(`$dir) | Out-Null
+        continue
+    }
+
     Unmount-WimImage -MountDir `$dir -Discard | Out-Null
     `$done.Add(`$dir) | Out-Null
 }
 
+`$cleanupRan = `$false
+`$cleanupOk = `$false
+`$cleanupError = `$null
+if (`$skippedRegistry.Count -gt 0) {
+    `$cleanupRan = `$true
+    try {
+        Repair-WimMountRegistry -TimeoutSec 900 | Out-Null
+        `$cleanupOk = `$true
+    } catch {
+        `$cleanupError = `$_.Exception.Message
+    }
+}
+
 [pscustomobject]@{
-    Count = @(`$done.ToArray()).Count
-    Mounts = @(`$done.ToArray())
+    Count              = @(`$done.ToArray()).Count
+    Mounts             = @(`$done.ToArray())
+    RegistryRestCount  = @(`$skippedRegistry.ToArray()).Count
+    RegistryRests      = @(`$skippedRegistry.ToArray())
+    CleanupRan         = `$cleanupRan
+    CleanupOk          = `$cleanupOk
+    CleanupError       = `$cleanupError
 }
 "@
 
@@ -491,8 +551,28 @@ foreach (`$m in `$mounts) {
         $item = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
         $count = 0
         if ($item) { try { $count = [int]$item.Count } catch { $count = 0 } }
-        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsUnmountCompleted' -Args @($count)) } catch {} }
-        Start-SettingsHealthRefresh -StatusText (Get-UiString -Key 'SettingsHealthAfterUnmount' -Args @($count))
+        $registryRestCount = 0
+        if ($item) { try { $registryRestCount = [int]$item.RegistryRestCount } catch { $registryRestCount = 0 } }
+        $cleanupRan = $false
+        if ($item) { try { $cleanupRan = [bool]$item.CleanupRan } catch { $cleanupRan = $false } }
+        $cleanupOk = $false
+        if ($item) { try { $cleanupOk = [bool]$item.CleanupOk } catch { $cleanupOk = $false } }
+
+        $statusText = Get-UiString -Key 'SettingsUnmountCompleted' -Args @($count)
+        if ($cleanupRan -and $cleanupOk) {
+            $statusText = Get-UiString -Key 'SettingsUnmountCompletedWithCleanup' -Args @($count, $registryRestCount)
+        } elseif ($cleanupRan) {
+            $statusText = Get-UiString -Key 'SettingsUnmountCleanupFailed' -Args @($count, $registryRestCount)
+        }
+
+        $refreshText = if ($cleanupRan) {
+            Get-UiString -Key 'SettingsHealthAfterUnmountWithCleanup' -Args @($count, $registryRestCount)
+        } else {
+            Get-UiString -Key 'SettingsHealthAfterUnmount' -Args @($count)
+        }
+
+        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus $statusText } catch {} }
+        Start-SettingsHealthRefresh -StatusText $refreshText
     } -OnError {
         param($ex)
         Set-SettingsHealthBusy -Busy $false

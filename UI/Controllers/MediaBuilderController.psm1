@@ -386,7 +386,12 @@ function Start-MediaProgressMonitor {
     $script:mediaProgressPath = $ProgressPath
     $script:mediaOutputPath = $OutputPath
     $script:mediaBusyStartedAt = Get-Date
-    Set-MediaBuildStatus -Message $InitialMessage -Detail 'DISM kann bei install.esd lange rechnen; die Datei bleibt dabei oft bis kurz vor Ende klein.' -SizeBytes 0 -SizeText 'wartet auf DISM'
+    $initialDetail = if ($TargetName -eq 'install.esd') {
+        'ESD-Komprimierung kann lange rechnen. Eine kleine Datei am Anfang ist normal.'
+    } else {
+        'DISM arbeitet im Hintergrund. Größere Images brauchen oft einige Minuten.'
+    }
+    Set-MediaBuildStatus -Message $InitialMessage -Detail $initialDetail -SizeBytes 0 -SizeText 'wartet auf DISM'
     Add-MediaBuildLog $InitialMessage
 
     $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
@@ -461,6 +466,29 @@ function Start-MediaProgressMonitor {
                     $detail = [string]$progress.Status
                 }
                 $size = [long]$progress.SizeBytes
+
+                $parts = New-Object System.Collections.Generic.List[string]
+                if (-not [string]::IsNullOrWhiteSpace([string]$detail)) {
+                    [void]$parts.Add([string]$detail)
+                }
+
+                $elapsedSec = 0
+                try { $elapsedSec = [int]$progress.ElapsedSec } catch { $elapsedSec = 0 }
+                if ($elapsedSec -gt 0) {
+                    [void]$parts.Add(('DISM aktiv seit {0:mm\:ss}' -f ([TimeSpan]::FromSeconds($elapsedSec))))
+                }
+
+                $heartbeat = [string](Get-MediaCtxValue -Obj $progress -Key 'Heartbeat')
+                if (-not [string]::IsNullOrWhiteSpace($heartbeat)) {
+                    [void]$parts.Add(("DISM meldet: {0}" -f $heartbeat))
+                } else {
+                    $hint = [string](Get-MediaCtxValue -Obj $progress -Key 'Hint')
+                    if (-not [string]::IsNullOrWhiteSpace($hint)) {
+                        [void]$parts.Add($hint)
+                    }
+                }
+
+                $detail = ($parts | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ' | '
             }
 
             if ($size -le 0 -and -not [string]::IsNullOrWhiteSpace($script:mediaOutputPath) -and (Test-Path -LiteralPath $script:mediaOutputPath -PathType Leaf)) {

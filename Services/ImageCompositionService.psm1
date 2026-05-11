@@ -20,7 +20,10 @@ function Set-ImageCompositionProgress {
         [Parameter()][int]$Current = 0,
         [Parameter()][int]$Total = 0,
         [Parameter()][string]$Message = $null,
-        [Parameter()][string]$OutputPath = $null
+        [Parameter()][string]$OutputPath = $null,
+        [Parameter()][string]$Hint = $null,
+        [Parameter()][int]$ElapsedSec = 0,
+        [Parameter()][string]$Heartbeat = $null
     )
 
     if ([string]::IsNullOrWhiteSpace($ProgressPath)) { return }
@@ -34,6 +37,9 @@ function Set-ImageCompositionProgress {
             Message    = $Message
             OutputPath = $OutputPath
             SizeBytes  = 0
+            Hint       = $Hint
+            ElapsedSec = $ElapsedSec
+            Heartbeat  = $Heartbeat
         }
 
         if (-not [string]::IsNullOrWhiteSpace($OutputPath) -and (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
@@ -47,6 +53,30 @@ function Set-ImageCompositionProgress {
 
         $data | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ProgressPath -Encoding UTF8
     } catch {}
+}
+
+function Get-ImageCompositionTargetLabel {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$OutputPath)
+
+    $ext = [System.IO.Path]::GetExtension($OutputPath).ToLowerInvariant()
+    if ($ext -eq '.wim') { return 'install.wim' }
+    if ($ext -eq '.esd') { return 'install.esd' }
+    return [System.IO.Path]::GetFileName($OutputPath)
+}
+
+function Get-ImageCompositionRunningHint {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$TargetLabel,
+        [Parameter(Mandatory)][string]$Compression
+    )
+
+    if ($TargetLabel -eq 'install.esd' -or $Compression -eq 'recovery') {
+        return 'ESD-Komprimierung kann lange rechnen. Eine sehr kleine Datei ist dabei am Anfang normal.'
+    }
+
+    return 'DISM arbeitet. Bei großen WIMs kann der Export mehrere Minuten dauern.'
 }
 
 function Get-ImageSpecValue {
@@ -99,9 +129,10 @@ function Build-CombinedInstallImage {
     Import-ImageCompositionDependencies
 
     $outputFull = [System.IO.Path]::GetFullPath($OutputPath)
+    $targetLabel = Get-ImageCompositionTargetLabel -OutputPath $outputFull
     $outputDir = [System.IO.Path]::GetDirectoryName($outputFull)
     if ([string]::IsNullOrWhiteSpace($outputDir)) {
-        throw "Zielordner für install.esd konnte nicht bestimmt werden: $OutputPath"
+        throw "Zielordner für $targetLabel konnte nicht bestimmt werden: $OutputPath"
     }
 
     if (-not (Test-Path -LiteralPath $outputDir -PathType Container)) {
@@ -119,7 +150,8 @@ function Build-CombinedInstallImage {
 
     $exported = New-Object System.Collections.Generic.List[object]
     $position = 0
-    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Starting' -Current 0 -Total $items.Count -Message 'install.esd wird vorbereitet...' -OutputPath $outputFull
+    $runningHint = Get-ImageCompositionRunningHint -TargetLabel $targetLabel -Compression $Compression
+    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Starting' -Current 0 -Total $items.Count -Message ("{0} wird vorbereitet..." -f $targetLabel) -OutputPath $outputFull -Hint $runningHint
 
     try {
         foreach ($spec in $items) {
@@ -140,7 +172,7 @@ function Build-CombinedInstallImage {
             $displayName = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
             if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = [System.IO.Path]::GetFileName($path) }
             $msg = ("Exportiere {0}/{1}: {2} (Index {3})" -f $position, $items.Count, $displayName, $index)
-            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exporting' -Current $position -Total $items.Count -Message $msg -OutputPath $outputFull
+            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exporting' -Current $position -Total $items.Count -Message $msg -OutputPath $outputFull -Hint $runningHint
 
             try {
                 if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
@@ -158,7 +190,36 @@ function Build-CombinedInstallImage {
                 ('/ScratchDir:"{0}"' -f $scratchDir)
             )
 
-            $result = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 7200
+            $heartbeatAction = {
+                param($state)
+
+                $heartbeatText = $null
+                if (-not [string]::IsNullOrWhiteSpace([string]$state.StdErrTail)) {
+                    $heartbeatText = ([string]$state.StdErrTail).Trim()
+                } elseif (-not [string]::IsNullOrWhiteSpace([string]$state.StdOutTail)) {
+                    $heartbeatText = ([string]$state.StdOutTail).Trim()
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($heartbeatText)) {
+                    $heartbeatText = $heartbeatText -replace '\s+', ' '
+                    if ($heartbeatText.Length -gt 220) {
+                        $heartbeatText = $heartbeatText.Substring($heartbeatText.Length - 220)
+                    }
+                }
+
+                Set-ImageCompositionProgress `
+                    -ProgressPath $ProgressPath `
+                    -Status 'Exporting' `
+                    -Current $position `
+                    -Total $items.Count `
+                    -Message $msg `
+                    -OutputPath $outputFull `
+                    -Hint $runningHint `
+                    -ElapsedSec ([int]$state.ElapsedSec) `
+                    -Heartbeat $heartbeatText
+            }.GetNewClosure()
+
+            $result = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 7200 -OnHeartbeat $heartbeatAction -HeartbeatIntervalSec 3
             if ($result.ExitCode -ne 0) {
                 $err = $result.StdErr
                 if ([string]::IsNullOrWhiteSpace($err)) { $err = $result.StdOut }
@@ -172,10 +233,10 @@ function Build-CombinedInstallImage {
                 Description = [string](Get-ImageSpecValue -Spec $spec -Names @('Description', 'ImageDescription'))
             }) | Out-Null
 
-            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exported' -Current $position -Total $items.Count -Message ("Fertig: {0}" -f $displayName) -OutputPath $outputFull
+            Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exported' -Current $position -Total $items.Count -Message ("Fertig: {0}" -f $displayName) -OutputPath $outputFull -Hint $runningHint
         }
     } catch {
-        Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Failed' -Current $position -Total $items.Count -Message $_.Exception.Message -OutputPath $outputFull
+        Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Failed' -Current $position -Total $items.Count -Message $_.Exception.Message -OutputPath $outputFull -Hint $runningHint
         if (Test-Path -LiteralPath $outputFull -PathType Leaf) {
             try { Remove-Item -LiteralPath $outputFull -Force } catch {}
         }
@@ -183,15 +244,15 @@ function Build-CombinedInstallImage {
     }
 
     if (-not (Test-Path -LiteralPath $outputFull -PathType Leaf)) {
-        throw "install.esd wurde nicht erstellt: $outputFull"
+        throw "$targetLabel wurde nicht erstellt: $outputFull"
     }
 
     $fileInfo = Get-Item -LiteralPath $outputFull -ErrorAction Stop
     if ($fileInfo.Length -le 0) {
-        throw "install.esd wurde angelegt, ist aber leer: $outputFull"
+        throw "$targetLabel wurde angelegt, ist aber leer: $outputFull"
     }
 
-    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Completed' -Current $items.Count -Total $items.Count -Message 'install.esd wurde erstellt.' -OutputPath $outputFull
+    Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Completed' -Current $items.Count -Total $items.Count -Message ("{0} wurde erstellt." -f $targetLabel) -OutputPath $outputFull -Hint $runningHint
 
     return [pscustomobject]@{
         OutputPath = $outputFull

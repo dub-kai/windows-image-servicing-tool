@@ -1,4 +1,4 @@
-function Select-DriverSourceFolder {
+﻿function Select-DriverSourceFolder {
     param(
         [string]$Description = "Treiber-Ordner auswählen (enthält .inf Dateien)"
     )

@@ -3,6 +3,81 @@ $ErrorActionPreference = "Stop"
 
 $script:DismMutexName = 'Local\WinImageAdmin_DismMutex'
 
+function Get-DismChildProcessIds {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][int]$ParentId,
+        [Parameter()][System.Collections.Generic.HashSet[int]]$Seen
+    )
+
+    if (-not $Seen) {
+        $Seen = New-Object 'System.Collections.Generic.HashSet[int]'
+    }
+
+    $ids = New-Object System.Collections.Generic.List[int]
+    try {
+        $children = @(Get-CimInstance Win32_Process -Filter ("ParentProcessId={0}" -f $ParentId))
+        foreach ($child in $children) {
+            $childId = [int]$child.ProcessId
+            if ($Seen.Add($childId)) {
+                [void]$ids.Add($childId)
+                foreach ($nested in @(Get-DismChildProcessIds -ParentId $childId -Seen $Seen)) {
+                    [void]$ids.Add([int]$nested)
+                }
+            }
+        }
+    } catch {}
+
+    return @($ids.ToArray())
+}
+
+function Stop-DismProcessTree {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Diagnostics.Process]$Process)
+
+    $ids = New-Object System.Collections.Generic.List[int]
+    try {
+        foreach ($childId in @(Get-DismChildProcessIds -ParentId ([int]$Process.Id))) {
+            [void]$ids.Add([int]$childId)
+        }
+    } catch {}
+
+    try { [void]$ids.Add([int]$Process.Id) } catch {}
+
+    foreach ($id in @($ids.ToArray() | Sort-Object -Descending -Unique)) {
+        try { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+function Get-DismTextTail {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [int]$MaxChars = 700
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return '' }
+
+    $stream = $null
+    $reader = $null
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8, $true)
+        $content = $reader.ReadToEnd()
+        if ([string]::IsNullOrEmpty($content)) { return '' }
+        if ($content.Length -le $MaxChars) { return $content }
+        return $content.Substring($content.Length - $MaxChars)
+    } catch {
+        return ''
+    } finally {
+        if ($reader) {
+            try { $reader.Dispose() } catch {}
+        } elseif ($stream) {
+            try { $stream.Dispose() } catch {}
+        }
+    }
+}
+
 function Invoke-Dism {
     [CmdletBinding()]
     param(
@@ -11,7 +86,12 @@ function Invoke-Dism {
 
         [int]$TimeoutSec = 900,
 
-        [switch]$EnsureEnglish
+        [switch]$EnsureEnglish,
+
+        [Parameter()]
+        [scriptblock]$OnHeartbeat,
+
+        [int]$HeartbeatIntervalSec = 5
     )
 
     if ($PSBoundParameters.ContainsKey("TimeoutSec") -eq $false) {
@@ -42,6 +122,8 @@ function Invoke-Dism {
     $stdoutPath = $null
     $stderrPath = $null
     $scriptPath = $null
+
+    if ($HeartbeatIntervalSec -lt 1) { $HeartbeatIntervalSec = 1 }
 
     try {
         try { Write-Log -Level DEBUG -Message ("DISM: {0} {1}" -f $exe, $argLine) } catch {}
@@ -105,12 +187,30 @@ exit `$LASTEXITCODE
 
         $timeoutMs = [int]($TimeoutSec * 1000)
         $deadline = [DateTime]::UtcNow.AddMilliseconds($timeoutMs)
+        $lastHeartbeat = [DateTime]::UtcNow.AddYears(-1)
         while (-not $proc.HasExited) {
             if ([DateTime]::UtcNow -ge $deadline) {
                 try { Write-Log -Level ERROR -Message ("DISM Timeout nach {0}s: {1}" -f $TimeoutSec, $argLine) -ToConsole } catch {}
-                try { $proc.Kill() } catch {}
+                try { Stop-DismProcessTree -Process $proc } catch {}
                 try { $proc.WaitForExit() } catch {}
                 throw "DISM Timeout nach ${TimeoutSec}s (Command: $argLine)"
+            }
+
+            if ($OnHeartbeat -and ([DateTime]::UtcNow - $lastHeartbeat).TotalSeconds -ge $HeartbeatIntervalSec) {
+                try {
+                    $stdoutTail = if ($stdoutPath) { Get-DismTextTail -Path $stdoutPath -MaxChars 700 } else { '' }
+                    $stderrTail = if ($stderrPath) { Get-DismTextTail -Path $stderrPath -MaxChars 700 } else { '' }
+
+                    & $OnHeartbeat ([pscustomobject]@{
+                        ProcessId    = $proc.Id
+                        StartedUtc   = $start
+                        ElapsedSec   = [int]([DateTime]::UtcNow - $start).TotalSeconds
+                        StdOutTail   = $stdoutTail
+                        StdErrTail   = $stderrTail
+                        Arguments    = $argLine
+                    })
+                } catch {}
+                $lastHeartbeat = [DateTime]::UtcNow
             }
 
             Start-Sleep -Milliseconds 100

@@ -155,6 +155,10 @@ function New-DefaultConfig {
         DefaultMountRoot = $mountDir
 
         DismTimeoutSec   = 900
+        DismUnmountCommitTimeoutSec = 7200
+        DismUnmountCommitRetryCount = 3
+        DismUnmountCommitRetryDelaySec = 12
+        MountedWimRefreshQuietPeriodSec = 15
         IsoMountRetry    = @{
             Count = 25
             DelayMs = 200

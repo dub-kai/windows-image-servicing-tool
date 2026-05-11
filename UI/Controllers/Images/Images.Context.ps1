@@ -323,6 +323,7 @@ function Initialize-ImagesController {
         BtnRefreshMounted        = Find-Ui -Root $Page -Name 'BtnRefreshMounted'
         BtnUnmountMountedCommit  = Find-Ui -Root $Page -Name 'BtnUnmountMountedCommit'
         BtnUnmountMountedDiscard = Find-Ui -Root $Page -Name 'BtnUnmountMountedDiscard'
+        TxtMountedHint           = Find-Ui -Root $Page -Name 'TxtMountedHint'
         LstMountedWims           = Find-Ui -Root $Page -Name 'LstMountedWims'
 
         BusyOverlay              = Find-Ui -Root $Page -Name 'BusyOverlay'

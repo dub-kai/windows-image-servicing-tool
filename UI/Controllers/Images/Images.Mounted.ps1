@@ -1,6 +1,21 @@
 ﻿function Test-MountedWritable {
     param($MountedItem)
     if (-not $MountedItem) { return $false }
+    if ($MountedItem.PSObject.Properties.Match("CanCommit").Count -gt 0) {
+        try {
+            if (-not [bool]$MountedItem.CanCommit) { return $false }
+        } catch {
+            return $false
+        }
+    }
+    if ($MountedItem -and $MountedItem.PSObject.Properties.Match("Status").Count -gt 0) {
+        $status = [string]$MountedItem.Status
+        if (-not [string]::IsNullOrWhiteSpace($status)) {
+            $s = $status.ToLowerInvariant()
+            if ($s -notmatch '^(ok|mounted)$') { return $false }
+        }
+    }
+    if (-not $MountedItem) { return $false }
     if ($MountedItem.PSObject.Properties.Match("ReadWrite").Count -eq 0) { return $false }
     $rw = [string]$MountedItem.ReadWrite
     if ([string]::IsNullOrWhiteSpace($rw)) { return $false }
@@ -18,20 +33,79 @@
     return $false
 }
 
+function Test-MountedDiscardAllowed {
+    param($MountedItem)
+
+    if (-not $MountedItem) { return $false }
+
+    if ($MountedItem.PSObject.Properties.Match("CanDiscard").Count -gt 0) {
+        try { return [bool]$MountedItem.CanDiscard } catch { return $false }
+    }
+
+    return $true
+}
+
+function Get-MountedSelectionHint {
+    param($MountedItem)
+
+    if (-not $MountedItem) {
+        return 'Tipp: Auswahl anklicken, dann Unmount.'
+    }
+
+    $health = '-'
+    $hint = $null
+    $action = $null
+    $mountDir = $null
+
+    try {
+        if ($MountedItem.PSObject.Properties.Match("Health").Count -gt 0) { $health = [string]$MountedItem.Health }
+        if ($MountedItem.PSObject.Properties.Match("HealthHint").Count -gt 0) { $hint = [string]$MountedItem.HealthHint }
+        if ($MountedItem.PSObject.Properties.Match("RecommendedAction").Count -gt 0) { $action = [string]$MountedItem.RecommendedAction }
+        if ($MountedItem.PSObject.Properties.Match("MountDir").Count -gt 0) { $mountDir = [string]$MountedItem.MountDir }
+    } catch {}
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace($mountDir)) { [void]$parts.Add($mountDir) }
+    if (-not [string]::IsNullOrWhiteSpace($health)) { [void]$parts.Add(("Zustand: {0}" -f $health)) }
+    if (-not [string]::IsNullOrWhiteSpace($hint)) { [void]$parts.Add($hint) }
+    if (-not [string]::IsNullOrWhiteSpace($action)) { [void]$parts.Add(("Empfohlen: {0}" -f $action)) }
+
+    if ($parts.Count -lt 1) { return 'Tipp: Auswahl anklicken, dann Unmount.' }
+    return ($parts -join ' | ')
+}
+
 function Update-MountedButtons {
     if (-not $script:ctx) { return }
     if ($script:isBusy) { return }
 
     $hasSel = $false
     $canCommit = $false
+    $canDiscard = $false
+    $selected = $null
 
     if ($script:ctx.LstMountedWims -and $script:ctx.LstMountedWims.SelectedItem) {
         $hasSel = $true
-        $canCommit = (Test-MountedWritable -MountedItem $script:ctx.LstMountedWims.SelectedItem)
+        $selected = $script:ctx.LstMountedWims.SelectedItem
+        $canCommit = (Test-MountedWritable -MountedItem $selected)
+        $canDiscard = (Test-MountedDiscardAllowed -MountedItem $selected)
     }
 
-    if ($script:ctx.BtnUnmountMountedDiscard) { try { $script:ctx.BtnUnmountMountedDiscard.IsEnabled = $hasSel } catch {} }
+    if ($script:ctx.BtnUnmountMountedDiscard) {
+        try {
+            $script:ctx.BtnUnmountMountedDiscard.IsEnabled = ($hasSel -and $canDiscard)
+            $recommendedAction = ''
+            if ($selected -and $selected.PSObject.Properties.Match("RecommendedAction").Count -gt 0) {
+                $recommendedAction = [string]$selected.RecommendedAction
+            }
+            if ($recommendedAction -match 'bereinig|Ohne Commit') {
+                $script:ctx.BtnUnmountMountedDiscard.Content = 'Mount bereinigen'
+            } else {
+                $script:ctx.BtnUnmountMountedDiscard.Content = 'Unmount (Discard)'
+            }
+        } catch {}
+    }
     if ($script:ctx.BtnUnmountMountedCommit)  { try { $script:ctx.BtnUnmountMountedCommit.IsEnabled  = ($hasSel -and $canCommit) } catch {} }
+    if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedSelectionHint -MountedItem $selected) } catch {} }
 }
 
 function Get-SelectedMountedDir {
@@ -91,6 +165,7 @@ Get-MountedWimList
 
         try {
             $items = @($result)
+            try { Set-AppStateValue -Key "LastMountedWimRefreshAtUtc" -Value ([DateTime]::UtcNow.ToString('o')) } catch {}
 
             try { Write-Log -Level INFO -Message ("MountedWimInfo: Items={0}" -f @($items).Count) -ToConsole } catch {}
             if (@($items).Count -gt 0) {

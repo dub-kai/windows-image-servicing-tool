@@ -1,6 +1,89 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Test-UnmountSharingViolation {
+    [CmdletBinding()]
+    param($Result)
+
+    if ($null -eq $Result) { return $false }
+
+    $code = $null
+    try { $code = [int]$Result.ExitCode } catch { $code = $null }
+    if ($code -eq 32) { return $true }
+
+    $text = ''
+    try {
+        $text = (([string]$Result.StdErr) + "`n" + ([string]$Result.StdOut))
+    } catch {
+        $text = ''
+    }
+
+    return ($text -match '0x80070020' -or $text -match 'sharing violation' -or $text -match 'Error:\s*32')
+}
+
+function Test-UnmountPartialState {
+    [CmdletBinding()]
+    param($Result)
+
+    if ($null -eq $Result) { return $false }
+
+    $code = $null
+    try { $code = [int]$Result.ExitCode } catch { $code = $null }
+    if ($code -eq -1052638947) { return $true }
+
+    $text = ''
+    try {
+        $text = (([string]$Result.StdErr) + "`n" + ([string]$Result.StdOut))
+    } catch {
+        $text = ''
+    }
+
+    return ($text -match '0xc142011d' -or $text -match 'partial unmount' -or $text -match 'cannot be committed back into the WIM')
+}
+
+function Get-WimMountRegistryState {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$MountDir)
+
+    $base = 'HKLM:\SOFTWARE\Microsoft\WIMMount\Mounted Images'
+    if (-not (Test-Path -LiteralPath $base)) { return $null }
+
+    $wanted = $null
+    try { $wanted = [System.IO.Path]::GetFullPath($MountDir).TrimEnd('\') } catch { $wanted = $MountDir.TrimEnd('\') }
+
+    foreach ($key in @(Get-ChildItem -LiteralPath $base -ErrorAction SilentlyContinue)) {
+        try {
+            $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction Stop
+            $mountProp = $props.PSObject.Properties['Mount Path']
+            if ($null -eq $mountProp -or [string]::IsNullOrWhiteSpace([string]$mountProp.Value)) { continue }
+
+            $current = $null
+            try { $current = [System.IO.Path]::GetFullPath([string]$mountProp.Value).TrimEnd('\') } catch { $current = ([string]$mountProp.Value).TrimEnd('\') }
+            if (-not [string]::Equals($current, $wanted, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+
+            $status = $null
+            $wimPath = $null
+            $imageIndex = $null
+            $statusProp = $props.PSObject.Properties['Status']
+            $wimProp = $props.PSObject.Properties['WIM Path']
+            $indexProp = $props.PSObject.Properties['Image Index']
+            if ($statusProp) { try { $status = [int]$statusProp.Value } catch { $status = $null } }
+            if ($wimProp) { $wimPath = [string]$wimProp.Value }
+            if ($indexProp) { try { $imageIndex = [int]$indexProp.Value } catch { $imageIndex = $null } }
+
+            return [pscustomobject]@{
+                Key        = [string]$key.PSChildName
+                MountDir   = [string]$mountProp.Value
+                ImageFile  = $wimPath
+                ImageIndex = $imageIndex
+                Status     = $status
+            }
+        } catch {}
+    }
+
+    return $null
+}
+
 function Get-MountRoot {
     # Priority:
     # 1) AppState MountRoot (user-chosen runtime)
@@ -93,7 +176,9 @@ function Invoke-DismCompat {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
-        [string]$Label = "DISM"
+        [string]$Label = "DISM",
+        [int]$TimeoutSec = 0,
+        [switch]$PassThruNonZero
     )
 
     # Prefer DismService Invoke-Dism if available, but adapt to its parameter names.
@@ -116,6 +201,7 @@ function Invoke-DismCompat {
 
         # optional label parameter
         if ($cmd -and ($keys -contains "Label")) { $splat["Label"] = $Label }
+        if ($cmd -and $TimeoutSec -gt 0 -and ($keys -contains "TimeoutSec")) { $splat["TimeoutSec"] = $TimeoutSec }
 
         if ($cmd) {
             $result = Invoke-Dism @splat
@@ -124,6 +210,10 @@ function Invoke-DismCompat {
             }
 
             if ($result.PSObject.Properties.Name -contains 'ExitCode' -and [int]$result.ExitCode -ne 0) {
+                if ($PassThruNonZero) {
+                    return $result
+                }
+
                 $detail = ''
                 if ($result.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$result.StdErr)) {
                     $detail = [string]$result.StdErr
@@ -152,10 +242,42 @@ function Invoke-DismCompat {
     $code = $LASTEXITCODE
 
     if ($code -ne 0) {
+        if ($PassThruNonZero) {
+            return [pscustomobject]@{ ExitCode = $code; Output = $out; StdOut = $out; StdErr = '' }
+        }
         throw "{0} failed (ExitCode={1}).`n`n{2}" -f $Label, $code, $out
     }
 
     return [pscustomobject]@{ ExitCode = 0; Output = $out }
+}
+
+function Repair-WimMountRegistry {
+    [CmdletBinding()]
+    param([int]$TimeoutSec = 900)
+
+    if ($TimeoutSec -lt 60) { $TimeoutSec = 60 }
+
+    $label = "DISM Cleanup-Wim"
+    $result = Invoke-DismCompat -Arguments @("/English", "/Cleanup-Wim") -Label $label -TimeoutSec $TimeoutSec -PassThruNonZero
+
+    if ($result -and $result.PSObject.Properties.Name -contains 'ExitCode' -and [int]$result.ExitCode -ne 0) {
+        $detail = ''
+        if ($result.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$result.StdErr)) {
+            $detail = [string]$result.StdErr
+        } elseif ($result.PSObject.Properties.Name -contains 'StdOut' -and -not [string]::IsNullOrWhiteSpace([string]$result.StdOut)) {
+            $detail = [string]$result.StdOut
+        } elseif ($result.PSObject.Properties.Name -contains 'Output' -and -not [string]::IsNullOrWhiteSpace([string]$result.Output)) {
+            $detail = [string]$result.Output
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($detail)) {
+            throw "{0} failed (ExitCode={1}).`n`n{2}" -f $label, [int]$result.ExitCode, $detail.Trim()
+        }
+
+        throw "{0} failed (ExitCode={1})." -f $label, [int]$result.ExitCode
+    }
+
+    return $true
 }
 
 function Mount-WimImage {
@@ -169,6 +291,17 @@ function Mount-WimImage {
 
     if (-not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) {
         throw "ImageFile nicht gefunden: $ImagePath"
+    }
+
+    if (-not $ReadOnly) {
+        try {
+            $imageItem = Get-Item -LiteralPath $ImagePath -ErrorAction Stop
+            if ($imageItem.IsReadOnly) {
+                throw "Mount mit Commit ist nicht möglich, weil die Image-Datei schreibgeschützt ist: $ImagePath. Bitte ReadOnly mounten oder das Schreibschutz-Attribut der WIM/ESD-Kopie entfernen."
+            }
+        } catch {
+            throw
+        }
     }
 
     $mountDir = New-MountDir -Mode $Mode -Index $Index
@@ -222,9 +355,92 @@ function Unmount-WimImage {
     if ($Commit) { $args += "/Commit" } else { $args += "/Discard" }
 
     $label = if ($Commit) { "DISM Unmount-Image Commit" } else { "DISM Unmount-Image Discard" }
-    $null = Invoke-DismCompat -Arguments $args -Label $label
+    $timeoutSec = 0
+    $retryCount = 1
+    $retryDelaySec = 0
+    if ($Commit) {
+        $mountState = Get-WimMountRegistryState -MountDir $MountDir
+        if ($mountState -and $mountState.Status -eq 3) {
+            $imageText = if ([string]::IsNullOrWhiteSpace([string]$mountState.ImageFile)) { 'unbekannte Quell-WIM' } else { [string]$mountState.ImageFile }
+            throw "Commit ist für diesen Mount nicht mehr möglich, weil DISM ihn bereits als teilweise ausgehängt markiert hat (Status=3). Quelle: $imageText. Wenn der vorherige Commit erfolgreich war, bitte jetzt ohne Commit aushängen, damit DISM den Mount bereinigt."
+        }
+
+        try { $timeoutSec = [int](Get-ConfigValue -Key "DismUnmountCommitTimeoutSec" -Default 7200) } catch { $timeoutSec = 7200 }
+        if ($timeoutSec -lt 900) { $timeoutSec = 900 }
+        try { $retryCount = [int](Get-ConfigValue -Key "DismUnmountCommitRetryCount" -Default 3) } catch { $retryCount = 3 }
+        try { $retryDelaySec = [int](Get-ConfigValue -Key "DismUnmountCommitRetryDelaySec" -Default 12) } catch { $retryDelaySec = 12 }
+        if ($retryCount -lt 1) { $retryCount = 1 }
+        if ($retryDelaySec -lt 1) { $retryDelaySec = 1 }
+    }
+
+    $lastResult = $null
+    for ($attempt = 1; $attempt -le $retryCount; $attempt++) {
+        $lastResult = Invoke-DismCompat -Arguments $args -Label $label -TimeoutSec $timeoutSec -PassThruNonZero
+        if (Test-UnmountPartialState -Result $lastResult) {
+            break
+        }
+
+        if (-not (Test-UnmountSharingViolation -Result $lastResult)) {
+            break
+        }
+
+        if ($attempt -lt $retryCount) {
+            try {
+                Write-Log -Level WARN -Message ("Unmount-Commit retry {0}/{1} nach Sharing Violation fuer {2}. Warte {3}s." -f $attempt, $retryCount, $MountDir, $retryDelaySec)
+            } catch {}
+            Start-Sleep -Seconds $retryDelaySec
+        }
+    }
+
+    if ($lastResult -and $lastResult.PSObject.Properties.Name -contains 'ExitCode' -and [int]$lastResult.ExitCode -ne 0 -and [int]$lastResult.ExitCode -eq 32) {
+        $detail = ''
+        if ($lastResult.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdErr)) {
+            $detail = [string]$lastResult.StdErr
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'StdOut' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdOut)) {
+            $detail = [string]$lastResult.StdOut
+        }
+
+        $hint = "Die Quell-WIM ist noch gesperrt. Wahrscheinlich haelt ein laufender WIM/DISM-Zugriff oder ein anderer Mount die Datei noch offen."
+        if (-not [string]::IsNullOrWhiteSpace($detail)) {
+            throw "{0} failed (ExitCode=32).`n`n{1}`n`n{2}" -f $label, $detail.Trim(), $hint
+        }
+        throw "{0} failed (ExitCode=32).`n`n{1}" -f $label, $hint
+    }
+
+    if ($lastResult -and $lastResult.PSObject.Properties.Name -contains 'ExitCode' -and [int]$lastResult.ExitCode -ne 0 -and (Test-UnmountPartialState -Result $lastResult)) {
+        $detail = ''
+        if ($lastResult.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdErr)) {
+            $detail = [string]$lastResult.StdErr
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'StdOut' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdOut)) {
+            $detail = [string]$lastResult.StdOut
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'Output' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.Output)) {
+            $detail = [string]$lastResult.Output
+        }
+
+        $hint = "DISM meldet einen teilweisen Unmount. Commit kann nicht erneut ausgefuehrt werden. Wenn der vorherige Commit erfolgreich war, den Mount jetzt ohne Commit aushaengen, um ihn zu bereinigen."
+        if (-not [string]::IsNullOrWhiteSpace($detail)) {
+            throw "{0} failed (0xc142011d).`n`n{1}`n`n{2}" -f $label, $detail.Trim(), $hint
+        }
+        throw "{0} failed (0xc142011d).`n`n{1}" -f $label, $hint
+    }
+
+    if ($lastResult -and $lastResult.PSObject.Properties.Name -contains 'ExitCode' -and [int]$lastResult.ExitCode -ne 0) {
+        $detail = ''
+        if ($lastResult.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdErr)) {
+            $detail = [string]$lastResult.StdErr
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'StdOut' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdOut)) {
+            $detail = [string]$lastResult.StdOut
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'Output' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.Output)) {
+            $detail = [string]$lastResult.Output
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($detail)) {
+            throw "{0} failed (ExitCode={1}).`n`n{2}" -f $label, [int]$lastResult.ExitCode, $detail.Trim()
+        }
+        throw "{0} failed (ExitCode={1})." -f $label, [int]$lastResult.ExitCode
+    }
 
     return $true
 }
 
-Export-ModuleMember -Function Get-MountRoot, Set-MountRoot, Mount-WimImage, Unmount-WimImage
+Export-ModuleMember -Function Get-MountRoot, Set-MountRoot, Mount-WimImage, Unmount-WimImage, Repair-WimMountRegistry
