@@ -113,6 +113,14 @@ function Set-UpdatesBusy {
 
     Set-UiText -Root $page -Name 'TxtBusyMessage' -Value $Message
 
+    try {
+        if ($Busy) {
+            Start-UiBusyProgress -Root $page -Context $script:ctx -Message $Message -Detail 'Updates oder Paketlisten werden verarbeitet. DISM kann bei großen Paketen mehrere Minuten benötigen.' -ShowDismTail
+        } else {
+            Stop-UiBusyProgress -Root $page -Context $script:ctx
+        }
+    } catch {}
+
     Set-UiEnabled -Root $page -Name 'BtnUpdatesRefresh'        -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch'         -Enabled (-not $Busy -and $null -ne $script:updateContext)
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled ((@($script:visiblePackages).Count -gt 0) -and (-not $Busy))

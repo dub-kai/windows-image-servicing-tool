@@ -124,6 +124,15 @@ function Apply-ImagesBusyUi {
 
     try {
         $page = Get-Ctx "ImagesPage"
+        if ($Busy) {
+            Start-UiBusyProgress -Root $page -Context $Context -Message $(if ($Reason) { $Reason } else { "Bitte warten..." }) -Detail "DISM verarbeitet das Image. Große Images können längere Zeit ohne sichtbare Dateigrößenänderung arbeiten." -ShowDismTail
+        } else {
+            Stop-UiBusyProgress -Root $page -Context $Context
+        }
+    } catch {}
+
+    try {
+        $page = Get-Ctx "ImagesPage"
         if ($page) {
             $win = [System.Windows.Window]::GetWindow($page)
             if ($win) {

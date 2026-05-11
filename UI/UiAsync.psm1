@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $script:UiDispatcher = $null
 $script:UiThreadId   = $null
+$script:UiBusyProgressTimers = @{}
 
 function Write-UiAsyncLog {
     param(
@@ -61,6 +62,222 @@ function Invoke-Ui {
         try { $null = $d.BeginInvoke($act, $Priority) }
         catch { & $Action }
     }
+}
+
+function Get-UiBusyProgressKey {
+    param($Root, $Context)
+
+    try {
+        if ($Root) { return ('root:{0}' -f $Root.GetHashCode()) }
+    } catch {}
+
+    try {
+        if ($Context) { return ('ctx:{0}' -f $Context.GetHashCode()) }
+    } catch {}
+
+    return 'global'
+}
+
+function Resolve-UiBusyProgressRoot {
+    param($Root, $Context)
+
+    if ($Root) { return $Root }
+
+    foreach ($key in @('Page', 'ImagesPage', 'DriverPage', 'MediaBuilderPage')) {
+        try {
+            if ($Context -is [System.Collections.IDictionary] -and $Context.Contains($key) -and $Context[$key]) {
+                return $Context[$key]
+            }
+        } catch {}
+
+        try {
+            $prop = $Context.PSObject.Properties[$key]
+            if ($prop -and $prop.Value) { return $prop.Value }
+        } catch {}
+    }
+
+    return $null
+}
+
+function Resolve-UiBusyProgressControl {
+    param($Root, $Context, [Parameter(Mandatory)][string]$Name)
+
+    try {
+        if ($Context -is [System.Collections.IDictionary] -and $Context.Contains($Name) -and $Context[$Name]) {
+            return $Context[$Name]
+        }
+    } catch {}
+
+    try {
+        $prop = $Context.PSObject.Properties[$Name]
+        if ($prop -and $prop.Value) { return $prop.Value }
+    } catch {}
+
+    try {
+        if ($Root) {
+            $ctrl = $Root.FindName($Name)
+            if ($ctrl) { return $ctrl }
+        }
+    } catch {}
+
+    return $null
+}
+
+function Set-UiBusyProgressText {
+    param($Root, $Context, [Parameter(Mandatory)][string]$Name, [string]$Text)
+
+    $ctrl = Resolve-UiBusyProgressControl -Root $Root -Context $Context -Name $Name
+    if (-not $ctrl) { return }
+
+    try { $ctrl.Text = $Text } catch {}
+}
+
+function Format-UiBusyElapsed {
+    param([TimeSpan]$Elapsed)
+
+    if ($Elapsed.TotalHours -ge 1) {
+        return ('{0:00}:{1:00}:{2:00}' -f [int]$Elapsed.TotalHours, $Elapsed.Minutes, $Elapsed.Seconds)
+    }
+
+    return ('{0:00}:{1:00}' -f $Elapsed.Minutes, $Elapsed.Seconds)
+}
+
+function Get-UiDismLogLastLine {
+    [CmdletBinding()]
+    param([int]$MaxBytes = 12000)
+
+    $path = Join-Path $env:WINDIR 'Logs\DISM\dism.log'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return '' }
+
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $length = $stream.Length
+        if ($length -le 0) { return '' }
+
+        $readBytes = [Math]::Min([int64]$MaxBytes, [int64]$length)
+        $buffer = New-Object byte[] ([int]$readBytes)
+        $null = $stream.Seek(-1 * $readBytes, [System.IO.SeekOrigin]::End)
+        $null = $stream.Read($buffer, 0, [int]$readBytes)
+        $text = [System.Text.Encoding]::UTF8.GetString($buffer)
+
+        $lines = @($text -split "\r?\n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($lines.Count -lt 1) { return '' }
+
+        $line = [string]$lines[-1]
+        if ($line.Length -gt 220) { $line = $line.Substring(0, 220) + '...' }
+        return $line
+    } catch {
+        return ''
+    } finally {
+        if ($stream) { try { $stream.Dispose() } catch {} }
+    }
+}
+
+function Update-UiBusyProgress {
+    [CmdletBinding()]
+    param(
+        $Root,
+        $Context,
+        [Parameter(Mandatory)][datetime]$StartedAt,
+        [string]$Message,
+        [string]$Detail,
+        [string]$Hint,
+        [switch]$ShowDismTail
+    )
+
+    $rootLocal = Resolve-UiBusyProgressRoot -Root $Root -Context $Context
+    if ($Message) { Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyMessage' -Text $Message }
+
+    $elapsed = [DateTime]::Now - $StartedAt
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text ('Laufzeit: {0}' -f (Format-UiBusyElapsed -Elapsed $elapsed))
+
+    $detailText = $Detail
+    if ([string]::IsNullOrWhiteSpace($detailText)) {
+        $detailText = 'Vorgang läuft. Bei großen Images kann DISM mehrere Minuten ohne sichtbare Dateigrößenänderung arbeiten.'
+    }
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDetail' -Text $detailText
+
+    $hintText = $Hint
+    if ([string]::IsNullOrWhiteSpace($hintText)) {
+        $hintText = 'Bitte nicht abbrechen, solange DISM CPU/Datenträger nutzt. Beim Abbruch kann ein Mount bereinigt werden müssen.'
+    }
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyHint' -Text $hintText
+
+    if ($ShowDismTail) {
+        $lastLine = Get-UiDismLogLastLine
+        if ([string]::IsNullOrWhiteSpace($lastLine)) {
+            $lastLine = 'Noch kein DISM-Logeintrag gelesen.'
+        }
+        Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text ('DISM: {0}' -f $lastLine)
+    }
+}
+
+function Start-UiBusyProgress {
+    [CmdletBinding()]
+    param(
+        $Root,
+        $Context,
+        [string]$Message = 'Bitte warten...',
+        [string]$Detail = $null,
+        [string]$Hint = $null,
+        [switch]$ShowDismTail
+    )
+
+    $rootLocal = Resolve-UiBusyProgressRoot -Root $Root -Context $Context
+    $key = Get-UiBusyProgressKey -Root $rootLocal -Context $Context
+
+    Stop-UiBusyProgress -Root $rootLocal -Context $Context
+
+    $startedAt = [DateTime]::Now
+    Update-UiBusyProgress -Root $rootLocal -Context $Context -StartedAt $startedAt -Message $Message -Detail $Detail -Hint $Hint -ShowDismTail:$ShowDismTail
+
+    $dispatcher = $script:UiDispatcher
+    try {
+        if ($rootLocal -and $rootLocal.Dispatcher) { $dispatcher = $rootLocal.Dispatcher }
+    } catch {}
+
+    if (-not $dispatcher) { return }
+
+    $timer = New-Object System.Windows.Threading.DispatcherTimer(
+        [System.Windows.Threading.DispatcherPriority]::Background,
+        $dispatcher
+    )
+    $timer.Interval = [TimeSpan]::FromSeconds(1)
+
+    $rootCapture = $rootLocal
+    $ctxCapture = $Context
+    $messageCapture = $Message
+    $detailCapture = $Detail
+    $hintCapture = $Hint
+    $showDismCapture = [bool]$ShowDismTail
+    $startedCapture = $startedAt
+
+    $tick = {
+        Update-UiBusyProgress -Root $rootCapture -Context $ctxCapture -StartedAt $startedCapture -Message $messageCapture -Detail $detailCapture -Hint $hintCapture -ShowDismTail:$showDismCapture
+    }.GetNewClosure()
+
+    $timer.Add_Tick($tick)
+    $script:UiBusyProgressTimers[$key] = $timer
+    $timer.Start()
+}
+
+function Stop-UiBusyProgress {
+    [CmdletBinding()]
+    param($Root, $Context)
+
+    $rootLocal = Resolve-UiBusyProgressRoot -Root $Root -Context $Context
+    $key = Get-UiBusyProgressKey -Root $rootLocal -Context $Context
+
+    if ($script:UiBusyProgressTimers.ContainsKey($key)) {
+        try { $script:UiBusyProgressTimers[$key].Stop() } catch {}
+        try { $script:UiBusyProgressTimers.Remove($key) } catch {}
+    }
+
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text 'Laufzeit: 00:00'
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDetail' -Text ''
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyHint' -Text ''
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text ''
 }
 
 function Start-UiTask {
@@ -181,4 +398,4 @@ function Start-UiTask {
     $timer.Start()
 }
 
-Export-ModuleMember -Function Write-UiAsyncLog, Initialize-UiAsync, Invoke-Ui, Start-UiTask
+Export-ModuleMember -Function Write-UiAsyncLog, Initialize-UiAsync, Invoke-Ui, Start-UiTask, Start-UiBusyProgress, Stop-UiBusyProgress, Update-UiBusyProgress

@@ -570,6 +570,15 @@ function Set-MediaBusy {
 
     try {
         $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
+        if ($Busy) {
+            Start-UiBusyProgress -Root $page -Context $script:ctx -Message $(if ($Reason) { $Reason } else { 'Bitte warten...' }) -Detail 'Media Builder arbeitet mit WIM/ESD/ISO-Dateien. Ausgabegrößen können während DISM-Vorgängen lange bei 0 B stehen.' -ShowDismTail
+        } else {
+            Stop-UiBusyProgress -Root $page -Context $script:ctx
+        }
+    } catch {}
+
+    try {
+        $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
         if ($page) {
             $win = [System.Windows.Window]::GetWindow($page)
             if ($win) {

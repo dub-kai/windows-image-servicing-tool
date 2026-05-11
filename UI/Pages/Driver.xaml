@@ -189,7 +189,31 @@
                        TextAlignment="Center"
                        TextWrapping="Wrap" />
             <ProgressBar Height="18"
-                         IsIndeterminate="True" />
+                          IsIndeterminate="True" />
+            <TextBlock Name="TxtBusyElapsed"
+                       Text="Laufzeit: 00:00"
+                       Foreground="#334155"
+                       FontWeight="SemiBold"
+                       Margin="0,12,0,0"
+                       TextAlignment="Center" />
+            <TextBlock Name="TxtBusyDetail"
+                       Text=""
+                       Foreground="#475569"
+                       Margin="0,8,0,0"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap" />
+            <TextBlock Name="TxtBusyDismLastLine"
+                       Text=""
+                       Foreground="#0F766E"
+                       FontSize="11"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap" />
+            <TextBlock Name="TxtBusyHint"
+                       Text=""
+                       Foreground="#92400E"
+                       FontSize="11"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap" />
           </StackPanel>
         </Border>
       </Grid>

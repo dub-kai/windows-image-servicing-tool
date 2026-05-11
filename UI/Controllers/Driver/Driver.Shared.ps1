@@ -176,6 +176,15 @@ function Set-DriverBusy {
 
     try {
         $page = Get-Ctx "DriverPage"
+        if ($Busy) {
+            Start-UiBusyProgress -Root $page -Context $ctxLocal -Message $(if ($Reason) { $Reason } else { "Bitte warten..." }) -Detail "Treiber werden aus dem Offline-Image gelesen oder integriert. Je nach Treiberordner kann DISM länger arbeiten." -ShowDismTail
+        } else {
+            Stop-UiBusyProgress -Root $page -Context $ctxLocal
+        }
+    } catch {}
+
+    try {
+        $page = Get-Ctx "DriverPage"
         if ($page) {
             $win = [System.Windows.Window]::GetWindow($page)
             if ($win) {

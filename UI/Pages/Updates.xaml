@@ -511,6 +511,28 @@
                      Margin="0,8,0,0"
                      Text="Bitte warten..."
                      TextWrapping="Wrap"/>
+          <TextBlock Name="TxtBusyElapsed"
+                     Text="Laufzeit: 00:00"
+                     Foreground="#334155"
+                     FontWeight="SemiBold"
+                     Margin="0,10,0,0"/>
+          <TextBlock Name="TxtBusyDetail"
+                     Text=""
+                     Foreground="#475569"
+                     Margin="0,8,0,0"
+                     TextWrapping="Wrap"/>
+          <TextBlock Name="TxtBusyDismLastLine"
+                     Text=""
+                     Foreground="#0F766E"
+                     FontSize="11"
+                     Margin="0,8,0,0"
+                     TextWrapping="Wrap"/>
+          <TextBlock Name="TxtBusyHint"
+                     Text=""
+                     Foreground="#92400E"
+                     FontSize="11"
+                     Margin="0,8,0,0"
+                     TextWrapping="Wrap"/>
         </StackPanel>
       </Border>
     </Border>
