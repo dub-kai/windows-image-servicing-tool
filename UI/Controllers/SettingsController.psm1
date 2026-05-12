@@ -667,6 +667,8 @@ foreach (`$dir in `$dirs) {
     }
 }
 
+. (Resolve-ProjectPath "UI\Controllers\Settings\Settings.Logs.ps1" -MustExist)
+
 function Refresh-SettingsUI {
     if (-not $script:ctx) { return }
 
@@ -707,6 +709,7 @@ function Refresh-SettingsUI {
         }
 
         Refresh-SettingsAdkUI
+        Refresh-SettingsLogsUI
 
         if ($script:ctx.CmbSettingsStartPage) {
             $startPage = [string](Get-SettingsConfigValue -Key 'StartPage' -Default 'Dashboard')
@@ -788,6 +791,19 @@ function Initialize-SettingsController {
         TxtSettingsHealthLog = $null
         LstSettingsHealthMounts = $null
 
+        BtnSettingsLogsRefresh = $null
+        BtnSettingsOpenLogFolder = $null
+        BtnSettingsOpenCurrentLog = $null
+        BtnSettingsOpenDismLog = $null
+        BtnSettingsCleanupOldLogs = $null
+        TxtSettingsLogsSummary = $null
+        TxtSettingsAppLogPath = $null
+        TxtSettingsDismLogPath = $null
+        CmbSettingsLogPreviewSource = $null
+        LstSettingsLogFiles = $null
+        TxtSettingsLogPreviewTitle = $null
+        TxtSettingsLogPreview = $null
+
         TxtSettingsProjectRoot = $null
         TxtSettingsLogFile = $null
         TxtSettingsConfigFile = $null
@@ -829,6 +845,19 @@ function Initialize-SettingsController {
     $script:ctx.TxtSettingsHealthMountCount = Find-Ui -Root $p -Name 'TxtSettingsHealthMountCount'
     $script:ctx.TxtSettingsHealthLog = Find-Ui -Root $p -Name 'TxtSettingsHealthLog'
     $script:ctx.LstSettingsHealthMounts = Find-Ui -Root $p -Name 'LstSettingsHealthMounts'
+
+    $script:ctx.BtnSettingsLogsRefresh = Find-Ui -Root $p -Name 'BtnSettingsLogsRefresh'
+    $script:ctx.BtnSettingsOpenLogFolder = Find-Ui -Root $p -Name 'BtnSettingsOpenLogFolder'
+    $script:ctx.BtnSettingsOpenCurrentLog = Find-Ui -Root $p -Name 'BtnSettingsOpenCurrentLog'
+    $script:ctx.BtnSettingsOpenDismLog = Find-Ui -Root $p -Name 'BtnSettingsOpenDismLog'
+    $script:ctx.BtnSettingsCleanupOldLogs = Find-Ui -Root $p -Name 'BtnSettingsCleanupOldLogs'
+    $script:ctx.TxtSettingsLogsSummary = Find-Ui -Root $p -Name 'TxtSettingsLogsSummary'
+    $script:ctx.TxtSettingsAppLogPath = Find-Ui -Root $p -Name 'TxtSettingsAppLogPath'
+    $script:ctx.TxtSettingsDismLogPath = Find-Ui -Root $p -Name 'TxtSettingsDismLogPath'
+    $script:ctx.CmbSettingsLogPreviewSource = Find-Ui -Root $p -Name 'CmbSettingsLogPreviewSource'
+    $script:ctx.LstSettingsLogFiles = Find-Ui -Root $p -Name 'LstSettingsLogFiles'
+    $script:ctx.TxtSettingsLogPreviewTitle = Find-Ui -Root $p -Name 'TxtSettingsLogPreviewTitle'
+    $script:ctx.TxtSettingsLogPreview = Find-Ui -Root $p -Name 'TxtSettingsLogPreview'
 
     $script:ctx.TxtSettingsProjectRoot = Find-Ui -Root $p -Name 'TxtSettingsProjectRoot'
     $script:ctx.TxtSettingsLogFile = Find-Ui -Root $p -Name 'TxtSettingsLogFile'
@@ -1023,6 +1052,75 @@ function Initialize-SettingsController {
     if ($script:ctx.BtnSettingsCleanupEmptyMountDirs) {
         $script:ctx.BtnSettingsCleanupEmptyMountDirs.Add_Click({
             Start-SettingsCleanupEmptyMountDirs
+        })
+    }
+
+    if ($script:ctx.BtnSettingsLogsRefresh) {
+        $script:ctx.BtnSettingsLogsRefresh.Add_Click({
+            Refresh-SettingsLogsUI
+            if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'LogsRefreshed') } catch {} }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsOpenLogFolder) {
+        $script:ctx.BtnSettingsOpenLogFolder.Add_Click({
+            try {
+                Open-SettingsPath -Path (Get-SettingsLogDirectory)
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'LogsTitle')
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsOpenCurrentLog) {
+        $script:ctx.BtnSettingsOpenCurrentLog.Add_Click({
+            try {
+                Open-SettingsPath -Path (Get-SettingsCurrentLogPath)
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'LogsTitle')
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsOpenDismLog) {
+        $script:ctx.BtnSettingsOpenDismLog.Add_Click({
+            try {
+                Open-SettingsPath -Path (Get-SettingsDismLogPath)
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'LogsTitle')
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsCleanupOldLogs) {
+        $script:ctx.BtnSettingsCleanupOldLogs.Add_Click({
+            try {
+                $retentionDays = 30
+                if (-not (Confirm-SettingsLogCleanup -RetentionDays $retentionDays)) {
+                    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'LogsCleanupCancelled') } catch {} }
+                    return
+                }
+
+                $result = Remove-SettingsOldAppLogs -RetentionDays $retentionDays
+                Refresh-SettingsLogsUI
+                if ($script:ctx.SetStatus) {
+                    try {
+                        & $script:ctx.SetStatus (Get-UiString -Key 'LogsCleanupCompleted' -Args @(
+                            [int]$result.RemovedCount,
+                            (Format-SettingsByteSize -Bytes ([int64]$result.RemovedBytes))
+                        ))
+                    } catch {}
+                }
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'LogsCleanupTitle')
+            }
+        })
+    }
+
+    if ($script:ctx.CmbSettingsLogPreviewSource) {
+        $script:ctx.CmbSettingsLogPreviewSource.Add_SelectionChanged({
+            if ($script:suppressSettingsEvents) { return }
+            Refresh-SettingsLogsUI
         })
     }
 

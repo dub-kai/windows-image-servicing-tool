@@ -55,6 +55,37 @@ $script:UiTranslations = @{
         HealthActiveMounts = "Aktive Mounts:"
         MountedImages = "Gemountete Images"
         HealthHint = "Wartungsaktionen bleiben bewusst vorsichtig: Unmount nutzt immer Discard, und die Bereinigung entfernt nur leere Unterordner unterhalb des aktiven MountRoot."
+        GroupLogs = "Logs"
+        BtnLogsRefresh = "Logs aktualisieren"
+        BtnOpenLogFolder = "Log-Ordner öffnen"
+        BtnOpenCurrentLog = "Aktuelles App-Log öffnen"
+        BtnOpenDismLog = "DISM-Log öffnen"
+        BtnCleanupOldLogs = "Alte App-Logs bereinigen"
+        LogsNotLoaded = "Logs: noch nicht geladen."
+        LogsSummary = "App-Logs: {0} Datei(en), {1}. Neueste: {2}. DISM: {3}."
+        LogsAppPath = "App-Log:"
+        LogsDismPath = "DISM-Log:"
+        LogsPreviewSource = "Vorschau:"
+        LogsPreviewApp = "Aktuelles App-Log"
+        LogsPreviewDism = "DISM-Log"
+        LogsFilesTitle = "App-Logdateien"
+        LogsPreviewTitle = "Log-Vorschau"
+        LogsPreviewTitleWithSource = "Log-Vorschau: {0}"
+        LogsHint = "Die Bereinigung löscht nur alte App-Logs im Projekt-Logordner. Das aktuelle App-Log und DISM-Logs bleiben erhalten."
+        LogsMissing = "nicht gefunden"
+        LogsNoAppLogs = "Keine App-Logs gefunden."
+        LogsPreviewMissing = "Logdatei nicht gefunden."
+        LogsPreviewEmpty = "Logdatei ist leer."
+        LogsPreviewTrimmed = "[Vorschau gekürzt: angezeigt wird nur das Ende der Datei.]"
+        LogsPreviewReadFailed = "Logdatei konnte nicht gelesen werden: {0}"
+        LogsLoadFailed = "Logs konnten nicht geladen werden: {0}"
+        LogsOpenMissing = "Pfad nicht gefunden: {0}"
+        LogsRefreshed = "Settings: Logs aktualisiert"
+        LogsTitle = "Logs"
+        LogsCleanupTitle = "Logs bereinigen"
+        LogsCleanupConfirm = "Alte App-Logs löschen, die älter als {0} Tage sind? Das aktuelle App-Log und DISM-Logs bleiben erhalten."
+        LogsCleanupCompleted = "Settings: {0} alte App-Log(s) bereinigt ({1})"
+        LogsCleanupCancelled = "Settings: Log-Bereinigung abgebrochen"
         GroupMountRoot = "MountRoot (Arbeitsordner für DISM-Mounts)"
         BtnPickFolder = "Ordner wählen"
         MountRootHint = "Hinweis: Lokaler NTFS-Pfad empfohlen. Diese Einstellung wird dauerhaft im ignorierten Work-Bereich gespeichert."
@@ -158,6 +189,37 @@ $script:UiTranslations = @{
         HealthActiveMounts = "Active mounts:"
         MountedImages = "Mounted images"
         HealthHint = "Maintenance actions intentionally stay cautious: unmount always uses Discard, and cleanup removes only empty subfolders below the active MountRoot."
+        GroupLogs = "Logs"
+        BtnLogsRefresh = "Refresh logs"
+        BtnOpenLogFolder = "Open log folder"
+        BtnOpenCurrentLog = "Open current app log"
+        BtnOpenDismLog = "Open DISM log"
+        BtnCleanupOldLogs = "Clean old app logs"
+        LogsNotLoaded = "Logs: not loaded yet."
+        LogsSummary = "App logs: {0} file(s), {1}. Latest: {2}. DISM: {3}."
+        LogsAppPath = "App log:"
+        LogsDismPath = "DISM log:"
+        LogsPreviewSource = "Preview:"
+        LogsPreviewApp = "Current app log"
+        LogsPreviewDism = "DISM log"
+        LogsFilesTitle = "App log files"
+        LogsPreviewTitle = "Log preview"
+        LogsPreviewTitleWithSource = "Log preview: {0}"
+        LogsHint = "Cleanup deletes only old app logs in the project log folder. The current app log and DISM logs are kept."
+        LogsMissing = "not found"
+        LogsNoAppLogs = "No app logs found."
+        LogsPreviewMissing = "Log file not found."
+        LogsPreviewEmpty = "Log file is empty."
+        LogsPreviewTrimmed = "[Preview trimmed: only the end of the file is shown.]"
+        LogsPreviewReadFailed = "Could not read log file: {0}"
+        LogsLoadFailed = "Could not load logs: {0}"
+        LogsOpenMissing = "Path not found: {0}"
+        LogsRefreshed = "Settings: logs refreshed"
+        LogsTitle = "Logs"
+        LogsCleanupTitle = "Clean logs"
+        LogsCleanupConfirm = "Delete old app logs older than {0} days? The current app log and DISM logs are kept."
+        LogsCleanupCompleted = "Settings: cleaned {0} old app log(s) ({1})"
+        LogsCleanupCancelled = "Settings: log cleanup cancelled"
         GroupMountRoot = "MountRoot (working folder for DISM mounts)"
         BtnPickFolder = "Choose folder"
         MountRootHint = "Note: a local NTFS path is recommended. This setting is stored permanently in the ignored Work area."
@@ -383,6 +445,20 @@ function Apply-LocalizationToRoot {
         TxtSettingsHealthActiveMountsLabel = @{ Text = 'HealthActiveMounts' }
         TxtSettingsMountedImagesTitle = @{ Text = 'MountedImages' }
         TxtSettingsHealthHint = @{ Text = 'HealthHint' }
+        GrpSettingsLogs = @{ Header = 'GroupLogs' }
+        BtnSettingsLogsRefresh = @{ Content = 'BtnLogsRefresh' }
+        BtnSettingsOpenLogFolder = @{ Content = 'BtnOpenLogFolder' }
+        BtnSettingsOpenCurrentLog = @{ Content = 'BtnOpenCurrentLog' }
+        BtnSettingsOpenDismLog = @{ Content = 'BtnOpenDismLog' }
+        BtnSettingsCleanupOldLogs = @{ Content = 'BtnCleanupOldLogs' }
+        TxtSettingsAppLogPathLabel = @{ Text = 'LogsAppPath' }
+        TxtSettingsDismLogPathLabel = @{ Text = 'LogsDismPath' }
+        TxtSettingsLogPreviewSourceLabel = @{ Text = 'LogsPreviewSource' }
+        CmbItemLogPreviewApp = @{ Content = 'LogsPreviewApp' }
+        CmbItemLogPreviewDism = @{ Content = 'LogsPreviewDism' }
+        TxtSettingsLogFilesTitle = @{ Text = 'LogsFilesTitle' }
+        TxtSettingsLogPreviewTitle = @{ Text = 'LogsPreviewTitle' }
+        TxtSettingsLogsHint = @{ Text = 'LogsHint' }
         GrpSettingsMountRoot = @{ Header = 'GroupMountRoot' }
         BtnSettingsPickMountRoot = @{ Content = 'BtnPickFolder' }
         GrpSettingsInfo = @{ Header = 'GroupInfo' }

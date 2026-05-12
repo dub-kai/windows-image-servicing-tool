@@ -33,6 +33,7 @@
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Name="TxtSettingsStartPageLabel" Grid.Row="0" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Startseite:"/>
@@ -229,6 +230,141 @@
                        Foreground="#6B7280"
                        TextWrapping="Wrap"
                        Text="Maintenance-Aktionen bleiben bewusst vorsichtig: Unmount nutzt immer Discard, und die Bereinigung entfernt nur leere Unterordner unterhalb des aktiven MountRoot."/>
+          </Grid>
+        </GroupBox>
+
+        <GroupBox Name="GrpSettingsLogs" Header="Logs" Margin="0,0,0,12">
+          <Grid Margin="10">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <WrapPanel Grid.Row="0" Margin="0,0,0,12">
+              <Button Name="BtnSettingsLogsRefresh"
+                      Content="Logs aktualisieren"
+                      Height="30"
+                      MinWidth="150"
+                      Margin="0,0,10,8"/>
+
+              <Button Name="BtnSettingsOpenLogFolder"
+                      Content="Log-Ordner öffnen"
+                      Height="30"
+                      MinWidth="150"
+                      Margin="0,0,10,8"/>
+
+              <Button Name="BtnSettingsOpenCurrentLog"
+                      Content="Aktuelles App-Log öffnen"
+                      Height="30"
+                      MinWidth="190"
+                      Margin="0,0,10,8"/>
+
+              <Button Name="BtnSettingsOpenDismLog"
+                      Content="DISM-Log öffnen"
+                      Height="30"
+                      MinWidth="140"
+                      Margin="0,0,10,8"/>
+
+              <Button Name="BtnSettingsCleanupOldLogs"
+                      Content="Alte App-Logs bereinigen"
+                      Height="30"
+                      MinWidth="190"
+                      Margin="0,0,0,8"/>
+            </WrapPanel>
+
+            <TextBlock Grid.Row="1"
+                       Name="TxtSettingsLogsSummary"
+                       Foreground="#374151"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,10"
+                       Text="Logs: noch nicht geladen."
+                       TextWrapping="Wrap"/>
+
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <TextBlock Name="TxtSettingsAppLogPathLabel" Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,6" Text="App-Log:"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtSettingsAppLogPath" Margin="0,0,0,6" Text="-" TextWrapping="Wrap"/>
+
+              <TextBlock Name="TxtSettingsDismLogPathLabel" Grid.Row="1" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,0" Text="DISM-Log:"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtSettingsDismLogPath" Margin="0,0,0,0" Text="-" TextWrapping="Wrap"/>
+            </Grid>
+
+            <Grid Grid.Row="3" Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Name="TxtSettingsLogPreviewSourceLabel" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center" Text="Vorschau:"/>
+              <ComboBox Name="CmbSettingsLogPreviewSource" Grid.Column="1" Height="28" SelectedIndex="0">
+                <ComboBoxItem Name="CmbItemLogPreviewApp" Tag="App" Content="Aktuelles App-Log"/>
+                <ComboBoxItem Name="CmbItemLogPreviewDism" Tag="Dism" Content="DISM-Log"/>
+              </ComboBox>
+            </Grid>
+
+            <Border Grid.Row="4"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="10"
+                    Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Name="TxtSettingsLogFilesTitle"
+                           FontWeight="SemiBold"
+                           Foreground="#0F172A"
+                           Margin="0,0,0,8"
+                           Text="App-Logdateien"/>
+                <ListBox Name="LstSettingsLogFiles"
+                         MinHeight="100"
+                         BorderThickness="0"
+                         Background="Transparent"/>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Name="TxtSettingsLogPreviewTitle"
+                       Grid.Row="5"
+                       FontWeight="SemiBold"
+                       Foreground="#0F172A"
+                       Margin="0,0,0,8"
+                       Text="Log-Vorschau"/>
+
+            <TextBox Name="TxtSettingsLogPreview"
+                     Grid.Row="6"
+                     MinHeight="190"
+                     MaxHeight="320"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Background="White"
+                     BorderBrush="#E5E7EB"
+                     Text=""/>
+
+            <TextBlock Name="TxtSettingsLogsHint"
+                       Grid.Row="7"
+                       Margin="0,10,0,0"
+                       Foreground="#6B7280"
+                       TextWrapping="Wrap"
+                       Text="Die Bereinigung löscht nur alte App-Logs im Projekt-Logordner. Das aktuelle App-Log und DISM-Logs bleiben erhalten."/>
           </Grid>
         </GroupBox>
 
