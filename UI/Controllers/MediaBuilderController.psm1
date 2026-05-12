@@ -251,6 +251,37 @@ function Add-MediaBuildLog {
     } catch {}
 }
 
+function Add-MediaJobHistory {
+    param(
+        [Parameter(Mandatory)][string]$Operation,
+        [Parameter(Mandatory)][string]$Status,
+        [string]$Message = $null,
+        [string]$Detail = $null,
+        [string]$ErrorText = $null,
+        [Nullable[datetime]]$StartedAt = $null,
+        [Nullable[datetime]]$EndedAt = $null
+    )
+
+    try {
+        if (-not (Get-Command Add-JobHistoryEntry -ErrorAction SilentlyContinue)) { return }
+        $params = @{
+            Operation = $Operation
+            Status = $Status
+            Message = $Message
+            Detail = $Detail
+            ErrorText = $ErrorText
+        }
+        if ($null -ne $StartedAt) { $params.StartedAt = [datetime]$StartedAt }
+        if ($null -ne $EndedAt) {
+            $params.EndedAt = [datetime]$EndedAt
+            if ($null -ne $StartedAt) {
+                $params.DurationMs = [int64](([datetime]$EndedAt) - ([datetime]$StartedAt)).TotalMilliseconds
+            }
+        }
+        Add-JobHistoryEntry @params | Out-Null
+    } catch {}
+}
+
 function Set-MediaBuildStatus {
     param(
         [string]$Message = $null,
@@ -356,6 +387,13 @@ function Stop-MediaBuild {
 
     $script:mediaBuildCancelled = $true
     Add-MediaBuildLog 'Abbruch angefordert...'
+    Add-MediaJobHistory `
+        -Operation 'MediaBuilder:BuildInstallImage' `
+        -Status 'Cancelled' `
+        -Message 'Build abgebrochen.' `
+        -Detail 'Worker und DISM wurden beendet.' `
+        -StartedAt $script:mediaBusyStartedAt `
+        -EndedAt (Get-Date)
 
     try { Stop-MediaProcessTree -Process $script:mediaBuildProcess } catch {}
     Remove-MediaBuildArtifacts -Paths $script:mediaBuildCleanupPaths -OutputPath $script:mediaBuildOutputPath
@@ -378,14 +416,16 @@ function Start-MediaProgressMonitor {
         [string]$InitialMessage = 'Vorgang läuft...',
         [System.Diagnostics.Process]$Process = $null,
         [string]$ResultPath = $null,
-        [string[]]$CleanupPaths = @()
+        [string[]]$CleanupPaths = @(),
+        [string]$JobOperation = $null,
+        [object]$JobStartedAt = $null
     )
 
     Stop-MediaProgressMonitor
 
     $script:mediaProgressPath = $ProgressPath
     $script:mediaOutputPath = $OutputPath
-    $script:mediaBusyStartedAt = Get-Date
+    $script:mediaBusyStartedAt = if ($null -ne $JobStartedAt) { [datetime]$JobStartedAt } else { Get-Date }
     $initialDetail = if ($TargetName -eq 'install.esd') {
         'ESD-Komprimierung kann lange rechnen. Eine kleine Datei am Anfang ist normal.'
     } else {
@@ -403,6 +443,7 @@ function Start-MediaProgressMonitor {
     $fnRefreshUi      = (Get-Item function:Refresh-MediaBuilderUI -ErrorAction Stop).ScriptBlock
     $fnCleanup        = (Get-Item function:Remove-MediaBuildArtifacts -ErrorAction Stop).ScriptBlock
     $fnShowUiError    = (Get-Item function:Show-UiError -ErrorAction SilentlyContinue).ScriptBlock
+    $fnAddJobHistory  = (Get-Item function:Add-MediaJobHistory -ErrorAction SilentlyContinue).ScriptBlock
 
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(1)
@@ -424,6 +465,17 @@ function Start-MediaProgressMonitor {
                         try { $size = [long]$result.SizeBytes } catch {}
                         & $fnSetBuildStatus -Message ("{0} wurde erstellt." -f $TargetName) -Detail ([string]$result.OutputPath) -SizeBytes $size
                         & $fnAddBuildLog ("{0} fertig: {1}" -f $TargetName, [string]$result.OutputPath)
+                        if ($fnAddJobHistory -and -not [string]::IsNullOrWhiteSpace([string]$JobOperation)) {
+                            try {
+                                & $fnAddJobHistory `
+                                    -Operation $JobOperation `
+                                    -Status 'Completed' `
+                                    -Message ("{0} wurde erstellt." -f $TargetName) `
+                                    -Detail ([string]$result.OutputPath) `
+                                    -StartedAt $script:mediaBusyStartedAt `
+                                    -EndedAt (Get-Date)
+                            } catch {}
+                        }
                         if ($script:ctx.SetStatus) {
                             & $script:ctx.SetStatus ("{0} erstellt: {1}" -f $TargetName, [string]$result.OutputPath)
                         }
@@ -436,6 +488,20 @@ function Start-MediaProgressMonitor {
                             $msg = [string]$result.Message
                         }
                         & $fnAddBuildLog ("Fehler: {0}" -f $msg)
+                        if ($fnAddJobHistory -and -not [string]::IsNullOrWhiteSpace([string]$JobOperation)) {
+                            try {
+                                $status = if ($script:mediaBuildCancelled) { 'Cancelled' } else { 'Failed' }
+                                $errorText = if ($script:mediaBuildCancelled) { $null } else { $msg }
+                                & $fnAddJobHistory `
+                                    -Operation $JobOperation `
+                                    -Status $status `
+                                    -Message $msg `
+                                    -Detail $TargetName `
+                                    -ErrorText $errorText `
+                                    -StartedAt $script:mediaBusyStartedAt `
+                                    -EndedAt (Get-Date)
+                            } catch {}
+                        }
                         if (-not $script:mediaBuildCancelled -and $fnShowUiError) { try { & $fnShowUiError -Message $msg } catch {} }
                         if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
                     }
@@ -538,6 +604,9 @@ function Set-MediaBusy {
         $script:ctx.BtnMediaAddSourceImage,
         $script:ctx.BtnMediaRemoveSourceImage,
         $script:ctx.BtnMediaBuildInstallEsd,
+        $script:ctx.BtnMediaPickUsbSource,
+        $script:ctx.BtnMediaPickUsbTarget,
+        $script:ctx.BtnMediaCopyToUsb,
         $script:ctx.RbMediaBuildWim,
         $script:ctx.RbMediaBuildEsd,
         $script:ctx.LstMediaComposeItems
@@ -696,6 +765,7 @@ function Refresh-MediaBuilderUI {
         }
     } catch {}
 
+    Refresh-MediaUsbUI
     Refresh-MediaBuilderComposeList
 }
 
@@ -711,6 +781,175 @@ function Pick-MediaImageFile {
     $dlg.Multiselect = $false
     if ($dlg.ShowDialog() -ne $true) { return $null }
     return [string]$dlg.FileName
+}
+
+function Pick-MediaFolder {
+    param([Parameter(Mandatory)][string]$Description)
+
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dlg.Description = $Description
+    $dlg.ShowNewFolderButton = $true
+    if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+    return [string]$dlg.SelectedPath
+}
+
+function Get-MediaUsbSource {
+    $selected = $script:ctx.SelectedUsbSourcePath
+    if (-not [string]::IsNullOrWhiteSpace([string]$selected)) { return [string]$selected }
+    return [string](Get-MediaIsoRoot)
+}
+
+function Refresh-MediaUsbUI {
+    if (-not $script:ctx) { return }
+
+    $source = Get-MediaUsbSource
+    $target = $script:ctx.SelectedUsbTargetPath
+
+    try { if ($script:ctx.TxtMediaUsbSource) { $script:ctx.TxtMediaUsbSource.Text = (Get-DisplayOrDash $source) } } catch {}
+    try { if ($script:ctx.TxtMediaUsbTarget) { $script:ctx.TxtMediaUsbTarget.Text = (Get-DisplayOrDash $target) } } catch {}
+
+    try {
+        if ($script:ctx.BtnMediaCopyToUsb) {
+            $script:ctx.BtnMediaCopyToUsb.IsEnabled = (
+                (-not $script:mediaBusy) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$source)) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$target))
+            )
+        }
+    } catch {}
+
+    try {
+        if ($script:ctx.TxtMediaUsbSummary) {
+            if ([string]::IsNullOrWhiteSpace([string]$source)) {
+                $script:ctx.TxtMediaUsbSummary.Text = 'Quelle fehlt. Du kannst eine gemountete ISO oder einen vorbereiteten Build-Ordner wählen.'
+            } elseif ([string]::IsNullOrWhiteSpace([string]$target)) {
+                $script:ctx.TxtMediaUsbSummary.Text = 'USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.'
+            } else {
+                $script:ctx.TxtMediaUsbSummary.Text = 'Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.'
+            }
+        }
+    } catch {}
+}
+
+function Test-MediaUsbCopyPrerequisites {
+    param(
+        [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][string]$TargetPath
+    )
+
+    if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
+        throw "USB-Quelle nicht gefunden oder kein Ordner: $SourcePath"
+    }
+    if (-not (Test-Path -LiteralPath $TargetPath -PathType Container)) {
+        throw "USB-Ziel nicht gefunden oder kein Ordner: $TargetPath"
+    }
+
+    $sourceFull = [System.IO.Path]::GetFullPath($SourcePath).TrimEnd('\')
+    $targetFull = [System.IO.Path]::GetFullPath($TargetPath).TrimEnd('\')
+    if ($sourceFull.Equals($targetFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Quelle und USB-Ziel dürfen nicht identisch sein."
+    }
+    if ($targetFull.StartsWith($sourceFull + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Das USB-Ziel darf nicht innerhalb der Quelle liegen."
+    }
+
+    $bootFile = Join-Path $sourceFull 'bootmgr'
+    $efiBoot = Join-Path $sourceFull 'efi\boot\bootx64.efi'
+    $sourcesDir = Join-Path $sourceFull 'sources'
+    if (-not (Test-Path -LiteralPath $sourcesDir -PathType Container)) {
+        Add-MediaBuildLog 'USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.'
+    }
+    if (-not (Test-Path -LiteralPath $bootFile -PathType Leaf) -and -not (Test-Path -LiteralPath $efiBoot -PathType Leaf)) {
+        Add-MediaBuildLog 'USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.'
+    }
+
+    $drive = Get-MediaDriveInfo -Path $targetFull
+    if ($drive -and $drive.IsReady) {
+        $sourceBytes = [int64]0
+        try {
+            foreach ($file in @(Get-ChildItem -LiteralPath $sourceFull -File -Recurse -ErrorAction SilentlyContinue)) {
+                $sourceBytes += [int64]$file.Length
+            }
+        } catch {}
+
+        if ($sourceBytes -gt 0 -and [int64]$drive.AvailableFreeSpace -lt $sourceBytes) {
+            throw ("Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}." -f $drive.Name, (Format-MediaBytes $drive.AvailableFreeSpace), (Format-MediaBytes $sourceBytes))
+        }
+    }
+
+    return [pscustomobject]@{
+        Source = $sourceFull
+        Target = $targetFull
+    }
+}
+
+function Start-MediaUsbCopyAsync {
+    if ($script:mediaBusy) { return }
+
+    try {
+        $source = Get-MediaUsbSource
+        $target = $script:ctx.SelectedUsbTargetPath
+        $check = Test-MediaUsbCopyPrerequisites -SourcePath $source -TargetPath $target
+
+        Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+        $answer = [System.Windows.MessageBox]::Show(
+            "Dateien auf USB-Ziel kopieren?`r`n`r`nQuelle: $($check.Source)`r`nZiel: $($check.Target)`r`n`r`nEs wird nicht formatiert und nichts gelöscht. Vorhandene Dateien können überschrieben werden.",
+            "USB kopieren",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Information
+        )
+        if ($answer -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+        Set-MediaBusy -Busy $true -Reason 'USB-Kopie läuft...'
+        Set-MediaBuildStatus -Message 'USB-Kopie läuft...' -Detail 'Dateien werden mit robocopy kopiert. Das kann je nach Stick dauern.' -SizeBytes 0 -SizeText 'kopiert...'
+        Add-MediaBuildLog ("USB-Kopie startet: {0} -> {1}" -f $check.Source, $check.Target)
+
+        $safeSource = ([string]$check.Source).Replace("'", "''")
+        $safeTarget = ([string]$check.Target).Replace("'", "''")
+        $code = @"
+`$ErrorActionPreference = 'Stop'
+`$source = '$safeSource'
+`$target = '$safeTarget'
+`$args = @(`$source, `$target, '/E', '/COPY:DAT', '/DCOPY:DAT', '/R:1', '/W:1', '/NP')
+`$output = & robocopy.exe @args 2>&1 | Out-String
+`$exitCode = `$LASTEXITCODE
+if (`$exitCode -gt 7) {
+    throw "Robocopy fehlgeschlagen (ExitCode=`$exitCode).`n`n`$output"
+}
+[pscustomobject]@{
+    Source = `$source
+    Target = `$target
+    ExitCode = `$exitCode
+    Output = `$output
+}
+"@
+
+        Start-UiTask -Label 'MediaBuilder:UsbCopy' -Work ([scriptblock]::Create($code)) -OnCompleted {
+            param($result)
+            try {
+                $item = @($result) | Select-Object -First 1
+                Add-MediaBuildLog ("USB-Kopie fertig: ExitCode {0}" -f [int]$item.ExitCode)
+                Set-MediaBuildStatus -Message 'USB-Kopie fertig.' -Detail ([string]$item.Target) -SizeBytes 0 -SizeText 'fertig'
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'USB-Kopie fertig' }
+            } finally {
+                Set-MediaBusy -Busy $false
+                Refresh-MediaBuilderUI
+            }
+        } -OnError {
+            param($ex)
+            try {
+                Add-MediaBuildLog ("USB-Kopie Fehler: {0}" -f $ex.Message)
+                Show-UiError -Message $ex.Message -Title 'USB kopieren'
+            } finally {
+                Set-MediaBusy -Busy $false
+                Refresh-MediaBuilderUI
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Ready' }
+            }
+        }
+    } catch {
+        Show-UiError -Message $_.Exception.Message -Title 'USB kopieren'
+    }
 }
 
 function Start-MediaBuildIsoAsync {
@@ -858,6 +1097,8 @@ function Start-MediaBuildInstallEsdAsync {
     if ($script:mediaBusy) { return }
     if ($script:composeItems.Count -lt 1) { return }
 
+    $jobStartedAt = $null
+    $dest = $null
     try {
         $mode = Get-MediaInstallBuildMode
         $isEsd = ($mode -eq 'Esd')
@@ -877,6 +1118,7 @@ function Start-MediaBuildInstallEsdAsync {
         $dest = [string]$dlg.FileName
         if ([string]::IsNullOrWhiteSpace($dest)) { return }
 
+        $jobStartedAt = Get-Date
         $precheck = Test-MediaInstallBuildPrerequisites -Items @($script:composeItems.ToArray()) -DestinationPath $dest -Mode $mode
         foreach ($warning in @($precheck.Warnings)) {
             Add-MediaBuildLog ("Check: {0}" -f $warning)
@@ -893,12 +1135,26 @@ function Start-MediaBuildInstallEsdAsync {
             foreach ($err in @($precheck.Errors)) {
                 Add-MediaBuildLog ("Check fehlgeschlagen: {0}" -f $err)
             }
+            Add-MediaJobHistory `
+                -Operation 'MediaBuilder:BuildInstallImage' `
+                -Status 'Skipped' `
+                -Message 'Build nicht gestartet.' `
+                -Detail $dest `
+                -ErrorText (($precheck.Errors | ForEach-Object { [string]$_ }) -join "`n") `
+                -StartedAt $jobStartedAt `
+                -EndedAt (Get-Date)
             Set-MediaBuildStatus -Message 'Build nicht gestartet.' -Detail 'Der Vorab-Check hat Probleme gefunden.' -SizeBytes 0 -SizeText 'Check fehlgeschlagen'
             Show-UiError -Message $message
             return
         }
 
         Add-MediaBuildLog 'Vorab-Check erfolgreich.'
+        Add-MediaJobHistory `
+            -Operation 'MediaBuilder:BuildInstallImage' `
+            -Status 'Started' `
+            -Message ("{0} wird gebaut..." -f $targetName) `
+            -Detail $dest `
+            -StartedAt $jobStartedAt
         $script:mediaBuildCancelled = $false
         Set-MediaBusy -Busy $true -Reason ("{0} wird gebaut..." -f $targetName)
 
@@ -982,8 +1238,18 @@ finally {
             -InitialMessage ("{0} wird gebaut..." -f $targetName) `
             -Process $proc `
             -ResultPath $resultPath `
-            -CleanupPaths @($manifestPath, $workerPath, $resultPath, $progressPath)
+            -CleanupPaths @($manifestPath, $workerPath, $resultPath, $progressPath) `
+            -JobOperation 'MediaBuilder:BuildInstallImage' `
+            -JobStartedAt $jobStartedAt
     } catch {
+        Add-MediaJobHistory `
+            -Operation 'MediaBuilder:BuildInstallImage' `
+            -Status 'Failed' `
+            -Message 'Build konnte nicht gestartet werden.' `
+            -Detail $dest `
+            -ErrorText $_.Exception.Message `
+            -StartedAt $jobStartedAt `
+            -EndedAt (Get-Date)
         Set-MediaBusy -Busy $false
         $script:mediaBuildProcess = $null
         $script:mediaBuildCleanupPaths = @()
@@ -1005,6 +1271,8 @@ function Initialize-MediaBuilderController {
         OnStateChanged              = $OnStateChanged
         SelectedInstallImagePath    = $null
         SelectedBootImagePath       = $null
+        SelectedUsbSourcePath       = $null
+        SelectedUsbTargetPath       = $null
         TxtMediaSourceIso           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaSourceIso'
         TxtMediaInstallImage        = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaInstallImage'
         TxtMediaBootImage           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaBootImage'
@@ -1020,6 +1288,12 @@ function Initialize-MediaBuilderController {
         BtnMediaBuildInstallEsd     = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaBuildInstallEsd'
         BtnMediaCancelBuild         = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuild'
         BtnMediaCancelBuildOverlay  = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuildOverlay'
+        TxtMediaUsbSource           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSource'
+        TxtMediaUsbTarget           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbTarget'
+        TxtMediaUsbSummary          = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSummary'
+        BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'
+        BtnMediaPickUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbTarget'
+        BtnMediaCopyToUsb           = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCopyToUsb'
         RbMediaBuildWim             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildWim'
         RbMediaBuildEsd             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildEsd'
         BusyOverlay                 = Find-Ui -Root $MediaBuilderPage -Name 'BusyOverlay'
@@ -1079,6 +1353,30 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaBuildInstallEsd) {
         $script:ctx.BtnMediaBuildInstallEsd.Add_Click({ Start-MediaBuildInstallEsdAsync })
+    }
+
+    if ($script:ctx.BtnMediaPickUsbSource) {
+        $script:ctx.BtnMediaPickUsbSource.Add_Click({
+            $path = Pick-MediaFolder -Description 'Quelle für den USB-Stick wählen'
+            if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
+                $script:ctx.SelectedUsbSourcePath = $path
+                Refresh-MediaBuilderUI
+            }
+        })
+    }
+
+    if ($script:ctx.BtnMediaPickUsbTarget) {
+        $script:ctx.BtnMediaPickUsbTarget.Add_Click({
+            $path = Pick-MediaFolder -Description 'USB-Zielordner wählen'
+            if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
+                $script:ctx.SelectedUsbTargetPath = $path
+                Refresh-MediaBuilderUI
+            }
+        })
+    }
+
+    if ($script:ctx.BtnMediaCopyToUsb) {
+        $script:ctx.BtnMediaCopyToUsb.Add_Click({ Start-MediaUsbCopyAsync })
     }
 
     if ($script:ctx.BtnMediaCancelBuild) {

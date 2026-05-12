@@ -2,6 +2,9 @@
     if (-not $script:ctx) { return }
     $p = $script:ctx.DashboardPage
 
+    Refresh-DashboardHealthOverview -Root $p
+    Refresh-DashboardJobOverview -Root $p
+
     Set-UiText -Root $p -Name "TxtIsoPath"        -Value (Get-AppStateValue -Key "IsoPath" -Default $null)
     Set-UiText -Root $p -Name "TxtIsoRoot"        -Value (Get-AppStateValue -Key "IsoRoot" -Default $null)
     Set-UiText -Root $p -Name "TxtBootPath"       -Value (Get-AppStateValue -Key "BootImagePath" -Default $null)

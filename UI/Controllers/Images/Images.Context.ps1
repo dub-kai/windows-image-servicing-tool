@@ -323,6 +323,7 @@ function Initialize-ImagesController {
         BtnRefreshMounted        = Find-Ui -Root $Page -Name 'BtnRefreshMounted'
         BtnUnmountMountedCommit  = Find-Ui -Root $Page -Name 'BtnUnmountMountedCommit'
         BtnUnmountMountedDiscard = Find-Ui -Root $Page -Name 'BtnUnmountMountedDiscard'
+        BtnRepairMounts          = Find-Ui -Root $Page -Name 'BtnRepairMounts'
         TxtMountedHint           = Find-Ui -Root $Page -Name 'TxtMountedHint'
         LstMountedWims           = Find-Ui -Root $Page -Name 'LstMountedWims'
 
@@ -518,6 +519,16 @@ function Initialize-ImagesController {
         $script:ctx.BtnUnmountMountedDiscard.Add_Click({
             try {
                 Unmount-MountedSelectedDiscard
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnRepairMounts) {
+        $script:ctx.BtnRepairMounts.Add_Click({
+            try {
+                Start-MountRepairAssistant
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }

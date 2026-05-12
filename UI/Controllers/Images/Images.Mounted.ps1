@@ -105,7 +105,107 @@ function Update-MountedButtons {
         } catch {}
     }
     if ($script:ctx.BtnUnmountMountedCommit)  { try { $script:ctx.BtnUnmountMountedCommit.IsEnabled  = ($hasSel -and $canCommit) } catch {} }
+    if ($script:ctx.BtnRepairMounts) { try { $script:ctx.BtnRepairMounts.IsEnabled = $true } catch {} }
     if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedSelectionHint -MountedItem $selected) } catch {} }
+}
+
+function Get-MountRepairProblemItems {
+    if (-not $script:ctx -or -not $script:ctx.LstMountedWims) { return @() }
+
+    $items = @()
+    try { $items = @($script:ctx.LstMountedWims.ItemsSource) } catch { $items = @() }
+    if ($items.Count -lt 1) { return @() }
+
+    return @($items | Where-Object {
+        $registryOnly = $false
+        $health = ''
+        $action = ''
+        try { $registryOnly = [bool]$_.RegistryOnly } catch {}
+        try { $health = [string]$_.Health } catch {}
+        try { $action = [string]$_.RecommendedAction } catch {}
+
+        $registryOnly -or
+        ($health -and $health -notmatch '^OK$') -or
+        ($action -match 'Cleanup|bereinig|Ohne Commit')
+    })
+}
+
+function Start-MountRepairAssistant {
+    if (-not $script:ctx) { return }
+    if ($script:isBusy) { return }
+
+    $problemItems = @(Get-MountRepairProblemItems)
+    if ($problemItems.Count -lt 1) {
+        Show-UiInfo -Title 'Mount-Reparatur' -Message 'Aktuell sehe ich keine problematischen Mounts. Wenn trotzdem etwas hängt, bitte erst die Mount-Liste aktualisieren.'
+        return
+    }
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+    $mountText = (($problemItems | Select-Object -First 6 | ForEach-Object { [string]$_.MountDir }) -join "`r`n")
+    if ($problemItems.Count -gt 6) { $mountText += "`r`n..." }
+
+    $message = "Es wurden problematische Mount-Einträge gefunden:`r`n`r`n$mountText`r`n`r`nSoll DISM /Cleanup-Wim jetzt ausgeführt werden? Das bereinigt hängende Mount-Registry-Einträge, führt aber keinen Commit aus."
+    $answer = [System.Windows.MessageBox]::Show(
+        $message,
+        'Mount-Reparatur',
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+    if ($answer -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+    $ctxLocal = $script:ctx
+    $setStatus = $script:ctx.SetStatus
+    $fnSetBusy = (Get-Item function:Set-ImagesBusy -ErrorAction Stop).ScriptBlock
+    $fnRefresh = (Get-Item function:Refresh-MountedList -ErrorAction Stop).ScriptBlock
+    $fnShowUiError = (Get-Item function:Show-UiError -ErrorAction Stop).ScriptBlock
+
+    & $fnSetBusy -Busy $true -Reason 'Mount-Reparatur läuft...' -Context $ctxLocal
+
+    $projectRoot = (Get-ProjectRoot).Replace("'", "''")
+    $coreBoot = (Resolve-ProjectPath "Core\Bootstrap.psm1" -MustExist).Replace("'", "''")
+    $coreCfg = (Resolve-ProjectPath "Core\Config.psm1" -MustExist).Replace("'", "''")
+    $coreLog = (Resolve-ProjectPath "Core\Logger.psm1" -MustExist).Replace("'", "''")
+    $svcDism = (Resolve-ProjectPath "Services\DismService.psm1" -MustExist).Replace("'", "''")
+    $svcMount = (Resolve-ProjectPath "Services\MountService.psm1" -MustExist).Replace("'", "''")
+    $svcMounted = (Resolve-ProjectPath "Services\MountedWimService.psm1" -MustExist).Replace("'", "''")
+
+    $code = @"
+`$ErrorActionPreference = 'Stop'
+Import-Module '$coreBoot' -Force -DisableNameChecking
+Set-ProjectRoot -Path '$projectRoot' | Out-Null
+Import-Module '$coreCfg' -Force -DisableNameChecking
+Import-Module '$coreLog' -Force -DisableNameChecking
+Import-Module '$svcDism' -Force -DisableNameChecking
+Import-Module '$svcMount' -Force -DisableNameChecking
+Import-Module '$svcMounted' -Force -DisableNameChecking
+
+Repair-WimMountRegistry -TimeoutSec 900 | Out-Null
+`$mounts = @(Get-MountedWimList)
+[pscustomobject]@{
+    Remaining = @(`$mounts).Count
+}
+"@
+
+    Start-UiTask -Work ([scriptblock]::Create($code)) -Label 'MountRepair:CleanupWim' -OnCompleted {
+        param($result)
+        try {
+            $item = @($result) | Select-Object -First 1
+            $remaining = if ($item) { [int]$item.Remaining } else { 0 }
+            if ($setStatus) { & $setStatus ("Mount-Reparatur fertig. Einträge danach: {0}" -f $remaining) }
+            Show-UiInfo -Title 'Mount-Reparatur' -Message ("DISM /Cleanup-Wim wurde ausgeführt.`r`nVerbleibende Mount-Einträge: {0}" -f $remaining)
+        } finally {
+            & $fnSetBusy -Busy $false -Context $ctxLocal
+            try { & $fnRefresh } catch {}
+        }
+    } -OnError {
+        param($ex)
+        try { & $fnShowUiError -Title 'Mount-Reparatur' -Message $ex.Message }
+        finally {
+            & $fnSetBusy -Busy $false -Context $ctxLocal
+            try { & $fnRefresh } catch {}
+            if ($setStatus) { & $setStatus 'Ready' }
+        }
+    }
 }
 
 function Get-SelectedMountedDir {

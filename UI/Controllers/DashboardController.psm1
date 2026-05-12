@@ -2,6 +2,8 @@
 $ErrorActionPreference = "Stop"
 
 Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -DisableNameChecking -Global
+try { Import-Module (Resolve-ProjectPath "Core\JobHistory.psm1" -MustExist) -Force -DisableNameChecking -Global } catch {}
+try { Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking -Global } catch {}
 
 # shared controller context
 $script:ctx = $null
@@ -15,6 +17,7 @@ if (-not (Test-Path -LiteralPath $partsRoot)) {
 $parts = @(
     "Dashboard.Helpers.ps1",
     "Dashboard.AutoDetect.ps1",
+    "Dashboard.Overview.ps1",
     "Dashboard.UI.ps1",
     "Dashboard.Context.ps1"
 )

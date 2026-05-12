@@ -89,6 +89,7 @@ function Apply-ImagesBusyUi {
         (Get-Ctx "BtnRefreshMounted"),
         (Get-Ctx "BtnUnmountMountedCommit"),
         (Get-Ctx "BtnUnmountMountedDiscard"),
+        (Get-Ctx "BtnRepairMounts"),
         (Get-Ctx "LstMountedWims")
     ) | Where-Object { $_ -ne $null }
 

@@ -249,7 +249,8 @@
                 <TextBlock FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" VerticalAlignment="Center" Text="Mounted Images" Margin="0,0,14,0"/>
                 <Button Name="BtnRefreshMounted" Width="110" Height="28" Margin="0,0,10,0" Content="Refresh"/>
                 <Button Name="BtnUnmountMountedCommit" Width="160" Height="28" Margin="0,0,10,0" Content="Unmount (Commit)"/>
-                <Button Name="BtnUnmountMountedDiscard" Width="170" Height="28" Content="Unmount (Discard)"/>
+                <Button Name="BtnUnmountMountedDiscard" Width="170" Height="28" Margin="0,0,10,0" Content="Unmount (Discard)"/>
+                <Button Name="BtnRepairMounts" Width="150" Height="28" Content="Reparatur prüfen"/>
               </StackPanel>
 
               <TextBlock Grid.Row="1"

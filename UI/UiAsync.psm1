@@ -24,6 +24,50 @@ function Write-UiAsyncLog {
     } catch {}
 }
 
+function Write-UiTaskHistory {
+    param(
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][ValidateSet("Started","Completed","Failed","Cancelled","Skipped","Info")][string]$Status,
+        [datetime]$StartedAt = (Get-Date),
+        [Nullable[datetime]]$EndedAt = $null,
+        [Nullable[int64]]$DurationMs = $null,
+        [string]$Message = $null,
+        [string]$Detail = $null,
+        [string]$ErrorText = $null,
+        [hashtable]$Data = $null
+    )
+
+    try {
+        $cmd = Get-Command Add-JobHistoryEntry -ErrorAction SilentlyContinue
+        if (-not $cmd) { return }
+
+        $maxEntries = 250
+        try {
+            if (Get-Command Get-ConfigValue -ErrorAction SilentlyContinue) {
+                $maxEntries = [int](Get-ConfigValue -Key "JobHistoryMaxEntries" -Default 250)
+            }
+        } catch {
+            $maxEntries = 250
+        }
+
+        $params = @{
+            Operation  = $Label
+            Status     = $Status
+            Message    = if ([string]::IsNullOrWhiteSpace($Message)) { $Label } else { $Message }
+            Detail     = $Detail
+            ErrorText  = $ErrorText
+            StartedAt  = $StartedAt
+            MaxEntries = $maxEntries
+            Data       = $Data
+        }
+
+        if ($null -ne $EndedAt) { $params.EndedAt = [datetime]$EndedAt }
+        if ($null -ne $DurationMs) { $params.DurationMs = [int64]$DurationMs }
+
+        Add-JobHistoryEntry @params | Out-Null
+    } catch {}
+}
+
 function Initialize-UiAsync {
     [CmdletBinding()]
     param(
@@ -309,6 +353,7 @@ function Start-UiTask {
         $null = $ps.AddScript($workText)
         $handle = $ps.BeginInvoke()
         & $fnLog -Level INFO -Message ("UiAsync: Start-UiTask '{0}' started." -f $Label) -ToConsole
+        Write-UiTaskHistory -Label $Label -Status Started -StartedAt $start -Message ("Gestartet: {0}" -f $Label)
     } catch {
         try { $ps.Dispose() } catch {}
         try { $rs.Dispose() } catch {}
@@ -350,6 +395,7 @@ function Start-UiTask {
 
                     $msg = "UI Task timeout: '$labelLocal' after {0:N0}s" -f $elapsed.TotalSeconds
                     & $fnLog -Level ERROR -Message $msg -ToConsole
+                    Write-UiTaskHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed.TotalMilliseconds) -Message ("Timeout: {0}" -f $labelLocal) -ErrorText $msg
                     $tex = New-Object System.TimeoutException($msg)
                     & $fnInvokeUi { & $errLocal $tex }
                     return
@@ -372,6 +418,7 @@ function Start-UiTask {
 
             $elapsed2 = (Get-Date) - $startLocal
             & $fnLog -Level INFO -Message ("UiAsync: '{0}' completed in {1:N0}ms (items={2})." -f $labelLocal, $elapsed2.TotalMilliseconds, @($resArr).Count) -ToConsole
+            Write-UiTaskHistory -Label $labelLocal -Status Completed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed2.TotalMilliseconds) -Message ("Fertig: {0}" -f $labelLocal) -Detail ("items={0}" -f @($resArr).Count)
 
             & $fnInvokeUi { & $doneLocal $resArr }
         } catch {
@@ -385,6 +432,8 @@ function Start-UiTask {
             if ($stack) { $msg = $msg + "`nSTACK:`n" + $stack }
 
             & $fnLog -Level ERROR -Message $msg -ToConsole
+            $elapsedErr = (Get-Date) - $startLocal
+            Write-UiTaskHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsedErr.TotalMilliseconds) -Message ("Fehler: {0}" -f $labelLocal) -ErrorText $msg
 
             try { $psLocal.Dispose() } catch {}
             try { $rsLocal.Dispose() } catch {}

@@ -260,6 +260,7 @@ Update-StartupSplash -SplashWindow $splash -Status 'Core-Module werden geladen..
 Import-Module (Resolve-ProjectPath "Core\Config.psm1"   -MustExist) -Force -DisableNameChecking
 Import-Module (Resolve-ProjectPath "Core\AppState.psm1" -MustExist) -Force -DisableNameChecking
 Import-Module (Resolve-ProjectPath "Core\Logger.psm1"   -MustExist) -Force -DisableNameChecking
+Import-Module (Resolve-ProjectPath "Core\JobHistory.psm1" -MustExist) -Force -DisableNameChecking
 
 $configOverrides = @{}
 if ($PSBoundParameters.ContainsKey('StartPage')) {

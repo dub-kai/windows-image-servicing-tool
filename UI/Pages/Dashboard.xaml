@@ -30,6 +30,74 @@
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel>
 
+        <Border Background="#ECFDF5" BorderBrush="#99F6E4" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,0,12">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0"
+                       FontWeight="SemiBold"
+                       FontSize="15"
+                       Foreground="#0F172A"
+                       Margin="0,0,0,12"
+                       Text="Systemüberblick"/>
+
+            <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,12">
+              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Foreground="#64748B" Text="Aktive Mounts"/>
+                  <TextBlock Name="TxtDashActiveMounts" FontSize="22" FontWeight="SemiBold" Foreground="#0F766E" Text="-"/>
+                  <TextBlock Name="TxtDashMountHealth" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+                </StackPanel>
+              </Border>
+
+              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Foreground="#64748B" Text="Letzter Job"/>
+                  <TextBlock Name="TxtDashLastJob" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap" Text="-"/>
+                  <TextBlock Name="TxtDashLastJobDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+                </StackPanel>
+              </Border>
+
+              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Foreground="#64748B" Text="Letzter Fehler"/>
+                  <TextBlock Name="TxtDashLastError" FontWeight="SemiBold" Foreground="#991B1B" TextWrapping="Wrap" Text="-"/>
+                  <TextBlock Name="TxtDashLastErrorDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+                </StackPanel>
+              </Border>
+
+              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12">
+                <StackPanel>
+                  <TextBlock Foreground="#64748B" Text="Tools"/>
+                  <TextBlock Name="TxtDashDismStatus" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap" Text="-"/>
+                  <TextBlock Name="TxtDashAdkStatus" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+
+            <Grid Grid.Row="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Verlauf:"/>
+              <ListBox Grid.Column="1"
+                       Name="LstDashRecentJobs"
+                       MinHeight="80"
+                       MaxHeight="140"
+                       Background="White"
+                       BorderBrush="#CCFBF1"
+                       BorderThickness="1"
+                       FontFamily="Consolas"
+                       FontSize="12"/>
+            </Grid>
+          </Grid>
+        </Border>
+
         <!-- ISO Bereich -->
         <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,0,12">
           <Grid>

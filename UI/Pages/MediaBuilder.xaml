@@ -102,11 +102,41 @@
         </Border>
 
         <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="16" CornerRadius="14">
-          <StackPanel>
-            <TextBlock FontWeight="SemiBold" FontSize="16" Foreground="#0F172A" Margin="0,0,0,8" Text="3. USB-Stick vorbereiten"/>
-            <TextBlock Foreground="#475569" TextWrapping="Wrap"
-                       Text="Hier soll als Nächstes ein USB-Workflow hin: ISO oder Build-Ordner direkt auf einen Stick schreiben. Den Bereich habe ich bewusst schon vorbereitet, die eigentliche Schreiblogik folgt im nächsten Schritt."/>
-          </StackPanel>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="170"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="3" FontWeight="SemiBold" FontSize="16" Foreground="#0F172A" Margin="0,0,0,8" Text="3. USB-Stick vorbereiten"/>
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Foreground="#475569" Margin="0,0,0,12" TextWrapping="Wrap"
+                       Text="Kopiert eine vorbereitete Windows-Quelle auf einen USB-Zielordner. Sicherer erster Schritt: Es wird nichts formatiert und nichts gelöscht."/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Quelle:"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtMediaUsbSource" Margin="0,0,10,8" Text="-" TextWrapping="Wrap"/>
+            <Button Grid.Row="2" Grid.Column="2" Name="BtnMediaPickUsbSource" Content="Quelle wählen" Height="28" MinWidth="130" Margin="0,0,0,8"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="USB-Ziel:"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtMediaUsbTarget" Margin="0,0,10,8" Text="-" TextWrapping="Wrap"/>
+            <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
+              <Button Name="BtnMediaPickUsbTarget" Content="USB wählen" Height="28" MinWidth="110" Margin="0,0,8,0"/>
+              <Button Name="BtnMediaCopyToUsb" Content="Auf USB kopieren" Height="28" MinWidth="140"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
+                       Name="TxtMediaUsbSummary"
+                       Foreground="#92400E"
+                       TextWrapping="Wrap"
+                       Text="Hinweis: Für UEFI-Boot muss der Stick passend vorbereitet sein. Das Tool kopiert hier nur Dateien."/>
+          </Grid>
         </Border>
 
         <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="16" CornerRadius="14" Margin="0,12,0,0">

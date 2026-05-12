@@ -159,6 +159,7 @@ function New-DefaultConfig {
         DismUnmountCommitRetryCount = 3
         DismUnmountCommitRetryDelaySec = 12
         MountedWimRefreshQuietPeriodSec = 15
+        JobHistoryMaxEntries = 250
         IsoMountRetry    = @{
             Count = 25
             DelayMs = 200
