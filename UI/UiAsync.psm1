@@ -336,8 +336,9 @@ function Start-UiTask {
     )
 
     # ---- Capture function refs for event/dispatcher scope safety ----
-    $fnLog     = (Get-Item function:Write-UiAsyncLog -ErrorAction Stop).ScriptBlock
-    $fnInvokeUi= (Get-Item function:Invoke-Ui        -ErrorAction Stop).ScriptBlock
+    $fnLog       = (Get-Item function:Write-UiAsyncLog     -ErrorAction Stop).ScriptBlock
+    $fnInvokeUi  = (Get-Item function:Invoke-Ui            -ErrorAction Stop).ScriptBlock
+    $fnHistory   = (Get-Item function:Write-UiTaskHistory  -ErrorAction Stop).ScriptBlock
 
     $ps = [PowerShell]::Create()
     $rs = [RunspaceFactory]::CreateRunspace()
@@ -353,7 +354,7 @@ function Start-UiTask {
         $null = $ps.AddScript($workText)
         $handle = $ps.BeginInvoke()
         & $fnLog -Level INFO -Message ("UiAsync: Start-UiTask '{0}' started." -f $Label) -ToConsole
-        Write-UiTaskHistory -Label $Label -Status Started -StartedAt $start -Message ("Gestartet: {0}" -f $Label)
+        & $fnHistory -Label $Label -Status Started -StartedAt $start -Message ("Gestartet: {0}" -f $Label)
     } catch {
         try { $ps.Dispose() } catch {}
         try { $rs.Dispose() } catch {}
@@ -395,7 +396,7 @@ function Start-UiTask {
 
                     $msg = "UI Task timeout: '$labelLocal' after {0:N0}s" -f $elapsed.TotalSeconds
                     & $fnLog -Level ERROR -Message $msg -ToConsole
-                    Write-UiTaskHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed.TotalMilliseconds) -Message ("Timeout: {0}" -f $labelLocal) -ErrorText $msg
+                    & $fnHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed.TotalMilliseconds) -Message ("Timeout: {0}" -f $labelLocal) -ErrorText $msg
                     $tex = New-Object System.TimeoutException($msg)
                     & $fnInvokeUi { & $errLocal $tex }
                     return
@@ -418,7 +419,7 @@ function Start-UiTask {
 
             $elapsed2 = (Get-Date) - $startLocal
             & $fnLog -Level INFO -Message ("UiAsync: '{0}' completed in {1:N0}ms (items={2})." -f $labelLocal, $elapsed2.TotalMilliseconds, @($resArr).Count) -ToConsole
-            Write-UiTaskHistory -Label $labelLocal -Status Completed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed2.TotalMilliseconds) -Message ("Fertig: {0}" -f $labelLocal) -Detail ("items={0}" -f @($resArr).Count)
+            & $fnHistory -Label $labelLocal -Status Completed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed2.TotalMilliseconds) -Message ("Fertig: {0}" -f $labelLocal) -Detail ("items={0}" -f @($resArr).Count)
 
             & $fnInvokeUi { & $doneLocal $resArr }
         } catch {
@@ -433,7 +434,7 @@ function Start-UiTask {
 
             & $fnLog -Level ERROR -Message $msg -ToConsole
             $elapsedErr = (Get-Date) - $startLocal
-            Write-UiTaskHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsedErr.TotalMilliseconds) -Message ("Fehler: {0}" -f $labelLocal) -ErrorText $msg
+            & $fnHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsedErr.TotalMilliseconds) -Message ("Fehler: {0}" -f $labelLocal) -ErrorText $msg
 
             try { $psLocal.Dispose() } catch {}
             try { $rsLocal.Dispose() } catch {}
