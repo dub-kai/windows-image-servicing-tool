@@ -146,7 +146,17 @@ function Invoke-UpdatesDism {
             }
         }
 
-        Write-UpdateLog -Level ERROR -Message ("DISM ExitCode={0} ({1}ms) Args={2}" -f $exitCode, $sw.ElapsedMilliseconds, $argString)
+        $shouldAutoRemount = (
+            $AllowAutoRemount -and
+            -not [string]::IsNullOrWhiteSpace($MountDir) -and
+            (Test-UpdatesDismNeedsRemount -ExitCode $exitCode -Text $combined)
+        )
+
+        if ($shouldAutoRemount) {
+            Write-UpdateLog -Level WARN -Message ("DISM ExitCode={0} ({1}ms) Args={2} | Remount-Recovery wird versucht" -f $exitCode, $sw.ElapsedMilliseconds, $argString)
+        } else {
+            Write-UpdateLog -Level ERROR -Message ("DISM ExitCode={0} ({1}ms) Args={2}" -f $exitCode, $sw.ElapsedMilliseconds, $argString)
+        }
 
         if ($exitCode -eq 183 -and $attempt -lt $RetryCount) {
             Write-UpdateLog -Level WARN -Message ("{0}: DISM busy (183), Retry {1}/{2} fuer Args={3}" -f $RetryPrefix, ($attempt + 1), $RetryCount, $argString)
@@ -154,11 +164,7 @@ function Invoke-UpdatesDism {
             continue
         }
 
-        if (
-            $AllowAutoRemount -and
-            -not [string]::IsNullOrWhiteSpace($MountDir) -and
-            (Test-UpdatesDismNeedsRemount -ExitCode $exitCode -Text $combined)
-        ) {
+        if ($shouldAutoRemount) {
             Write-UpdateLog -Level WARN -Message ("{0}: Mount muss remounted werden. Automatischer Remount fuer {1}." -f $RetryPrefix, $MountDir)
 
             $null = Invoke-UpdatesDismRemount -MountDir $MountDir
