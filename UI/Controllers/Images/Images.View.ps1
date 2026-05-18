@@ -118,7 +118,16 @@ function Get-ImagesPathForMode {
         }
 
         "Standalone" {
-            try { $p = Get-AppStateValue -Key "StandaloneImagePath" -Default $null } catch { $p = $null }
+            try {
+                if (Get-Command Resolve-StandaloneImagePaths -ErrorAction SilentlyContinue) {
+                    $paths = @(Resolve-StandaloneImagePaths)
+                    if ($paths.Count -gt 0) { $p = [string]$paths[0] }
+                }
+            } catch { $p = $null }
+
+            if ([string]::IsNullOrWhiteSpace([string]$p)) {
+                try { $p = Get-AppStateValue -Key "StandaloneImagePath" -Default $null } catch { $p = $null }
+            }
             if ([string]::IsNullOrWhiteSpace([string]$p) -and $script:ctx) {
                 try { $p = $script:ctx.StandalonePath } catch { $p = $null }
             }
@@ -133,6 +142,35 @@ function Get-ImagesPathForMode {
     }
 }
 
+function Get-ImagesPathsForMode {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet("IsoInstall","IsoBoot","Standalone")]
+        [string]$Mode
+    )
+
+    if ($Mode -ne 'Standalone') {
+        return ,(Get-ImagesPathForMode -Mode $Mode)
+    }
+
+    $paths = @()
+    try {
+        if (Get-Command Resolve-StandaloneImagePaths -ErrorAction SilentlyContinue) {
+            $paths = @(Resolve-StandaloneImagePaths)
+        }
+    } catch { $paths = @() }
+
+    if ($paths.Count -eq 0 -and $script:ctx) {
+        try { $paths = @($script:ctx.StandalonePaths) } catch { $paths = @() }
+    }
+
+    if ($paths.Count -eq 0) {
+        return ,(Get-ImagesPathForMode -Mode $Mode)
+    }
+
+    return @($paths | ForEach-Object { Normalize-PathText ([string]$_) })
+}
+
 function Refresh-ImagesUI {
     if (-not $script:ctx) { return }
 
@@ -141,9 +179,15 @@ function Refresh-ImagesUI {
     $isoInstallPath = $null
     $isoBootPath    = $null
     $standalonePath = $null
+    $standalonePaths = @()
 
     try { $isoInstallPath = Get-AppStateValue -Key "IsoInstallImagePath" -Default $null } catch { $isoInstallPath = $null }
     try { $isoBootPath    = Get-AppStateValue -Key "BootImagePath"       -Default $null } catch { $isoBootPath = $null }
+    try {
+        if (Get-Command Resolve-StandaloneImagePaths -ErrorAction SilentlyContinue) {
+            $standalonePaths = @(Resolve-StandaloneImagePaths)
+        }
+    } catch { $standalonePaths = @() }
     try { $standalonePath = Get-AppStateValue -Key "StandaloneImagePath" -Default $null } catch { $standalonePath = $null }
 
     if ([string]::IsNullOrWhiteSpace([string]$isoInstallPath) -and $script:ctx) {
@@ -155,14 +199,30 @@ function Refresh-ImagesUI {
     if ([string]::IsNullOrWhiteSpace([string]$standalonePath) -and $script:ctx) {
         try { $standalonePath = $script:ctx.StandalonePath } catch {}
     }
+    if ($standalonePaths.Count -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$standalonePath)) {
+        $standalonePaths = @([string]$standalonePath)
+    }
+    if ($script:ctx) {
+        try { $script:ctx.StandalonePaths = @($standalonePaths) } catch {}
+        try { $script:ctx.StandalonePath = if ($standalonePaths.Count -gt 0) { [string]$standalonePaths[0] } else { $standalonePath } } catch {}
+    }
+
+    $standaloneSummary = Get-DisplayValue $standalonePath
 
     try { Set-UiText -Root $script:ctx.ImagesPage -Name "TxtIsoInstall" -Value (Get-DisplayValue $isoInstallPath) } catch {}
     try { Set-UiText -Root $script:ctx.ImagesPage -Name "TxtIsoBoot"    -Value (Get-DisplayValue $isoBootPath) } catch {}
-    try { Set-UiText -Root $script:ctx.ImagesPage -Name "TxtStandalone" -Value (Get-DisplayValue $standalonePath) } catch {}
+    try {
+        $standaloneSummary = if (Get-Command Format-StandaloneImagesSummary -ErrorAction SilentlyContinue) {
+            Format-StandaloneImagesSummary -Paths @($standalonePaths)
+        } else {
+            Get-DisplayValue $standalonePath
+        }
+        Set-UiText -Root $script:ctx.ImagesPage -Name "TxtStandalone" -Value $standaloneSummary
+    } catch {}
 
     $hasIsoInstall = [bool]$isoInstallPath
     $hasIsoBoot    = [bool]$isoBootPath
-    $hasStandalone = [bool]$standalonePath
+    $hasStandalone = ($standalonePaths.Count -gt 0) -or [bool]$standalonePath
 
     try { Set-UiEnabled -Root $script:ctx.ImagesPage -Name "CmbItemIsoInstall" -Enabled $hasIsoInstall } catch {}
     try { Set-UiEnabled -Root $script:ctx.ImagesPage -Name "CmbItemIsoBoot"    -Enabled $hasIsoBoot } catch {}
@@ -220,6 +280,6 @@ function Refresh-ImagesUI {
             (Get-DisplayValue (Get-ImagesViewMode)),
             (Get-DisplayValue $isoInstallPath),
             (Get-DisplayValue $isoBootPath),
-            (Get-DisplayValue $standalonePath))
+            (Get-DisplayValue $standaloneSummary))
     } catch {}
 }

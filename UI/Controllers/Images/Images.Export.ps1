@@ -13,7 +13,14 @@ function Start-SaveSourceWimAsync {
         $mode = Get-ImagesViewMode
         if (-not $mode) { throw "Keine Ansicht ausgewählt." }
 
-        $src = Get-ImagesPathForMode -Mode $mode
+        $item = Get-SelectedWimItem
+        $src = $null
+        if ($item -and $item.PSObject.Properties.Match("ImagePath").Count -gt 0) {
+            $src = [string]$item.ImagePath
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$src)) {
+            $src = Get-ImagesPathForMode -Mode $mode
+        }
         if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { throw "Quelle nicht gefunden: $src" }
 
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
@@ -77,19 +84,27 @@ function Start-ExportSelectedIndexAsync {
         $mode = Get-ImagesViewMode
         if (-not $mode) { throw "Keine Ansicht ausgewählt." }
 
-        $src = Get-ImagesPathForMode -Mode $mode
-        if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { throw "Quelle nicht gefunden: $src" }
-
         $item = Get-SelectedWimItem
         if (-not $item) { throw "Bitte zuerst einen Index auswählen." }
         if ($item.PSObject.Properties.Match("Index").Count -eq 0) { throw "SelectedItem hat keinen Index." }
+
+        $src = $null
+        if ($item.PSObject.Properties.Match("ImagePath").Count -gt 0) {
+            $src = [string]$item.ImagePath
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$src)) {
+            $src = Get-ImagesPathForMode -Mode $mode
+        }
+        if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { throw "Quelle nicht gefunden: $src" }
 
         $idx = [int]$item.Index
 
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
         $dlg = New-Object Microsoft.Win32.SaveFileDialog
         $dlg.Filter = "WIM (*.wim)|*.wim|Alle Dateien (*.*)|*.*"
-        $dlg.FileName = ("{0}_Index_{1}.wim" -f $mode, $idx)
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($src)
+        if ([string]::IsNullOrWhiteSpace($baseName)) { $baseName = $mode }
+        $dlg.FileName = ("{0}_Index_{1}.wim" -f $baseName, $idx)
         $dlg.OverwritePrompt = $true
 
         $ok = $dlg.ShowDialog()

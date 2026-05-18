@@ -78,9 +78,9 @@
 
               <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                          FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
-                         Text="Standalone WIM/ESD" />
+                         Text="Standalone Images" />
 
-              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="Pfad:"/>
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="Quelle:"/>
 
               <Grid Grid.Row="1" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -96,10 +96,11 @@
                            TextTrimming="CharacterEllipsis"
                            ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
-                  <Button Name="BtnPickStandalone" Width="140" Height="28" Margin="0,0,8,0" Content="WIM/ESD wählen"/>
+                <WrapPanel Grid.Column="1" Margin="10,0,0,0">
+                  <Button Name="BtnPickStandalone" Width="125" Height="28" Margin="0,0,8,0" Content="Dateien wählen"/>
+                  <Button Name="BtnPickStandaloneFolder" Width="115" Height="28" Margin="0,0,8,0" Content="Ordner laden"/>
                   <Button Name="BtnClearStandalone" Width="90" Height="28" Content="Clear"/>
-                </StackPanel>
+                </WrapPanel>
               </Grid>
             </Grid>
           </Border>
@@ -228,9 +229,10 @@
               <ListView Grid.Row="1" Name="LstWimImages" MinHeight="260">
                 <ListView.View>
                   <GridView>
+                    <GridViewColumn Header="Datei" Width="180" DisplayMemberBinding="{Binding FileName}" />
                     <GridViewColumn Header="Index" Width="70" DisplayMemberBinding="{Binding Index}" />
-                    <GridViewColumn Header="Name" Width="260" DisplayMemberBinding="{Binding Name}" />
-                    <GridViewColumn Header="Description" Width="420" DisplayMemberBinding="{Binding Description}" />
+                    <GridViewColumn Header="Name" Width="240" DisplayMemberBinding="{Binding Name}" />
+                    <GridViewColumn Header="Description" Width="360" DisplayMemberBinding="{Binding Description}" />
                   </GridView>
                 </ListView.View>
               </ListView>

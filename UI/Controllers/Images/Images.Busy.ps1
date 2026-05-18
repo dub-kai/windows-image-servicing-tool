@@ -79,8 +79,9 @@ function Apply-ImagesBusyUi {
 
     $targets = @(
         (Get-Ctx "CmbView"),
-        (Get-Ctx "BtnLoad"),
+        (Get-Ctx "BtnLoadWimIndexes"),
         (Get-Ctx "BtnPickStandalone"),
+        (Get-Ctx "BtnPickStandaloneFolder"),
         (Get-Ctx "BtnClearStandalone"),
         (Get-Ctx "BtnMountSelected"),
         (Get-Ctx "BtnSaveSourceWim"),

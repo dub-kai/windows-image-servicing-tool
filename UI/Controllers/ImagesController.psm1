@@ -19,6 +19,7 @@ if (-not (Test-Path -LiteralPath $partsRoot)) {
 
 $parts = @(
     "Images.Busy.ps1",
+    "Images.Standalone.ps1",
     "Images.View.ps1",
     "Images.Indexes.ps1",
     "Images.Mounted.ps1",

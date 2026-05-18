@@ -139,13 +139,16 @@ function Start-MountAsync {
         $mode = Get-ImagesViewMode
         if (-not $mode) { throw "Keine Ansicht ausgewählt." }
 
-        $imagePath = Get-ImagesPathForMode -Mode $mode
+        $index = Get-SelectedWimIndex
+        if ($null -eq $index) { throw "Bitte zuerst einen Index auswählen." }
+
+        $imagePath = Get-SelectedWimImagePath
+        if ([string]::IsNullOrWhiteSpace([string]$imagePath)) {
+            throw "ImageFile für den ausgewählten Index nicht ermittelbar."
+        }
         if (-not (Test-Path -LiteralPath $imagePath -PathType Leaf)) {
             throw "ImageFile nicht gefunden: $imagePath"
         }
-
-        $index = Get-SelectedWimIndex
-        if ($null -eq $index) { throw "Bitte zuerst einen Index auswählen." }
 
         $readOnly = $false
         if ($script:ctx.ChkReadOnly) {

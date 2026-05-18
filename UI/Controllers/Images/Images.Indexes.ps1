@@ -53,14 +53,90 @@ function Get-SelectedWimIndex {
     try { return [int]$sel.Index } catch { return $null }
 }
 
+function Get-SelectedWimImagePath {
+    if (-not $script:ctx -or -not $script:ctx.LstWimImages) { return $null }
+
+    $sel = $null
+    try { $sel = $script:ctx.LstWimImages.SelectedItem } catch { $sel = $null }
+    if ($sel -and $sel.PSObject.Properties.Match("ImagePath").Count -gt 0) {
+        $p = [string]$sel.ImagePath
+        if (-not [string]::IsNullOrWhiteSpace($p)) {
+            return (Normalize-PathText $p)
+        }
+    }
+
+    try {
+        $mode = Get-ImagesViewMode
+        if ($mode) { return (Get-ImagesPathForMode -Mode $mode) }
+    } catch {}
+
+    return $null
+}
+
+function Get-WimSourceSummary {
+    param(
+        [Parameter(Mandatory)][string[]]$Paths,
+        [int]$ItemCount = 0
+    )
+
+    $items = @($Paths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    if ($items.Count -eq 0) { return '-' }
+    if ($items.Count -eq 1) { return [string]$items[0] }
+
+    return ("{0} Dateien | {1} Indexe" -f $items.Count, $ItemCount)
+}
+
+function Set-WimSourceUsedText {
+    param(
+        $Context,
+        [string]$Text
+    )
+
+    if (-not $Context) { return }
+    if ([string]::IsNullOrWhiteSpace($Text)) { $Text = '-' }
+
+    $target = $null
+    try { $target = $Context.TxtWimSourceUsed } catch { $target = $null }
+    if (-not $target) {
+        try { $target = $Context['TxtWimSourceUsed'] } catch { $target = $null }
+    }
+
+    if ($target) {
+        try {
+            $target.Text = $Text
+            return
+        } catch {}
+    }
+
+    try {
+        $root = $null
+        try { $root = $Context.ImagesPage } catch { $root = $null }
+        if (-not $root) { try { $root = $Context['ImagesPage'] } catch { $root = $null } }
+        if ($root) { Set-UiText -Root $root -Name 'TxtWimSourceUsed' -Value $Text }
+    } catch {}
+}
+
 function Update-SelectedIndexUi {
     if (-not $script:ctx) { return }
 
     $idx = Get-SelectedWimIndex
+    $imagePath = if ($null -ne $idx) { Get-SelectedWimImagePath } else { $null }
     try { Set-AppStateValue -Key "SelectedWimIndex" -Value $idx } catch {}
+    try { Set-AppStateValue -Key "SelectedImagePath" -Value $imagePath } catch {}
 
     if ($script:ctx.TxtSelectedIndex) {
-        try { $script:ctx.TxtSelectedIndex.Text = if ($null -ne $idx) { [string]$idx } else { "-" } } catch {}
+        try {
+            $text = "-"
+            if ($null -ne $idx) {
+                $text = [string]$idx
+                $sel = $null
+                try { $sel = $script:ctx.LstWimImages.SelectedItem } catch {}
+                if ($sel -and $sel.PSObject.Properties.Match("FileName").Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$sel.FileName)) {
+                    $text = ("{0} / Index {1}" -f $sel.FileName, $idx)
+                }
+            }
+            $script:ctx.TxtSelectedIndex.Text = $text
+        } catch {}
     }
 
     if (-not $script:isBusy -and $script:ctx.BtnMountSelected) {
@@ -82,9 +158,7 @@ function Clear-IndexListUi {
         } catch {}
     }
 
-    if ($script:ctx.TxtWimSourceUsed) {
-        try { $script:ctx.TxtWimSourceUsed.Text = "-" } catch {}
-    }
+    try { Set-WimSourceUsedText -Context $script:ctx -Text "-" } catch {}
 
     try { Set-AppStateValue -Key "SelectedWimIndex" -Value $null } catch {}
     Update-SelectedIndexUi
@@ -104,18 +178,27 @@ function Show-ImagesIndexes {
             return
         }
 
-        $path = $null
+        $paths = @()
         try {
-            $path = Get-ImagesPathForMode -Mode $mode
+            $paths = @(Get-ImagesPathsForMode -Mode $mode | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
         } catch {
             Clear-IndexListUi
             if ($script:ctx.SetStatus) { & $script:ctx.SetStatus $_.Exception.Message }
             return
         }
 
+        if ($paths.Count -eq 0) {
+            Clear-IndexListUi
+            if ($script:ctx.SetStatus) { & $script:ctx.SetStatus "Keine Quelle gesetzt." }
+            return
+        }
+
+        $paths = @($paths | ForEach-Object { Normalize-PathText ([string]$_) })
+        $cacheKey = ($paths | ForEach-Object { [string]$_ }) -join '|'
+
         $cacheRef = Ensure-WimCache
-        if (-not $ForceReload -and $cacheRef.ContainsKey($path) -and $null -ne $cacheRef[$path]) {
-            $items = @($cacheRef[$path])
+        if (-not $ForceReload -and $cacheRef.ContainsKey($cacheKey) -and $null -ne $cacheRef[$cacheKey]) {
+            $items = @($cacheRef[$cacheKey])
 
             if ($script:ctx.LstWimImages) {
                 try {
@@ -125,9 +208,7 @@ function Show-ImagesIndexes {
                 } catch {}
             }
 
-            if ($script:ctx.TxtWimSourceUsed) {
-                try { $script:ctx.TxtWimSourceUsed.Text = $path } catch {}
-            }
+            try { Set-WimSourceUsedText -Context $script:ctx -Text ([string](Get-WimSourceSummary -Paths $paths -ItemCount $items.Count)) } catch {}
 
             Update-SelectedIndexUi
             return
@@ -140,6 +221,8 @@ function Show-ImagesIndexes {
         $fnUpdSel   = ${function:Update-SelectedIndexUi}
         $fnClearIdx = ${function:Clear-IndexListUi}
         $fnConvert  = ${function:Convert-WimInfoResultToItems}
+        $fnSetSource = ${function:Set-WimSourceUsedText}
+        $fnSummary = ${function:Get-WimSourceSummary}
 
         & $fnSetBusy -Busy $true -Reason ("Indexe laden ({0})..." -f $mode) -Context $ctxLocal
 
@@ -148,13 +231,67 @@ function Show-ImagesIndexes {
 
         $safeDism   = $dismMod.Replace("'", "''")
         $safeWimInf = $wimInfoMod.Replace("'", "''")
-        $safeImg    = $path.Replace("'", "''")
+        $pathLiterals = @($paths | ForEach-Object { "'" + ([string]$_).Replace("'", "''") + "'" }) -join ','
 
         $code = @"
 `$ErrorActionPreference = 'Stop'
 Import-Module '$safeDism'   -Force
 Import-Module '$safeWimInf' -Force
-Get-WimImageList -ImagePath '$safeImg'
+`$paths = @($pathLiterals)
+`$result = New-Object System.Collections.Generic.List[object]
+`$sourceOrder = 0
+`$leafCounts = @{}
+
+foreach (`$p in `$paths) {
+    `$leaf = [System.IO.Path]::GetFileName(`$p)
+    `$leafKey = `$leaf.ToLowerInvariant()
+    if (-not `$leafCounts.ContainsKey(`$leafKey)) { `$leafCounts[`$leafKey] = 0 }
+    `$leafCounts[`$leafKey] = [int]`$leafCounts[`$leafKey] + 1
+}
+
+foreach (`$imagePath in `$paths) {
+    `$sourceOrder++
+    try {
+        `$rawWimItems = @(Get-WimImageList -ImagePath `$imagePath)
+        if (`$rawWimItems.Count -eq 1 -and `$rawWimItems[0] -is [array]) {
+            `$wimItems = @(`$rawWimItems[0])
+        } else {
+            `$wimItems = `$rawWimItems
+        }
+    } catch {
+        throw ("Get-WimInfo failed for {0}: {1}" -f `$imagePath, `$_.Exception.Message)
+    }
+
+    foreach (`$item in `$wimItems) {
+        if (`$null -eq `$item) { continue }
+        if (`$item.PSObject.Properties.Match('Index').Count -eq 0) { continue }
+
+        `$name = `$null
+        `$description = `$null
+        if (`$item.PSObject.Properties.Match('Name').Count -gt 0) { `$name = [string]`$item.Name }
+        if (`$item.PSObject.Properties.Match('Description').Count -gt 0) { `$description = [string]`$item.Description }
+        `$fileName = [System.IO.Path]::GetFileName(`$imagePath)
+        `$leafKey = `$fileName.ToLowerInvariant()
+        if (`$leafCounts.ContainsKey(`$leafKey) -and [int]`$leafCounts[`$leafKey] -gt 1) {
+            `$parent = [System.IO.Path]::GetDirectoryName(`$imagePath)
+            `$parentName = if (`$parent) { [System.IO.Path]::GetFileName(`$parent) } else { `$null }
+            if (-not [string]::IsNullOrWhiteSpace(`$parentName)) {
+                `$fileName = ("{0}\{1}" -f `$parentName, `$fileName)
+            }
+        }
+
+        `$result.Add([pscustomobject]@{
+            SourceOrder = `$sourceOrder
+            ImagePath = `$imagePath
+            FileName = `$fileName
+            Index = [int]`$item.Index
+            Name = `$name
+            Description = `$description
+        }) | Out-Null
+    }
+}
+
+return ,(`$result.ToArray())
 "@
 
         $onCompleted = {
@@ -163,10 +300,10 @@ Get-WimImageList -ImagePath '$safeImg'
                 $items = @(& $fnConvert -Result $result)
 
                 try {
-                    Write-Log -Level INFO -Message ("Images: entpackte Index-Items={0} fuer {1}" -f $items.Count, $path)
+                    Write-Log -Level INFO -Message ("Images: entpackte Index-Items={0} fuer {1}" -f $items.Count, (& $fnSummary -Paths $paths -ItemCount $items.Count))
                 } catch {}
 
-                $cacheRef[$path] = $items
+                $cacheRef[$cacheKey] = $items
 
                 if ($ctxLocal.LstWimImages) {
                     try {
@@ -176,9 +313,7 @@ Get-WimImageList -ImagePath '$safeImg'
                     } catch {}
                 }
 
-                if ($ctxLocal.TxtWimSourceUsed) {
-                    try { $ctxLocal.TxtWimSourceUsed.Text = $path } catch {}
-                }
+                try { & $fnSetSource -Context $ctxLocal -Text ([string](& $fnSummary -Paths $paths -ItemCount $items.Count)) } catch {}
 
                 & $fnUpdSel
             } finally {

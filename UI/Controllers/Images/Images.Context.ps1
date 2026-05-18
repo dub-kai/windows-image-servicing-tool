@@ -82,9 +82,9 @@ function Pick-StandaloneImage {
     Add-Type -AssemblyName System.Windows.Forms
 
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = 'WIM/ESD auswählen'
-    $dlg.Filter = 'Windows Images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|Alle Dateien (*.*)|*.*'
-    $dlg.Multiselect = $false
+    $dlg.Title = 'WIM/ESD/SWM auswählen'
+    $dlg.Filter = 'Windows Images (*.wim;*.esd;*.swm)|*.wim;*.esd;*.swm|WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|Split WIM (*.swm)|*.swm|Alle Dateien (*.*)|*.*'
+    $dlg.Multiselect = $true
     $dlg.CheckFileExists = $true
     $dlg.CheckPathExists = $true
     $dlg.RestoreDirectory = $true
@@ -99,67 +99,23 @@ function Pick-StandaloneImage {
         return
     }
 
-    $path = $dlg.FileName
-    if ([string]::IsNullOrWhiteSpace($path)) {
-        return
-    }
-
-    $resolved = $path
-    try {
-        $resolved = (Resolve-Path -LiteralPath $path).Path
-    } catch {}
-
-    Set-ImagesAppStateValueSafe -Key 'StandaloneImagePath' -Value $resolved
-    Set-ImagesAppStateValueSafe -Key 'SelectedImagePath'   -Value $resolved
-
-    try {
-        $parent = Split-Path -LiteralPath $resolved -Parent
-        if ($parent) {
-            Set-ImagesAppStateValueSafe -Key 'StandaloneLastDir' -Value $parent
-        }
-    } catch {}
-
-    try {
-        Set-ImagesAppStateValueSafe -Key 'ImagesViewMode' -Value 'Standalone'
-    } catch {}
-
-    if ($script:ctx) {
-        try {
-            $script:ctx.StandalonePath = $resolved
-        } catch {}
-
-        try {
-            if ($script:ctx.TxtStandalone) {
-                $script:ctx.TxtStandalone.Text = $resolved
-            }
-        } catch {}
-
-        try {
-            Set-ImagesComboByMode -Mode 'Standalone'
-        } catch {}
-
-        try {
-            Refresh-ImagesUI
-        } catch {}
-
-        try {
-            Show-ImagesIndexes -ForceReload
-        } catch {}
-    }
-
-    try {
-        if ($script:ctx -and $script:ctx.SetStatus) {
-            & $script:ctx.SetStatus ("Image gewählt: {0}" -f $resolved)
-        }
-    } catch {}
+    Set-StandaloneImageSelection -Paths @($dlg.FileNames) -StatusPrefix 'Images gewählt'
 }
 
 function Clear-StandaloneImage {
     Set-ImagesAppStateValueSafe -Key 'StandaloneImagePath' -Value $null
+    Set-ImagesAppStateValueSafe -Key 'StandaloneImagePaths' -Value $null
+    Set-ImagesAppStateValueSafe -Key 'SelectedImagePath' -Value $null
+
+    Clear-ImagesWimCache
 
     if ($script:ctx) {
         try {
             $script:ctx.StandalonePath = $null
+        } catch {}
+
+        try {
+            $script:ctx.StandalonePaths = @()
         } catch {}
 
         try {
@@ -191,6 +147,9 @@ function Sync-ImagesSelectedIndexText {
                 $idx = [string]$item.Index
                 if (-not [string]::IsNullOrWhiteSpace($idx)) {
                     $value = $idx
+                    if ($item.PSObject.Properties.Match('FileName').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$item.FileName)) {
+                        $value = ("{0} / Index {1}" -f $item.FileName, $idx)
+                    }
                 }
             }
         }
@@ -282,7 +241,8 @@ function Initialize-ImagesController {
     $script:isSyncingImagesView = $false
 
     $media = Get-ImagesAutoDetectedMedia
-    $standalonePath = Resolve-StandaloneImagePath
+    $standalonePaths = @(Resolve-StandaloneImagePaths)
+    $standalonePath = if ($standalonePaths.Count -gt 0) { [string]$standalonePaths[0] } else { Resolve-StandaloneImagePath }
 
     $script:ctx = [ordered]@{
         Page                     = $Page
@@ -298,6 +258,7 @@ function Initialize-ImagesController {
         TxtStandalone            = Find-Ui -Root $Page -Name 'TxtStandalone'
 
         BtnPickStandalone        = Find-Ui -Root $Page -Name 'BtnPickStandalone'
+        BtnPickStandaloneFolder  = Find-Ui -Root $Page -Name 'BtnPickStandaloneFolder'
         BtnClearStandalone       = Find-Ui -Root $Page -Name 'BtnClearStandalone'
 
         CmbView                  = Find-Ui -Root $Page -Name 'CmbView'
@@ -334,6 +295,7 @@ function Initialize-ImagesController {
         IsoBootPath              = $media.BootPath
         IsoInstallPath           = $media.InstallPath
         StandalonePath           = $standalonePath
+        StandalonePaths          = $standalonePaths
     }
 
     if (-not $script:ctx.CmbView)                  { throw "CmbView nicht gefunden." }
@@ -372,7 +334,7 @@ function Initialize-ImagesController {
 
     try {
         if ($script:ctx.TxtStandalone) {
-            $script:ctx.TxtStandalone.Text = $(if ($script:ctx.StandalonePath) { [string]$script:ctx.StandalonePath } else { '-' })
+            $script:ctx.TxtStandalone.Text = Format-StandaloneImagesSummary -Paths @($script:ctx.StandalonePaths)
         }
     } catch {}
 
@@ -380,9 +342,16 @@ function Initialize-ImagesController {
         $script:ctx.BtnPickStandalone.Add_Click({
             try {
                 Pick-StandaloneImage
-                $script:ctx.StandalonePath = Resolve-StandaloneImagePath
-                Refresh-ImagesUI
-                Show-ImagesIndexes -ForceReload
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnPickStandaloneFolder) {
+        $script:ctx.BtnPickStandaloneFolder.Add_Click({
+            try {
+                Pick-StandaloneImageFolder
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -538,11 +507,12 @@ function Initialize-ImagesController {
 if ($Page) {
     $Page.Add_Loaded({
         try {
-            $script:ctx.StandalonePath = Resolve-StandaloneImagePath
+            $script:ctx.StandalonePaths = @(Resolve-StandaloneImagePaths)
+            $script:ctx.StandalonePath = if ($script:ctx.StandalonePaths.Count -gt 0) { [string]$script:ctx.StandalonePaths[0] } else { Resolve-StandaloneImagePath }
 
             try {
                 if ($script:ctx.TxtStandalone) {
-                    $script:ctx.TxtStandalone.Text = $(if ($script:ctx.StandalonePath) { [string]$script:ctx.StandalonePath } else { '-' })
+                    $script:ctx.TxtStandalone.Text = Format-StandaloneImagesSummary -Paths @($script:ctx.StandalonePaths)
                 }
             } catch {}
 
@@ -582,7 +552,7 @@ if ($Page) {
 
     $hasIsoInstall = [bool]$script:ctx.IsoInstallPath
     $hasIsoBoot    = [bool]$script:ctx.IsoBootPath
-    $hasStandalone = [bool]$script:ctx.StandalonePath
+    $hasStandalone = (@($script:ctx.StandalonePaths).Count -gt 0) -or [bool]$script:ctx.StandalonePath
 
     $effectiveMode = $null
     if ($savedMode -eq 'IsoInstall' -and $hasIsoInstall) { $effectiveMode = 'IsoInstall' }
@@ -620,7 +590,8 @@ if ($Page) {
     }
 
     try {
-        $script:ctx.StandalonePath = Resolve-StandaloneImagePath
+        $script:ctx.StandalonePaths = @(Resolve-StandaloneImagePaths)
+        $script:ctx.StandalonePath = if ($script:ctx.StandalonePaths.Count -gt 0) { [string]$script:ctx.StandalonePaths[0] } else { Resolve-StandaloneImagePath }
         $mode = $null
         try { $mode = Get-ImagesViewMode } catch { $mode = $null }
         if ($mode) {

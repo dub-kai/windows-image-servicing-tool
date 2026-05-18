@@ -4,7 +4,8 @@
         Name="MainWindow"
         Height="760" Width="1120"
         MinWidth="980" MinHeight="680"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
+        WindowState="Maximized"
         Background="#E8EEF2">
   <Window.Resources>
     <Style TargetType="Button">

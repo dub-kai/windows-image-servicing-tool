@@ -3,6 +3,7 @@
     param()
 
     $window = Import-XamlFile -RelativePath "UI\MainWindow.xaml"
+    Set-MainWindowWorkAreaLayout -Window $window
 
     Initialize-UiAsync -Window $window
 
@@ -94,5 +95,24 @@
         NavigateDriver    = $null
         NavigateUpdates   = $null
         NavigateSettings  = $null
+    }
+}
+
+function Set-MainWindowWorkAreaLayout {
+    param(
+        [Parameter(Mandatory)]$Window
+    )
+
+    try {
+        $workArea = [System.Windows.SystemParameters]::WorkArea
+        $Window.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
+        $Window.Left = [double]$workArea.Left
+        $Window.Top = [double]$workArea.Top
+        $Window.Width = [double]$workArea.Width
+        $Window.Height = [double]$workArea.Height
+        $Window.WindowState = [System.Windows.WindowState]::Maximized
+        Write-Log -Level INFO -Message ("UI: Main window aligned to work area {0}x{1}." -f [int]$workArea.Width, [int]$workArea.Height)
+    } catch {
+        try { $Window.WindowState = [System.Windows.WindowState]::Maximized } catch {}
     }
 }
