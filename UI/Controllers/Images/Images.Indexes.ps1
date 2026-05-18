@@ -53,6 +53,31 @@ function Get-SelectedWimIndex {
     try { return [int]$sel.Index } catch { return $null }
 }
 
+function Get-SelectedWimItems {
+    if (-not $script:ctx -or -not $script:ctx.LstWimImages) { return @() }
+
+    $items = @()
+    try {
+        if ($script:ctx.LstWimImages.SelectedItems) {
+            foreach ($item in $script:ctx.LstWimImages.SelectedItems) {
+                if ($null -ne $item) { $items += $item }
+            }
+        }
+    } catch {
+        $items = @()
+    }
+
+    if ($items.Count -eq 0) {
+        try {
+            if ($script:ctx.LstWimImages.SelectedItem) {
+                $items = @($script:ctx.LstWimImages.SelectedItem)
+            }
+        } catch {}
+    }
+
+    return @($items)
+}
+
 function Get-SelectedWimImagePath {
     if (-not $script:ctx -or -not $script:ctx.LstWimImages) { return $null }
 
@@ -119,6 +144,7 @@ function Set-WimSourceUsedText {
 function Update-SelectedIndexUi {
     if (-not $script:ctx) { return }
 
+    $selectedItems = @(Get-SelectedWimItems)
     $idx = Get-SelectedWimIndex
     $imagePath = if ($null -ne $idx) { Get-SelectedWimImagePath } else { $null }
     try { Set-AppStateValue -Key "SelectedWimIndex" -Value $idx } catch {}
@@ -127,7 +153,10 @@ function Update-SelectedIndexUi {
     if ($script:ctx.TxtSelectedIndex) {
         try {
             $text = "-"
-            if ($null -ne $idx) {
+            if ($selectedItems.Count -gt 1) {
+                $text = ("{0} Indexe ausgewählt" -f $selectedItems.Count)
+            }
+            elseif ($null -ne $idx) {
                 $text = [string]$idx
                 $sel = $null
                 try { $sel = $script:ctx.LstWimImages.SelectedItem } catch {}
@@ -140,11 +169,11 @@ function Update-SelectedIndexUi {
     }
 
     if (-not $script:isBusy -and $script:ctx.BtnMountSelected) {
-        try { $script:ctx.BtnMountSelected.IsEnabled = ($null -ne $idx) } catch {}
+        try { $script:ctx.BtnMountSelected.IsEnabled = ($selectedItems.Count -gt 0) } catch {}
     }
 
     if (-not $script:isBusy -and $script:ctx.BtnExportSelectedIndex) {
-        try { $script:ctx.BtnExportSelectedIndex.IsEnabled = ($null -ne $idx) } catch {}
+        try { $script:ctx.BtnExportSelectedIndex.IsEnabled = ($selectedItems.Count -eq 1 -and $null -ne $idx) } catch {}
     }
 }
 

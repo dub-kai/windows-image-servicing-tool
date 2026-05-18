@@ -95,8 +95,12 @@ function Update-MountUiFromState {
 
     $hasSelectedIndex = $false
     try {
-        if ($script:ctx.LstWimImages -and $script:ctx.LstWimImages.SelectedItem) {
-            $hasSelectedIndex = $true
+        if ($script:ctx.LstWimImages) {
+            if ($script:ctx.LstWimImages.SelectedItems -and $script:ctx.LstWimImages.SelectedItems.Count -gt 0) {
+                $hasSelectedIndex = $true
+            } elseif ($script:ctx.LstWimImages.SelectedItem) {
+                $hasSelectedIndex = $true
+            }
         }
     } catch {
         $hasSelectedIndex = $false
@@ -139,15 +143,51 @@ function Start-MountAsync {
         $mode = Get-ImagesViewMode
         if (-not $mode) { throw "Keine Ansicht ausgewählt." }
 
-        $index = Get-SelectedWimIndex
-        if ($null -eq $index) { throw "Bitte zuerst einen Index auswählen." }
+        $selectedItems = @(Get-SelectedWimItems)
+        if ($selectedItems.Count -lt 1) { throw "Bitte zuerst mindestens einen Index auswählen." }
 
-        $imagePath = Get-SelectedWimImagePath
-        if ([string]::IsNullOrWhiteSpace([string]$imagePath)) {
-            throw "ImageFile für den ausgewählten Index nicht ermittelbar."
+        $mountRequests = New-Object System.Collections.Generic.List[object]
+        foreach ($item in $selectedItems) {
+            if ($null -eq $item) { continue }
+            if ($item.PSObject.Properties.Match("Index").Count -eq 0) { continue }
+
+            $itemIndex = $null
+            try { $itemIndex = [int]$item.Index } catch { $itemIndex = $null }
+            if ($null -eq $itemIndex) { continue }
+
+            $itemPath = $null
+            if ($item.PSObject.Properties.Match("ImagePath").Count -gt 0) {
+                $itemPath = [string]$item.ImagePath
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$itemPath)) {
+                $itemPath = Get-ImagesPathForMode -Mode $mode
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$itemPath)) {
+                throw "ImageFile für Index $itemIndex nicht ermittelbar."
+            }
+            if (-not (Test-Path -LiteralPath $itemPath -PathType Leaf)) {
+                throw "ImageFile nicht gefunden: $itemPath"
+            }
+
+            $fileName = $null
+            try {
+                if ($item.PSObject.Properties.Match("FileName").Count -gt 0) { $fileName = [string]$item.FileName }
+            } catch {}
+            if ([string]::IsNullOrWhiteSpace($fileName)) {
+                $fileName = [System.IO.Path]::GetFileName($itemPath)
+            }
+
+            $mountRequests.Add([pscustomobject]@{
+                ImagePath = [string]$itemPath
+                Index     = [int]$itemIndex
+                FileName  = [string]$fileName
+            }) | Out-Null
         }
-        if (-not (Test-Path -LiteralPath $imagePath -PathType Leaf)) {
-            throw "ImageFile nicht gefunden: $imagePath"
+
+        $mountRequestArray = @($mountRequests.ToArray())
+        if ($mountRequestArray.Count -lt 1) {
+            throw "Die Auswahl enthält keine mountbaren Indexe."
         }
 
         $readOnly = $false
@@ -166,7 +206,8 @@ function Start-MountAsync {
         $fnSyncDriver     = (Get-Item function:Sync-DriverControllerAfterMountChange   -ErrorAction Stop).ScriptBlock
         $fnShowUiError    = (Get-Item function:Show-UiError                            -ErrorAction Stop).ScriptBlock
 
-        & $fnSetBusy -Busy $true -Reason "Mount läuft..." -Context $ctxLocal
+        $busyReason = if ($mountRequestArray.Count -gt 1) { "Mount läuft ({0} Indexe)..." -f $mountRequestArray.Count } else { "Mount läuft..." }
+        & $fnSetBusy -Busy $true -Reason $busyReason -Context $ctxLocal
         & $fnSetSvcBusy -Busy $true
 
         $coreBoot   = (Resolve-ProjectPath "Core\Bootstrap.psm1" -MustExist)
@@ -181,10 +222,10 @@ function Start-MountAsync {
         $safeDism  = $svcDism.Replace("'", "''")
         $safeMount = $svcMount.Replace("'", "''")
 
-        $safeImg   = $imagePath.Replace("'", "''")
         $safeMode  = $mode.Replace("'", "''")
-        $safeIndex = [int]$index
         $safeRO    = if ($readOnly) { '$true' } else { '$false' }
+        $requestsJson = @($mountRequestArray) | ConvertTo-Json -Compress -Depth 6
+        $requestsB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$requestsJson))
 
         $code = @"
 `$ErrorActionPreference = 'Stop'
@@ -194,38 +235,102 @@ Import-Module '$safeLog'   -Force
 Import-Module '$safeDism'  -Force
 Import-Module '$safeMount' -Force
 
-Mount-WimImage -ImagePath '$safeImg' -Index $safeIndex -Mode '$safeMode' -ReadOnly:$safeRO
+function ConvertFrom-WorkerBase64Json {
+    param([Parameter(Mandatory)][string]`$Base64)
+
+    `$json = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(`$Base64))
+    if ([string]::IsNullOrWhiteSpace(`$json) -or `$json -eq 'null') {
+        return @()
+    }
+
+    `$value = `$json | ConvertFrom-Json
+    return @(`$value)
+}
+
+`$requests = @(ConvertFrom-WorkerBase64Json -Base64 '$requestsB64')
+`$results = New-Object System.Collections.Generic.List[object]
+`$mode = '$safeMode'
+`$readOnly = $safeRO
+`$position = 0
+
+foreach (`$request in `$requests) {
+    `$position++
+    `$imagePath = [string]`$request.ImagePath
+    `$index = [int]`$request.Index
+    `$fileName = [string]`$request.FileName
+
+    try {
+        Write-Log -Level INFO -Message ("Images: Batch-Mount {0}/{1}: {2} Index {3}" -f `$position, @(`$requests).Count, `$imagePath, `$index)
+        `$mountResult = Mount-WimImage -ImagePath `$imagePath -Index `$index -Mode `$mode -ReadOnly:`$readOnly
+
+        `$results.Add([pscustomobject]@{
+            Success   = `$true
+            ImagePath = `$imagePath
+            FileName  = `$fileName
+            Index     = `$index
+            Mode      = `$mode
+            MountDir  = [string]`$mountResult.MountDir
+            ReadOnly  = [bool]`$readOnly
+            Error     = ''
+        }) | Out-Null
+    } catch {
+        `$results.Add([pscustomobject]@{
+            Success   = `$false
+            ImagePath = `$imagePath
+            FileName  = `$fileName
+            Index     = `$index
+            Mode      = `$mode
+            MountDir  = ''
+            ReadOnly  = [bool]`$readOnly
+            Error     = `$_.Exception.Message
+        }) | Out-Null
+    }
+}
+
+return ,(`$results.ToArray())
 "@
 
-        $label = ("Mount:{0}:Index_{1}" -f $mode, $index)
+        $label = if ($mountRequestArray.Count -gt 1) { ("Mount:{0}:Batch_{1}" -f $mode, $mountRequestArray.Count) } else { ("Mount:{0}:Index_{1}" -f $mode, [int]$mountRequestArray[0].Index) }
 
         $onCompleted = {
             param($result)
             try {
-                $r = $result
-                if ($r -is [array] -and $r.Count -eq 1) { $r = $r[0] }
+                $items = @($result)
+                if ($items.Count -eq 1 -and $items[0] -is [array]) { $items = @($items[0]) }
 
-                if (-not $r) { throw "Mount-WimImage lieferte kein Ergebnis." }
-                if ($r.PSObject.Properties.Match("MountDir").Count -eq 0) {
-                    throw "Mount-WimImage Ergebnis ohne MountDir."
+                $ok = @($items | Where-Object { $_ -and $_.PSObject.Properties.Match("Success").Count -gt 0 -and [bool]$_.Success })
+                $failed = @($items | Where-Object { $_ -and $_.PSObject.Properties.Match("Success").Count -gt 0 -and -not [bool]$_.Success })
+
+                $lastOk = if ($ok.Count -gt 0) { $ok[-1] } else { $null }
+                if ($lastOk) {
+                    $mountDir = [string]$lastOk.MountDir
+                    try { Set-AppStateValue -Key "CurrentMountDir"       -Value $mountDir } catch {}
+                    try { Set-AppStateValue -Key "CurrentMountMode"      -Value $mode } catch {}
+                    try { Set-AppStateValue -Key "CurrentMountIndex"     -Value ([int]$lastOk.Index) } catch {}
+                    try { Set-AppStateValue -Key "CurrentMountImagePath" -Value ([string]$lastOk.ImagePath) } catch {}
+                    try { Set-AppStateValue -Key "CurrentMountReadOnly"  -Value $readOnly } catch {}
                 }
 
-                $mountDir = [string]$r.MountDir
-
-                try { Set-AppStateValue -Key "CurrentMountDir"       -Value $mountDir } catch {}
-                try { Set-AppStateValue -Key "CurrentMountMode"      -Value $mode } catch {}
-                try { Set-AppStateValue -Key "CurrentMountIndex"     -Value $index } catch {}
-                try { Set-AppStateValue -Key "CurrentMountImagePath" -Value $imagePath } catch {}
-                try { Set-AppStateValue -Key "CurrentMountReadOnly"  -Value $readOnly } catch {}
-
                 & $fnUpdMountUi
-                if ($setStatus) { & $setStatus ("Mount OK: {0}" -f $mountDir) }
+
+                $statusText = "Mount fertig: {0} OK, {1} Fehler" -f $ok.Count, $failed.Count
+                if ($setStatus) { & $setStatus $statusText }
+
+                if ($failed.Count -gt 0) {
+                    $lines = @($failed | ForEach-Object {
+                        "{0} Index {1}: {2}" -f [string]$_.FileName, [int]$_.Index, [string]$_.Error
+                    })
+                    & $fnShowUiError -Message ("Nicht alle ausgewählten Indexe konnten gemountet werden.`n`n{0}" -f ($lines -join "`n"))
+                }
             } finally {
                 & $fnSetSvcBusy -Busy $false
                 & $fnSetBusy -Busy $false -Context $ctxLocal
 
                 try { & $fnRefreshPage } catch {}
-                try { & $fnRefMounted -SelectMountDir (Get-AppStateValue -Key "CurrentMountDir" -Default $null) } catch {}
+                try {
+                    $selectMount = Get-AppStateValue -Key "CurrentMountDir" -Default $null
+                    & $fnRefMounted -SelectMountDir $selectMount
+                } catch {}
                 try { & $fnSyncDriver -Reason "Mount success" } catch {}
             }
         }.GetNewClosure()

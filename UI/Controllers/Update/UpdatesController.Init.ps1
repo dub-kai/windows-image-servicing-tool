@@ -19,6 +19,7 @@
     $btnSearch    = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogSearch'
     $btnDownload  = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogDownload'
     $btnIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrate'
+    $btnIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrateAll'
     $btnExportPkg = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportPackages'
     $btnExportCat = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportCatalog'
     $cmbMode      = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesFilterMode'
@@ -30,11 +31,12 @@
     $txtPkgFilter = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesPackagesFilter'
 
     try {
-        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnExportPkg={4} BtnExportCat={5} CmbMode={6} TxtFilter={7} GridCatalog={8} CmbMounts={9} ChkAuto={10} CmbPkgMode={11} TxtPkgFilter={12}' -f `
+        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnIntegrateAll={4} BtnExportPkg={5} BtnExportCat={6} CmbMode={7} TxtFilter={8} GridCatalog={9} CmbMounts={10} ChkAuto={11} CmbPkgMode={12} TxtPkgFilter={13}' -f `
             ($null -ne $btnRefresh),
             ($null -ne $btnSearch),
             ($null -ne $btnDownload),
             ($null -ne $btnIntegrate),
+            ($null -ne $btnIntegrateAll),
             ($null -ne $btnExportPkg),
             ($null -ne $btnExportCat),
             ($null -ne $cmbMode),
@@ -205,6 +207,19 @@
                 if (-not $sender.IsVisible) { return }
                 Invoke-UpdatesPageActivated -Reason "Loaded"
             } catch {}
+        })
+    }
+
+    if ($btnIntegrateAll) {
+        $btnIntegrateAll.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogIntegrateAllUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Batch-Integration fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
         })
     }
 

@@ -401,7 +401,7 @@ function Initialize-ImagesController {
     if ($script:ctx.LstWimImages) {
         $script:ctx.LstWimImages.Add_SelectionChanged({
             try {
-                Sync-ImagesSelectedIndexText
+                Update-SelectedIndexUi
                 Update-MountUiFromState
             } catch {
                 Show-UiError -Message $_.Exception.Message

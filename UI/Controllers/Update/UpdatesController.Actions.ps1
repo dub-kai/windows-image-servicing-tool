@@ -949,3 +949,161 @@ foreach (`$file in `$filesToIntegrate) {
             Show-UiError -Message $ex.Message -Title 'Integration'
         }
 }
+
+function Get-UpdateBatchMountDirs {
+    $dirs = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+
+    foreach ($mount in @($script:mountItems)) {
+        if ($null -eq $mount) { continue }
+
+        $dir = ''
+        try { $dir = [string]$mount.MountDir } catch { $dir = '' }
+        if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+
+        $key = $dir.ToLowerInvariant().TrimEnd('\')
+        if ($seen.ContainsKey($key)) { continue }
+        $seen[$key] = $true
+        $dirs.Add($dir) | Out-Null
+    }
+
+    return @($dirs.ToArray())
+}
+
+function Format-IntegrationBatchResultLine {
+    param($Result)
+
+    if ($null -eq $Result) { return '-' }
+
+    $status = [string]$Result.Status
+    $display = [string]$Result.Display
+    if ([string]::IsNullOrWhiteSpace($display)) { $display = [string]$Result.MountDir }
+    if ([string]::IsNullOrWhiteSpace($display)) { $display = '-' }
+
+    switch ($status) {
+        'Integrated' {
+            return ("OK: {0} ({1} Datei(en))" -f $display, [int]$Result.IntegratedCount)
+        }
+        'Skipped' {
+            return ("Übersprungen: {0} ({1})" -f $display, [string]$Result.Message)
+        }
+        'Failed' {
+            return ("Fehler: {0} ({1})" -f $display, [string]$Result.Message)
+        }
+        default {
+            return ("{0}: {1}" -f $status, $display)
+        }
+    }
+}
+
+function Invoke-CatalogIntegrateAllUi {
+    if ($script:isBusy) { return }
+
+    $item = Get-SelectedCatalogItem
+    if (-not $item) {
+        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswählen.' -Title 'Catalog'
+        return
+    }
+
+    $mountDirs = @(Get-UpdateBatchMountDirs)
+    if ($mountDirs.Count -lt 1) {
+        Show-UiInfo -Message 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.' -Title 'Integration'
+        return
+    }
+
+    $updateId = [string]$item.UpdateId
+    $title    = [string]$item.Title
+    $kb       = [string]$item.KB
+
+    if ([string]::IsNullOrWhiteSpace($updateId)) {
+        Show-UiInfo -Message 'Der ausgewählte Eintrag hat keine UpdateId und kann nicht integriert werden.' -Title 'Integration'
+        return
+    }
+
+    Set-UpdatesBusy -Busy $true -Message ("Update wird in {0} Mount(s) integriert..." -f $mountDirs.Count)
+
+    $preamble = Get-UpdatesWorkerPreamble
+    $mountDirsB64 = ConvertTo-UpdatesBase64Json -Value @($mountDirs)
+    $updateIdPs = ConvertTo-UpdatesPsLiteral -Value $updateId
+    $titlePs = ConvertTo-UpdatesPsLiteral -Value $title
+    $kbPs = ConvertTo-UpdatesPsLiteral -Value $kb
+
+    $workCode = @"
+$preamble
+
+function ConvertFrom-WorkerBase64Json {
+    param([Parameter(Mandatory)][string]`$Base64)
+
+    `$json = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(`$Base64))
+    if ([string]::IsNullOrWhiteSpace(`$json) -or `$json -eq 'null') {
+        return @()
+    }
+
+    return @(`$json | ConvertFrom-Json)
+}
+
+`$mountDirs = @([string[]](ConvertFrom-WorkerBase64Json -Base64 '$mountDirsB64'))
+`$result = Invoke-CatalogUpdateIntegration -MountDirs `$mountDirs -UpdateId $updateIdPs -Title $titlePs -KB $kbPs
+`$result
+"@
+
+    Start-UiTask `
+        -Label ('Updates:CatalogIntegrateAll:' + $updateId) `
+        -TimeoutSec 28800 `
+        -Work (New-UpdatesWorkerScript -Code $workCode) `
+        -OnCompleted {
+            param($result)
+
+            Set-UpdatesBusy -Busy $false
+
+            $integrationResult = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
+            if ($null -eq $integrationResult) {
+                Show-UiInfo -Message 'Die Batch-Integration lieferte kein Ergebnisobjekt zurück.' -Title 'Integration'
+                return
+            }
+
+            $mountResults = @($integrationResult.MountResults)
+            $lines = @($mountResults | ForEach-Object { Format-IntegrationBatchResultLine -Result $_ })
+
+            $message = "Batch-Integration abgeschlossen.`n`nMounts: {0}`nOK: {1}`nÜbersprungen: {2}`nFehler: {3}`nDownload-Ordner: {4}`n`nDetails:`n{5}" -f `
+                [int]$integrationResult.MountCount,
+                [int]$integrationResult.IntegratedCount,
+                [int]$integrationResult.SkippedMountCount,
+                [int]$integrationResult.FailedCount,
+                [string]$integrationResult.DownloadDirectory,
+                ($lines -join "`n")
+
+            try {
+                Write-Log -Level INFO -Message ("Updates: Batch-Integration abgeschlossen | Mounts={0} | OK={1} | Skip={2} | Fehler={3}" -f `
+                    [int]$integrationResult.MountCount,
+                    [int]$integrationResult.IntegratedCount,
+                    [int]$integrationResult.SkippedMountCount,
+                    [int]$integrationResult.FailedCount)
+            } catch {}
+
+            Reset-CatalogState
+            Apply-CatalogView
+            Set-UpdatesStatusText -Message 'Batch-Integration abgeschlossen. Mount-Kontext wird neu geladen...'
+            if ($script:ctx -and $script:ctx.Page) {
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Batch-Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...'
+            }
+
+            Show-UiInfo -Message $message -Title 'Integration'
+
+            $mountDir = Get-SelectedMountDir
+            if ([string]::IsNullOrWhiteSpace($mountDir) -and $script:updateContext) {
+                try { $mountDir = [string]$script:updateContext.MountDir } catch {}
+            }
+            if (-not [string]::IsNullOrWhiteSpace($mountDir)) {
+                Start-SelectedMountContextLoad -MountDir $mountDir -TriggerCatalogIfEnabled
+            } else {
+                Refresh-UpdatesUI
+            }
+        } `
+        -OnError {
+            param($ex)
+
+            Set-UpdatesBusy -Busy $false
+            Show-UiError -Message $ex.Message -Title 'Integration'
+        }
+}

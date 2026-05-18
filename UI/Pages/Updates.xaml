@@ -68,6 +68,14 @@
                   MinWidth="150"
                   Padding="12,0"
                   IsEnabled="False"
+                  Margin="0,0,8,8"/>
+
+          <Button Name="BtnCatalogIntegrateAll"
+                  Content="In alle Mounts"
+                  Height="30"
+                  MinWidth="130"
+                  Padding="12,0"
+                  IsEnabled="False"
                   Margin="0,0,16,8"/>
 
           <TextBlock Text="Ansicht:"
