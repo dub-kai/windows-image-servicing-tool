@@ -996,6 +996,134 @@ function Format-IntegrationBatchResultLine {
     }
 }
 
+function Format-IntegrationPreflightResultLine {
+    param($Result)
+
+    if ($null -eq $Result) { return '-' }
+
+    $display = [string]$Result.Display
+    if ([string]::IsNullOrWhiteSpace($display)) { $display = [string]$Result.MountDir }
+    if ([string]::IsNullOrWhiteSpace($display)) { $display = '-' }
+
+    if ([bool]$Result.CanProcess) {
+        return ("OK: {0} | {1} | {2}" -f $display, [string]$Result.ReadWrite, [string]$Result.Health)
+    }
+
+    return ("Übersprungen: {0} | {1}" -f $display, [string]$Result.SkipReason)
+}
+
+function Show-IntegrationPreflightResult {
+    param(
+        [Parameter(Mandatory)]$PreflightResult,
+        [switch]$FromBatchRun
+    )
+
+    $targets = @($PreflightResult.Targets)
+    $lines = @($targets | ForEach-Object { Format-IntegrationPreflightResultLine -Result $_ })
+    $dismLines = @()
+    foreach ($proc in @($PreflightResult.DismProcesses)) {
+        if ($null -eq $proc) { continue }
+        $dismLines += ("{0} PID {1} CPU {2}" -f [string]$proc.ProcessName, [int]$proc.Id, [string]$proc.CPU)
+    }
+
+    $dismText = if ($dismLines.Count -gt 0) {
+        $dismLines -join "`n"
+    } else {
+        'Keine laufenden DISM-Prozesse gefunden.'
+    }
+
+    $message = "Batch-Prüfung abgeschlossen.`n`nUpdate: {0}`nMounts: {1}`nBereit: {2}`nÜbersprungen: {3}`nDISM aktiv: {4}`n`nZiele:`n{5}`n`nDISM-Prozesse:`n{6}" -f `
+        [string]$PreflightResult.UpdateText,
+        [int]$PreflightResult.MountCount,
+        [int]$PreflightResult.ReadyCount,
+        [int]$PreflightResult.SkippedCount,
+        $(if ([bool]$PreflightResult.HasDismProcesses) { 'Ja' } else { 'Nein' }),
+        ($lines -join "`n"),
+        $dismText
+
+    if ($script:ctx -and $script:ctx.Page) {
+        $plan = "Batch-Prüfung: {0}/{1} Mounts bereit, {2} übersprungen. Update: {3}" -f `
+            [int]$PreflightResult.ReadyCount,
+            [int]$PreflightResult.MountCount,
+            [int]$PreflightResult.SkippedCount,
+            [string]$PreflightResult.UpdateText
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value $plan
+        Set-UpdatesStatusText -Message $plan
+    }
+
+    $title = if ($FromBatchRun) { 'Batch Preflight' } else { 'Batch prüfen' }
+    Show-UiInfo -Message $message -Title $title
+}
+
+function Invoke-CatalogPreflightUi {
+    if ($script:isBusy) { return }
+
+    $item = Get-SelectedCatalogItem
+    if (-not $item) {
+        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswählen.' -Title 'Catalog'
+        return
+    }
+
+    $mountDirs = @(Get-UpdateBatchMountDirs)
+    if ($mountDirs.Count -lt 1) {
+        Show-UiInfo -Message 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.' -Title 'Batch prüfen'
+        return
+    }
+
+    $updateId = [string]$item.UpdateId
+    $title = [string]$item.Title
+    $kb = [string]$item.KB
+
+    Set-UpdatesBusy -Busy $true -Message 'Batch-Prüfung läuft...'
+
+    $preamble = Get-UpdatesWorkerPreamble
+    $mountDirsB64 = ConvertTo-UpdatesBase64Json -Value @($mountDirs)
+    $updateIdPs = ConvertTo-UpdatesPsLiteral -Value $updateId
+    $titlePs = ConvertTo-UpdatesPsLiteral -Value $title
+    $kbPs = ConvertTo-UpdatesPsLiteral -Value $kb
+
+    $workCode = @"
+$preamble
+
+function ConvertFrom-WorkerBase64Json {
+    param([Parameter(Mandatory)][string]`$Base64)
+
+    `$json = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(`$Base64))
+    if ([string]::IsNullOrWhiteSpace(`$json) -or `$json -eq 'null') {
+        return @()
+    }
+
+    return @(`$json | ConvertFrom-Json)
+}
+
+`$mountDirs = @([string[]](ConvertFrom-WorkerBase64Json -Base64 '$mountDirsB64'))
+Test-CatalogUpdateIntegrationTargets -MountDirs `$mountDirs -UpdateId $updateIdPs -Title $titlePs -KB $kbPs
+"@
+
+    Start-UiTask `
+        -Label ('Updates:CatalogPreflight:' + $updateId) `
+        -TimeoutSec 300 `
+        -Work (New-UpdatesWorkerScript -Code $workCode) `
+        -OnCompleted {
+            param($result)
+
+            Set-UpdatesBusy -Busy $false
+            $preflight = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
+            if ($null -eq $preflight) {
+                Show-UiInfo -Message 'Die Batch-Prüfung lieferte kein Ergebnisobjekt zurück.' -Title 'Batch prüfen'
+                return
+            }
+
+            Show-IntegrationPreflightResult -PreflightResult $preflight
+        } `
+        -OnError {
+            param($ex)
+
+            Set-UpdatesBusy -Busy $false
+            Show-UiError -Message $ex.Message -Title 'Batch prüfen'
+        }
+}
+
 function Invoke-CatalogIntegrateAllUi {
     if ($script:isBusy) { return }
 

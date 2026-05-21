@@ -247,6 +247,7 @@ function Clear-UpdatesUi {
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled $false
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled $false
     Set-UiEnabled -Root $page -Name 'BtnCatalogIntegrateAll' -Enabled $false
+    Set-UiEnabled -Root $page -Name 'BtnCatalogPreflight' -Enabled $false
     Update-UpdatesActionButtons
     Update-UpdatesBatchPlanUi
 }

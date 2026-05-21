@@ -254,6 +254,11 @@ function Resolve-UpdateIntegrationMountTargets {
 
         $mountItem = if ($byMount.ContainsKey($key)) { $byMount[$key] } else { $null }
         $display = $rawDir
+        $status = ''
+        $readWrite = ''
+        $health = ''
+        $canCommit = $null
+        $registryOnly = $null
         try {
             if ($mountItem) {
                 $imageFile = [System.IO.Path]::GetFileName([string]$mountItem.ImageFile)
@@ -261,6 +266,11 @@ function Resolve-UpdateIntegrationMountTargets {
                 if (-not [string]::IsNullOrWhiteSpace($imageFile)) {
                     $display = if ([string]::IsNullOrWhiteSpace($imageIndex)) { $imageFile } else { "{0} Index {1}" -f $imageFile, $imageIndex }
                 }
+                if ($mountItem.PSObject.Properties.Match('Status').Count -gt 0) { $status = [string]$mountItem.Status }
+                if ($mountItem.PSObject.Properties.Match('ReadWrite').Count -gt 0) { $readWrite = [string]$mountItem.ReadWrite }
+                if ($mountItem.PSObject.Properties.Match('Health').Count -gt 0) { $health = [string]$mountItem.Health }
+                if ($mountItem.PSObject.Properties.Match('CanCommit').Count -gt 0) { $canCommit = [bool]$mountItem.CanCommit }
+                if ($mountItem.PSObject.Properties.Match('RegistryOnly').Count -gt 0) { $registryOnly = [bool]$mountItem.RegistryOnly }
             }
         } catch {}
 
@@ -279,10 +289,58 @@ function Resolve-UpdateIntegrationMountTargets {
             MountItem  = $mountItem
             CanProcess = [string]::IsNullOrWhiteSpace($skipReason)
             SkipReason = $skipReason
+            Status     = $status
+            ReadWrite  = $readWrite
+            Health     = $health
+            CanCommit  = $canCommit
+            RegistryOnly = $registryOnly
         }) | Out-Null
     }
 
     return @($targets.ToArray())
+}
+
+function Test-CatalogUpdateIntegrationTargets {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string[]]$MountDirs,
+        [string]$UpdateId = '',
+        [string]$Title = '',
+        [string]$KB = ''
+    )
+
+    $targets = @(Resolve-UpdateIntegrationMountTargets -MountDirs $MountDirs)
+    $ready = @($targets | Where-Object { [bool]$_.CanProcess })
+    $skipped = @($targets | Where-Object { -not [bool]$_.CanProcess })
+
+    $dismProcesses = @(
+        Get-Process -Name dism,dismhost -ErrorAction SilentlyContinue |
+        Select-Object Id, ProcessName, StartTime, CPU
+    )
+
+    $updateText = ''
+    if (-not [string]::IsNullOrWhiteSpace($KB)) {
+        $updateText = $KB
+    } elseif (-not [string]::IsNullOrWhiteSpace($Title)) {
+        $updateText = $Title
+    } elseif (-not [string]::IsNullOrWhiteSpace($UpdateId)) {
+        $updateText = $UpdateId
+    } else {
+        $updateText = 'Kein Update ausgewählt'
+    }
+
+    return [pscustomobject]@{
+        MountCount       = $targets.Count
+        ReadyCount       = $ready.Count
+        SkippedCount     = $skipped.Count
+        HasDismProcesses = (@($dismProcesses).Count -gt 0)
+        DismProcesses    = @($dismProcesses)
+        UpdateId         = $UpdateId
+        Title            = $Title
+        KB               = $KB
+        UpdateText       = $updateText
+        Targets          = @($targets)
+    }
 }
 
 function Invoke-CatalogUpdateIntegration {
@@ -301,6 +359,39 @@ function Invoke-CatalogUpdateIntegration {
     $targetList = @(Resolve-UpdateIntegrationMountTargets -MountDirs $MountDirs)
     if ($targetList.Count -le 0) {
         throw 'Keine Mount-Ziele für die Integration gefunden.'
+    }
+
+    $readyTargets = @($targetList | Where-Object { [bool]$_.CanProcess })
+    if ($readyTargets.Count -le 0) {
+        $mountResults = @(
+            foreach ($target in $targetList) {
+                [pscustomobject]@{
+                    MountDir        = [string]$target.MountDir
+                    Display         = [string]$target.Display
+                    Status          = 'Skipped'
+                    Message         = [string]$target.SkipReason
+                    IntegratedCount = 0
+                    IntegratedFiles = @()
+                }
+            }
+        )
+
+        return [pscustomobject]@{
+            MountDir          = if ($MountDirs.Count -eq 1) { [string]$MountDirs[0] } else { '' }
+            MountCount        = $targetList.Count
+            UpdateId          = $UpdateId
+            Title             = $Title
+            KB                = $KB
+            DownloadDirectory = ''
+            FileCount         = 0
+            DownloadedCount   = 0
+            SkippedCount      = 0
+            IntegratableCount = 0
+            IntegratedCount   = 0
+            FailedCount       = 0
+            SkippedMountCount = @($mountResults).Count
+            MountResults      = @($mountResults)
+        }
     }
 
     Write-UpdateLog -Level INFO -Message ("Updates: Integration startet | Mounts={0} | UpdateId={1} | KB={2}" -f $targetList.Count, $UpdateId, $KB)

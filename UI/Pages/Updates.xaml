@@ -76,6 +76,14 @@
                   MinWidth="130"
                   Padding="12,0"
                   IsEnabled="False"
+                  Margin="0,0,8,8"/>
+
+          <Button Name="BtnCatalogPreflight"
+                  Content="Batch prüfen"
+                  Height="30"
+                  MinWidth="120"
+                  Padding="12,0"
+                  IsEnabled="False"
                   Margin="0,0,16,8"/>
 
           <TextBlock Text="Ansicht:"

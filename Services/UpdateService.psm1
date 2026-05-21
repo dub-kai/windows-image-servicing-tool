@@ -7,4 +7,4 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Update\UpdateService.Context.ps1')
 . (Join-Path $PSScriptRoot 'Update\UpdateService.Integration.ps1')
 
-Export-ModuleMember -Function Get-MountedImageUpdateContext, Invoke-CatalogUpdateIntegration
+Export-ModuleMember -Function Get-MountedImageUpdateContext, Invoke-CatalogUpdateIntegration, Test-CatalogUpdateIntegrationTargets

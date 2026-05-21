@@ -83,6 +83,7 @@ function Update-UpdatesActionButtons {
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogDownload'  -Enabled $canSelect
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled $canSelect
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
 }
 
 function Get-CurrentFilterMode {

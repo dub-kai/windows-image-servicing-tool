@@ -20,6 +20,7 @@
     $btnDownload  = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogDownload'
     $btnIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrate'
     $btnIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrateAll'
+    $btnPreflight = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogPreflight'
     $btnExportPkg = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportPackages'
     $btnExportCat = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportCatalog'
     $cmbMode      = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesFilterMode'
@@ -31,12 +32,13 @@
     $txtPkgFilter = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesPackagesFilter'
 
     try {
-        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnIntegrateAll={4} BtnExportPkg={5} BtnExportCat={6} CmbMode={7} TxtFilter={8} GridCatalog={9} CmbMounts={10} ChkAuto={11} CmbPkgMode={12} TxtPkgFilter={13}' -f `
+        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnIntegrateAll={4} BtnPreflight={5} BtnExportPkg={6} BtnExportCat={7} CmbMode={8} TxtFilter={9} GridCatalog={10} CmbMounts={11} ChkAuto={12} CmbPkgMode={13} TxtPkgFilter={14}' -f `
             ($null -ne $btnRefresh),
             ($null -ne $btnSearch),
             ($null -ne $btnDownload),
             ($null -ne $btnIntegrate),
             ($null -ne $btnIntegrateAll),
+            ($null -ne $btnPreflight),
             ($null -ne $btnExportPkg),
             ($null -ne $btnExportCat),
             ($null -ne $cmbMode),
@@ -218,6 +220,19 @@
             } catch {
                 try {
                     Write-Log -Level WARN -Message ('Updates: Batch-Integration fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnPreflight) {
+        $btnPreflight.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogPreflightUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Batch-Prüfung fehlgeschlagen: {0}' -f $_.Exception.Message)
                 } catch {}
             }
         })
