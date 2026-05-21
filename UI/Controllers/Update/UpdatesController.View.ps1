@@ -90,9 +90,87 @@ function Update-MountSelectorUi {
 
     $selectedText = if ($selectedItem) { [string]$selectedItem.DisplayText } else { '-' }
     Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesMountHint' -Value ('Mounts: {0} | Auswahl: {1}' -f $items.Count, $selectedText)
+    Update-UpdatesBatchPlanUi
 
     Set-UiEnabled -Root $script:ctx.Page -Name 'CmbUpdatesMounts'      -Enabled (($items.Count -gt 0) -and (-not $script:isBusy))
     Set-UiEnabled -Root $script:ctx.Page -Name 'ChkUpdatesAutoCatalog' -Enabled (-not $script:isBusy)
+}
+
+function Test-UpdatesMountUiItemWritable {
+    param($Mount)
+
+    if ($null -eq $Mount) { return $false }
+
+    $rw = ''
+    $status = ''
+    try { $rw = [string]$Mount.ReadWrite } catch {}
+    try { $status = [string]$Mount.Status } catch {}
+
+    if (-not [string]::IsNullOrWhiteSpace($status)) {
+        $s = $status.ToLowerInvariant()
+        if ($s -notmatch '^(ok|mounted)$') { return $false }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($rw)) { return $false }
+    $x = $rw.ToLowerInvariant()
+    if ($x -match 'readonly' -or $x -match 'read\s*only' -or $x -match '^no$' -or $x -match '^false$') { return $false }
+    if ($x -match 'read/write' -or $x -match 'readwrite' -or $x -match '^yes$' -or $x -match '^true$' -or $x -match '\brw\b') { return $true }
+
+    return $false
+}
+
+function Get-UpdatesBatchPlanText {
+    $mounts = @($script:mountItems | Where-Object { $null -ne $_ })
+    if ($mounts.Count -lt 1) {
+        return 'Batch: Kein Mount geladen. Bitte zuerst Images mounten oder aktualisieren.'
+    }
+
+    $writable = @($mounts | Where-Object { Test-UpdatesMountUiItemWritable -Mount $_ })
+    $selectedUpdate = $null
+    try {
+        if (Get-Command Get-SelectedCatalogItem -ErrorAction SilentlyContinue) {
+            $selectedUpdate = Get-SelectedCatalogItem
+        }
+    } catch { $selectedUpdate = $null }
+
+    $updateText = 'kein Catalog-Treffer ausgewählt'
+    if ($selectedUpdate) {
+        $kb = ''
+        $title = ''
+        try { $kb = [string]$selectedUpdate.KB } catch {}
+        try { $title = [string]$selectedUpdate.Title } catch {}
+        if (-not [string]::IsNullOrWhiteSpace($kb)) {
+            $updateText = $kb
+        } elseif (-not [string]::IsNullOrWhiteSpace($title)) {
+            $updateText = $title
+        } else {
+            $updateText = 'Catalog-Treffer ausgewählt'
+        }
+    }
+
+    $preview = @(
+        $writable |
+        Select-Object -First 4 |
+        ForEach-Object {
+            $display = ''
+            try { $display = [string]$_.DisplayText } catch {}
+            if ([string]::IsNullOrWhiteSpace($display)) { $display = [string]$_.MountDir }
+            $display
+        }
+    )
+
+    $previewText = if ($preview.Count -gt 0) { $preview -join '; ' } else { '-' }
+    $more = if ($writable.Count -gt $preview.Count) { " + {0} weitere" -f ($writable.Count - $preview.Count) } else { "" }
+
+    return ("Batch: {0}/{1} Mounts sind Read/Write. Update: {2}. Ziele: {3}{4}" -f $writable.Count, $mounts.Count, $updateText, $previewText, $more)
+}
+
+function Update-UpdatesBatchPlanUi {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    try {
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value (Get-UpdatesBatchPlanText)
+    } catch {}
 }
 
 function Set-UpdatesBusy {
@@ -152,6 +230,7 @@ function Clear-UpdatesUi {
     Set-UiText -Root $page -Name 'TxtUpdatesInstalledKbCount' -Value '0'
     Set-UiText -Root $page -Name 'TxtUpdatesPackagesCount'    -Value 'Pakete: 0'
     Set-UiText -Root $page -Name 'TxtUpdatesFooterHint'       -Value 'Mount-Daten laden. Danach kann die Catalog-Suche ausgefuehrt werden.'
+    Set-UiText -Root $page -Name 'TxtUpdatesBatchPlan'        -Value 'Batch: Mounts werden geladen.'
     Set-UpdatesStatusText -Message '-'
 
     $pkgGrid = Find-Ui -Root $page -Name 'GridUpdatesPackages'
@@ -169,6 +248,7 @@ function Clear-UpdatesUi {
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled $false
     Set-UiEnabled -Root $page -Name 'BtnCatalogIntegrateAll' -Enabled $false
     Update-UpdatesActionButtons
+    Update-UpdatesBatchPlanUi
 }
 
 function Get-UpdatesDisplayBuildText {

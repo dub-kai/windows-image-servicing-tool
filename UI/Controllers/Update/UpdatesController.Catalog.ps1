@@ -71,6 +71,7 @@ function Update-SelectedCatalogDetails {
     }
 
     Update-UpdatesActionButtons
+    try { Update-UpdatesBatchPlanUi } catch {}
 }
 
 function Update-UpdatesActionButtons {

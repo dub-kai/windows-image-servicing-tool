@@ -1020,6 +1020,10 @@ function Invoke-CatalogIntegrateAllUi {
         return
     }
 
+    try {
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value ("Batch läuft: Update wird auf {0} Mount(s) nacheinander angewendet. Ungeeignete Mounts werden übersprungen." -f $mountDirs.Count)
+    } catch {}
+
     Set-UpdatesBusy -Busy $true -Message ("Update wird in {0} Mount(s) integriert..." -f $mountDirs.Count)
 
     $preamble = Get-UpdatesWorkerPreamble
@@ -1086,6 +1090,7 @@ function ConvertFrom-WorkerBase64Json {
             Set-UpdatesStatusText -Message 'Batch-Integration abgeschlossen. Mount-Kontext wird neu geladen...'
             if ($script:ctx -and $script:ctx.Page) {
                 Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Batch-Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...'
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value ("Letzter Batch: {0} OK, {1} übersprungen, {2} Fehler." -f [int]$integrationResult.IntegratedCount, [int]$integrationResult.SkippedMountCount, [int]$integrationResult.FailedCount)
             }
 
             Show-UiInfo -Message $message -Title 'Integration'

@@ -112,6 +112,8 @@
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="8"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- robustere Zeile statt langem StackPanel -->
@@ -204,6 +206,13 @@
                 </Grid>
               </StackPanel>
             </Grid>
+
+            <TextBlock Grid.Row="3"
+                       Name="TxtImagesBatchPlan"
+                       Text="Auswahl: Noch kein Index ausgewählt."
+                       Foreground="#475569"
+                       TextWrapping="Wrap"
+                       Margin="0,2,0,0"/>
 
           </Grid>
         </Border>

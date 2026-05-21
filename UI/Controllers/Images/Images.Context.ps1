@@ -275,6 +275,7 @@ function Initialize-ImagesController {
         BtnExportSelectedIndex   = Find-Ui -Root $Page -Name 'BtnExportSelectedIndex'
 
         TxtSelectedIndex         = Find-Ui -Root $Page -Name 'TxtSelectedIndex'
+        TxtImagesBatchPlan       = Find-Ui -Root $Page -Name 'TxtImagesBatchPlan'
         ChkMountReadOnly         = Find-Ui -Root $Page -Name 'ChkMountReadOnly'
         ChkReadOnly              = Find-Ui -Root $Page -Name 'ChkMountReadOnly'
         TxtMountDir              = Find-Ui -Root $Page -Name 'TxtMountDir'

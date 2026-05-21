@@ -98,6 +98,43 @@ function Get-SelectedWimImagePath {
     return $null
 }
 
+function Get-ImagesSelectedBatchPlanText {
+    param([object[]]$Items = @())
+
+    $items = @($Items | Where-Object { $null -ne $_ })
+    if ($items.Count -lt 1) {
+        return "Auswahl: Noch kein Index ausgewählt."
+    }
+
+    $fileNames = New-Object System.Collections.Generic.List[string]
+    $preview = New-Object System.Collections.Generic.List[string]
+    foreach ($item in $items) {
+        $fileName = ''
+        $idx = ''
+        try { $fileName = [string]$item.FileName } catch {}
+        try { $idx = [string]$item.Index } catch {}
+
+        if ([string]::IsNullOrWhiteSpace($fileName)) {
+            try {
+                $path = [string]$item.ImagePath
+                if (-not [string]::IsNullOrWhiteSpace($path)) {
+                    $fileName = [System.IO.Path]::GetFileName($path)
+                }
+            } catch {}
+        }
+        if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = 'Image' }
+        if (-not $fileNames.Contains($fileName)) { $fileNames.Add($fileName) | Out-Null }
+        if ($preview.Count -lt 5) { $preview.Add(("{0} Index {1}" -f $fileName, $idx)) | Out-Null }
+    }
+
+    if ($items.Count -eq 1) {
+        return ("Auswahl: {0}. Aktion läuft als Einzel-Mount." -f [string]$preview[0])
+    }
+
+    $more = if ($items.Count -gt $preview.Count) { " + {0} weitere" -f ($items.Count - $preview.Count) } else { "" }
+    return ("Batch-Auswahl: {0} Indexe aus {1} Datei(en). Ablauf nacheinander: {2}{3}" -f $items.Count, $fileNames.Count, ($preview -join '; '), $more)
+}
+
 function Get-WimSourceSummary {
     param(
         [Parameter(Mandatory)][string[]]$Paths,
@@ -167,6 +204,15 @@ function Update-SelectedIndexUi {
             $script:ctx.TxtSelectedIndex.Text = $text
         } catch {}
     }
+
+    try {
+        $planText = Get-ImagesSelectedBatchPlanText -Items @($selectedItems)
+        if ($script:ctx.TxtImagesBatchPlan) {
+            $script:ctx.TxtImagesBatchPlan.Text = $planText
+        } elseif ($script:ctx.Page) {
+            Set-UiText -Root $script:ctx.Page -Name 'TxtImagesBatchPlan' -Value $planText
+        }
+    } catch {}
 
     if (-not $script:isBusy -and $script:ctx.BtnMountSelected) {
         try { $script:ctx.BtnMountSelected.IsEnabled = ($selectedItems.Count -gt 0) } catch {}

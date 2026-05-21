@@ -190,6 +190,11 @@ function Start-MountAsync {
             throw "Die Auswahl enthält keine mountbaren Indexe."
         }
 
+        try {
+            $planText = Get-ImagesSelectedBatchPlanText -Items @($selectedItems)
+            if ($script:ctx.TxtImagesBatchPlan) { $script:ctx.TxtImagesBatchPlan.Text = $planText }
+        } catch {}
+
         $readOnly = $false
         if ($script:ctx.ChkReadOnly) {
             try { $readOnly = [bool]$script:ctx.ChkReadOnly.IsChecked } catch { $readOnly = $false }
@@ -206,7 +211,7 @@ function Start-MountAsync {
         $fnSyncDriver     = (Get-Item function:Sync-DriverControllerAfterMountChange   -ErrorAction Stop).ScriptBlock
         $fnShowUiError    = (Get-Item function:Show-UiError                            -ErrorAction Stop).ScriptBlock
 
-        $busyReason = if ($mountRequestArray.Count -gt 1) { "Mount läuft ({0} Indexe)..." -f $mountRequestArray.Count } else { "Mount läuft..." }
+        $busyReason = if ($mountRequestArray.Count -gt 1) { "Mount läuft ({0} Indexe nacheinander)..." -f $mountRequestArray.Count } else { "Mount läuft..." }
         & $fnSetBusy -Busy $true -Reason $busyReason -Context $ctxLocal
         & $fnSetSvcBusy -Busy $true
 

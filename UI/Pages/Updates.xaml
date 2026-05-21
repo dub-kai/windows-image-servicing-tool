@@ -144,6 +144,8 @@
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="4"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="6"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -237,6 +239,12 @@
                          TextTrimming="CharacterEllipsis"
                          ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
             </Grid>
+
+            <TextBlock Grid.Row="4"
+                       Name="TxtUpdatesBatchPlan"
+                       Text="Batch: Mounts werden geladen."
+                       Foreground="#475569"
+                       TextWrapping="Wrap"/>
           </Grid>
         </Border>
       </Grid>
