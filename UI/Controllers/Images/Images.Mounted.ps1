@@ -114,6 +114,90 @@ function Get-MountedBatchSelectionHint {
     return ("Mehrfachauswahl: {0} Mounts | Commit möglich: {1} | Discard/Bereinigen möglich: {2}. Ablauf ist nacheinander." -f $items.Count, $commit.Count, $discard.Count)
 }
 
+function Get-MountedHealthSummaryText {
+    param([object[]]$Items = @())
+
+    $flatItems = @()
+    foreach ($raw in @($Items)) {
+        if ($null -eq $raw) { continue }
+        if ($raw -is [System.Collections.IEnumerable] -and -not ($raw -is [string]) -and -not ($raw -is [System.Management.Automation.PSCustomObject])) {
+            foreach ($entry in $raw) {
+                if ($null -ne $entry) { $flatItems += $entry }
+            }
+        } else {
+            $flatItems += $raw
+        }
+    }
+
+    if ($flatItems.Count -lt 1) {
+        return "Mount-Status: Keine gemounteten Images gefunden."
+    }
+
+    $ok = 0
+    $problem = 0
+    $registryOnly = 0
+    $partial = 0
+    $commit = 0
+    $discard = 0
+    $readOnly = 0
+    $readWrite = 0
+
+    foreach ($item in $flatItems) {
+        $health = ''
+        $rw = ''
+        try { if ($item.PSObject.Properties.Match("Health").Count -gt 0) { $health = [string]$item.Health } } catch {}
+        try { if ($item.PSObject.Properties.Match("ReadWrite").Count -gt 0) { $rw = [string]$item.ReadWrite } } catch {}
+        try { if ($item.PSObject.Properties.Match("RegistryOnly").Count -gt 0 -and [bool]$item.RegistryOnly) { $registryOnly++ } } catch {}
+        try { if (Test-MountedWritable -MountedItem $item) { $commit++ } } catch {}
+        try { if (Test-MountedDiscardAllowed -MountedItem $item) { $discard++ } } catch {}
+
+        if ($health -match '^OK$') { $ok++ } else { $problem++ }
+        if ($health -match 'Teilweise') { $partial++ }
+
+        $rwLower = $rw.ToLowerInvariant()
+        if ($rwLower -match 'readonly|read\s*only|^no$|^false$') {
+            $readOnly++
+        } elseif ($rwLower -match 'read/write|readwrite|rw|^yes$|^true$') {
+            $readWrite++
+        }
+    }
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    $parts.Add(("Mounts: {0}" -f $flatItems.Count)) | Out-Null
+    $parts.Add(("OK: {0}" -f $ok)) | Out-Null
+    $parts.Add(("Problem: {0}" -f $problem)) | Out-Null
+    $parts.Add(("Commit möglich: {0}" -f $commit)) | Out-Null
+    $parts.Add(("Discard möglich: {0}" -f $discard)) | Out-Null
+    if ($readWrite -gt 0 -or $readOnly -gt 0) { $parts.Add(("RW/RO: {0}/{1}" -f $readWrite, $readOnly)) | Out-Null }
+    if ($partial -gt 0) { $parts.Add(("Teilweise ausgehängt: {0}" -f $partial)) | Out-Null }
+    if ($registryOnly -gt 0) { $parts.Add(("Registry-Reste: {0}" -f $registryOnly)) | Out-Null }
+
+    $tail = if ($problem -gt 0) {
+        "Bitte betroffene Einträge markieren. Das Tool zeigt dir dann die empfohlene Aktion."
+    } else {
+        "Alle gelisteten Mounts wirken gesund."
+    }
+
+    return ("Mount-Status: {0}. {1}" -f ($parts.ToArray() -join " | "), $tail)
+}
+
+function Update-MountedHealthSummary {
+    param([object[]]$Items = $null)
+
+    if (-not $script:ctx -or -not $script:ctx.TxtMountedHealthSummary) { return }
+
+    if ($null -eq $Items) {
+        try { $Items = @($script:ctx.LstMountedWims.ItemsSource | Where-Object { $null -ne $_ }) } catch { $Items = @() }
+        if (@($Items | Where-Object { $null -ne $_ }).Count -lt 1 -and $script:ctx.LstMountedWims) {
+            try { $Items = @($script:ctx.LstMountedWims.Items) } catch { $Items = @() }
+        }
+    }
+
+    try {
+        $script:ctx.TxtMountedHealthSummary.Text = Get-MountedHealthSummaryText -Items @($Items)
+    } catch {}
+}
+
 function Update-MountedButtons {
     if (-not $script:ctx) { return }
     if ($script:isBusy) { return }
@@ -154,6 +238,7 @@ function Update-MountedButtons {
         } catch {}
     }
     if ($script:ctx.BtnRepairMounts) { try { $script:ctx.BtnRepairMounts.IsEnabled = $true } catch {} }
+    try { Update-MountedHealthSummary } catch {}
     if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedBatchSelectionHint -Items $selectedItems) } catch {} }
 }
 
@@ -329,6 +414,7 @@ Get-MountedWimList
 
                 $ctxLocal.LstMountedWims.ItemsSource = $oc
                 try { $ctxLocal.LstMountedWims.Items.Refresh() } catch {}
+                try { Update-MountedHealthSummary -Items @($oc) } catch {}
 
                 $selected = $null
                 if ($selectDir) {

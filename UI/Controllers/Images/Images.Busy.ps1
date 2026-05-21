@@ -63,6 +63,44 @@ function Ensure-ImagesBusyOverlay {
     }
 }
 
+function Get-ImagesBusyDetailText {
+    param([string]$Reason)
+
+    if ([string]::IsNullOrWhiteSpace($Reason)) {
+        return "DISM verarbeitet das Image. Große Images können längere Zeit ohne sichtbare Dateigrößenänderung arbeiten."
+    }
+
+    if ($Reason -match 'Mounted list|Mounted') {
+        return "Mount-Liste wird von DISM und der WIMMount-Registry gelesen. So erkennt das Tool auch problematische oder teilweise gelöste Mounts."
+    }
+
+    if ($Reason -match 'nacheinander|Batch|Mounts?') {
+        return "Batch-Ablauf: Das Tool arbeitet die Auswahl nacheinander ab. Während ein DISM-Schritt läuft, kann die Anzeige mehrere Minuten ruhig bleiben."
+    }
+
+    if ($Reason -match 'Unmount|Commit|Discard') {
+        return "Unmount läuft über DISM. Commit kann sehr lange dauern; bei teilweise ausgehängten Images bitte die Reparatur-/Bereinigungsfunktion nutzen."
+    }
+
+    return "DISM verarbeitet das Image. Große Images können längere Zeit ohne sichtbare Dateigrößenänderung arbeiten."
+}
+
+function Get-ImagesBusyHintText {
+    param([string]$Reason)
+
+    if ([string]::IsNullOrWhiteSpace($Reason)) { return "" }
+
+    if ($Reason -match 'Unmount|Commit|Discard') {
+        return "Bitte nicht manuell schließen, solange DISM aktiv ist. Wenn es hängt, danach Mount-Status aktualisieren und Reparatur prüfen."
+    }
+
+    if ($Reason -match 'nacheinander|Batch') {
+        return "Bei Batch-Jobs ist ein langer Einzelschritt normal. Der nächste Mount startet erst, wenn DISM den aktuellen Schritt beendet hat."
+    }
+
+    return ""
+}
+
 function Apply-ImagesBusyUi {
     param(
         [Parameter(Mandatory)]$Context,
@@ -127,7 +165,7 @@ function Apply-ImagesBusyUi {
     try {
         $page = Get-Ctx "ImagesPage"
         if ($Busy) {
-            Start-UiBusyProgress -Root $page -Context $Context -Message $(if ($Reason) { $Reason } else { "Bitte warten..." }) -Detail "DISM verarbeitet das Image. Große Images können längere Zeit ohne sichtbare Dateigrößenänderung arbeiten." -ShowDismTail
+            Start-UiBusyProgress -Root $page -Context $Context -Message $(if ($Reason) { $Reason } else { "Bitte warten..." }) -Detail (Get-ImagesBusyDetailText -Reason $Reason) -Hint (Get-ImagesBusyHintText -Reason $Reason) -ShowDismTail
         } else {
             Stop-UiBusyProgress -Root $page -Context $Context
         }

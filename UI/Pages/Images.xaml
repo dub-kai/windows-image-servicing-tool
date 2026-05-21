@@ -253,6 +253,7 @@
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
               </Grid.RowDefinitions>
 
@@ -264,14 +265,28 @@
                 <Button Name="BtnRepairMounts" Width="150" Height="28" Content="Reparatur prüfen"/>
               </StackPanel>
 
-              <TextBlock Grid.Row="1"
+              <Border Grid.Row="1"
+                      Background="#EAF4F2"
+                      BorderBrush="#B8D8D0"
+                      BorderThickness="1"
+                      CornerRadius="10"
+                      Padding="10,8"
+                      Margin="0,0,0,8">
+                <TextBlock Name="TxtMountedHealthSummary"
+                           Foreground="#134E4A"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Text="Mount-Status: noch nicht geladen." />
+              </Border>
+
+              <TextBlock Grid.Row="2"
                          Name="TxtMountedHint"
                          Foreground="#374151"
                          Margin="0,0,0,10"
                          TextWrapping="Wrap"
                          Text="Tipp: Auswahl anklicken, dann Unmount." />
 
-              <ListView Grid.Row="2"
+              <ListView Grid.Row="3"
                         Name="LstMountedWims"
                         SelectedValuePath="MountDir"
                         SelectionMode="Extended"
