@@ -30,6 +30,66 @@ function Format-DashboardJobLine {
     return ('{0} | {1,-9} | {2} | {3}' -f $time, $status, $operation, $duration)
 }
 
+function Convert-DashboardJobView {
+    param($Job)
+
+    if (-not $Job) { return $null }
+
+    $message = ''
+    $detail = ''
+    $errorText = ''
+    try { $message = [string]$Job.Message } catch {}
+    try { $detail = [string]$Job.Detail } catch {}
+    try { $errorText = [string]$Job.Error } catch {}
+
+    return [pscustomobject]@{
+        Time      = Format-DashboardDate $Job.CreatedAt
+        Status    = [string]$Job.Status
+        Operation = [string]$Job.Operation
+        Duration  = Format-DashboardDuration $Job.DurationMs
+        Message   = $message
+        Detail    = $detail
+        Error     = $errorText
+        Raw       = $Job
+    }
+}
+
+function Format-DashboardJobDetails {
+    param($JobView)
+
+    if (-not $JobView) { return 'Job auswählen, um Details zu sehen.' }
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    [void]$parts.Add(("Aktion: {0}" -f [string]$JobView.Operation))
+    [void]$parts.Add(("Status: {0}" -f [string]$JobView.Status))
+    [void]$parts.Add(("Zeit: {0} | Dauer: {1}" -f [string]$JobView.Time, [string]$JobView.Duration))
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$JobView.Message)) {
+        [void]$parts.Add(("Meldung: {0}" -f [string]$JobView.Message))
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$JobView.Detail)) {
+        [void]$parts.Add(("Details: {0}" -f [string]$JobView.Detail))
+    }
+
+    return ($parts -join "`n")
+}
+
+function Update-DashboardJobDetails {
+    param(
+        [Parameter(Mandatory)]$Root,
+        $JobView = $null
+    )
+
+    Set-UiText -Root $Root -Name "TxtDashJobDetails" -Value (Format-DashboardJobDetails -JobView $JobView)
+
+    $errorText = ''
+    if ($JobView) {
+        try { $errorText = [string]$JobView.Error } catch {}
+    }
+    if ($errorText.Length -gt 900) { $errorText = $errorText.Substring(0, 900) + '...' }
+    Set-UiText -Root $Root -Name "TxtDashJobError" -Value $errorText
+}
+
 function Refresh-DashboardJobOverview {
     param($Root)
 
@@ -66,16 +126,28 @@ function Refresh-DashboardJobOverview {
             Set-UiText -Root $Root -Name "TxtDashLastErrorDetail" -Value "-"
         }
 
-        $list = Find-Ui -Root $Root -Name "LstDashRecentJobs"
-        if ($list) {
-            $items = New-Object System.Collections.ObjectModel.ObservableCollection[string]
-            foreach ($job in $jobs) { [void]$items.Add((Format-DashboardJobLine -Job $job)) }
-            if ($items.Count -eq 0) { [void]$items.Add('Noch keine Jobs erfasst.') }
-            $list.ItemsSource = $items
+        $grid = Find-Ui -Root $Root -Name "GridDashRecentJobs"
+        if ($grid) {
+            $items = New-Object System.Collections.ObjectModel.ObservableCollection[object]
+            foreach ($job in $jobs) {
+                $view = Convert-DashboardJobView -Job $job
+                if ($view) { [void]$items.Add($view) }
+            }
+
+            $grid.ItemsSource = $items
+            if ($items.Count -gt 0 -and -not $grid.SelectedItem) {
+                $grid.SelectedIndex = 0
+            }
+            if ($grid.SelectedItem) {
+                Update-DashboardJobDetails -Root $Root -JobView $grid.SelectedItem
+            } else {
+                Update-DashboardJobDetails -Root $Root
+            }
         }
     } catch {
         Set-UiText -Root $Root -Name "TxtDashLastJob" -Value "Job-Verlauf konnte nicht geladen werden"
         Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value $_.Exception.Message
+        try { Update-DashboardJobDetails -Root $Root } catch {}
     }
 }
 

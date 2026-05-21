@@ -82,18 +82,63 @@
             <Grid Grid.Row="2">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="1.35*"/>
+                <ColumnDefinition Width="12"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Verlauf:"/>
-              <ListBox Grid.Column="1"
-                       Name="LstDashRecentJobs"
-                       MinHeight="80"
-                       MaxHeight="140"
-                       Background="White"
-                       BorderBrush="#CCFBF1"
-                       BorderThickness="1"
-                       FontFamily="Consolas"
-                       FontSize="12"/>
+
+              <StackPanel Grid.Column="0">
+                <TextBlock FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Verlauf:" Margin="0,0,0,8"/>
+                <Button Name="BtnDashRefreshJobs"
+                        Content="Aktualisieren"
+                        Height="28"
+                        Width="120"
+                        HorizontalAlignment="Left"/>
+              </StackPanel>
+
+              <DataGrid Grid.Column="1"
+                        Name="GridDashRecentJobs"
+                        MinHeight="140"
+                        MaxHeight="190"
+                        Background="White"
+                        BorderBrush="#CCFBF1"
+                        BorderThickness="1"
+                        AutoGenerateColumns="False"
+                        CanUserAddRows="False"
+                        CanUserDeleteRows="False"
+                        HeadersVisibility="Column"
+                        SelectionMode="Single"
+                        SelectionUnit="FullRow"
+                        IsReadOnly="True"
+                        GridLinesVisibility="Horizontal"
+                        RowHeaderWidth="0"
+                        AlternatingRowBackground="#F8FAFC">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Zeit" Binding="{Binding Time}" Width="92"/>
+                  <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
+                  <DataGridTextColumn Header="Aktion" Binding="{Binding Operation}" Width="*"/>
+                  <DataGridTextColumn Header="Dauer" Binding="{Binding Duration}" Width="70"/>
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <Border Grid.Column="3"
+                      Background="White"
+                      BorderBrush="#CCFBF1"
+                      BorderThickness="1"
+                      CornerRadius="10"
+                      Padding="10">
+                <StackPanel>
+                  <TextBlock FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Details" Margin="0,0,0,6"/>
+                  <TextBlock Name="TxtDashJobDetails"
+                             Foreground="#475569"
+                             Text="Job auswählen, um Details zu sehen."
+                             TextWrapping="Wrap"/>
+                  <TextBlock Name="TxtDashJobError"
+                             Foreground="#991B1B"
+                             Margin="0,8,0,0"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
             </Grid>
           </Grid>
         </Border>

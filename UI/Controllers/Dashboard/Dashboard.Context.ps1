@@ -16,6 +16,8 @@
         BtnAutoDetect  = $null
         BtnDismountIso = $null
         BtnSelectImage = $null
+        BtnRefreshJobs = $null
+        GridRecentJobs = $null
     }
 
     $p = $DashboardPage
@@ -24,6 +26,8 @@
     $script:ctx.BtnAutoDetect   = Find-Ui -Root $p -Name "BtnAutoDetectIso"
     $script:ctx.BtnDismountIso  = Find-Ui -Root $p -Name "BtnDismountIso"
     $script:ctx.BtnSelectImage  = Find-Ui -Root $p -Name "BtnSelectImage"
+    $script:ctx.BtnRefreshJobs  = Find-Ui -Root $p -Name "BtnDashRefreshJobs"
+    $script:ctx.GridRecentJobs  = Find-Ui -Root $p -Name "GridDashRecentJobs"
 
     if ($script:ctx.BtnSelectIso) {
         $script:ctx.BtnSelectIso.Add_Click({
@@ -96,6 +100,25 @@
                 Set-AppStateValue -Key "SelectedViewMode"    -Value "Standalone"
             } catch { Show-UiError -Message $_.Exception.Message }
             finally { Invoke-StateChangedSafe; Refresh-DashboardUI; Invoke-SetStatusSafe "Ready" }
+        })
+    }
+
+    if ($script:ctx.BtnRefreshJobs) {
+        $script:ctx.BtnRefreshJobs.Add_Click({
+            try {
+                Refresh-DashboardJobOverview -Root $script:ctx.DashboardPage
+                Invoke-SetStatusSafe "Job-Verlauf aktualisiert."
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.GridRecentJobs) {
+        $script:ctx.GridRecentJobs.Add_SelectionChanged({
+            try {
+                Update-DashboardJobDetails -Root $script:ctx.DashboardPage -JobView $script:ctx.GridRecentJobs.SelectedItem
+            } catch {}
         })
     }
 
