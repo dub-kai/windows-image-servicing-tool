@@ -74,6 +74,46 @@ function Get-MountedSelectionHint {
     return ($parts -join ' | ')
 }
 
+function Get-SelectedMountedItems {
+    if (-not $script:ctx -or -not $script:ctx.LstMountedWims) { return @() }
+
+    $items = @()
+    try {
+        if ($script:ctx.LstMountedWims.SelectedItems) {
+            foreach ($item in $script:ctx.LstMountedWims.SelectedItems) {
+                if ($null -ne $item) { $items += $item }
+            }
+        }
+    } catch {
+        $items = @()
+    }
+
+    if ($items.Count -eq 0) {
+        try {
+            if ($script:ctx.LstMountedWims.SelectedItem) {
+                $items = @($script:ctx.LstMountedWims.SelectedItem)
+            }
+        } catch {}
+    }
+
+    return @($items)
+}
+
+function Get-MountedBatchSelectionHint {
+    param([object[]]$Items = @())
+
+    $items = @($Items | Where-Object { $null -ne $_ })
+    if ($items.Count -lt 1) { return 'Tipp: Auswahl anklicken, dann Unmount.' }
+
+    if ($items.Count -eq 1) {
+        return (Get-MountedSelectionHint -MountedItem $items[0])
+    }
+
+    $commit = @($items | Where-Object { Test-MountedWritable -MountedItem $_ })
+    $discard = @($items | Where-Object { Test-MountedDiscardAllowed -MountedItem $_ })
+    return ("Mehrfachauswahl: {0} Mounts | Commit möglich: {1} | Discard/Bereinigen möglich: {2}. Ablauf ist nacheinander." -f $items.Count, $commit.Count, $discard.Count)
+}
+
 function Update-MountedButtons {
     if (-not $script:ctx) { return }
     if ($script:isBusy) { return }
@@ -82,12 +122,13 @@ function Update-MountedButtons {
     $canCommit = $false
     $canDiscard = $false
     $selected = $null
+    $selectedItems = @(Get-SelectedMountedItems)
 
-    if ($script:ctx.LstMountedWims -and $script:ctx.LstMountedWims.SelectedItem) {
+    if ($selectedItems.Count -gt 0) {
         $hasSel = $true
-        $selected = $script:ctx.LstMountedWims.SelectedItem
-        $canCommit = (Test-MountedWritable -MountedItem $selected)
-        $canDiscard = (Test-MountedDiscardAllowed -MountedItem $selected)
+        $selected = $selectedItems[0]
+        $canCommit = (@($selectedItems | Where-Object { Test-MountedWritable -MountedItem $_ }).Count -gt 0)
+        $canDiscard = (@($selectedItems | Where-Object { Test-MountedDiscardAllowed -MountedItem $_ }).Count -gt 0)
     }
 
     if ($script:ctx.BtnUnmountMountedDiscard) {
@@ -97,16 +138,23 @@ function Update-MountedButtons {
             if ($selected -and $selected.PSObject.Properties.Match("RecommendedAction").Count -gt 0) {
                 $recommendedAction = [string]$selected.RecommendedAction
             }
-            if ($recommendedAction -match 'bereinig|Ohne Commit') {
+            if ($selectedItems.Count -gt 1) {
+                $script:ctx.BtnUnmountMountedDiscard.Content = 'Auswahl Discard'
+            } elseif ($recommendedAction -match 'bereinig|Ohne Commit') {
                 $script:ctx.BtnUnmountMountedDiscard.Content = 'Mount bereinigen'
             } else {
                 $script:ctx.BtnUnmountMountedDiscard.Content = 'Unmount (Discard)'
             }
         } catch {}
     }
-    if ($script:ctx.BtnUnmountMountedCommit)  { try { $script:ctx.BtnUnmountMountedCommit.IsEnabled  = ($hasSel -and $canCommit) } catch {} }
+    if ($script:ctx.BtnUnmountMountedCommit)  {
+        try {
+            $script:ctx.BtnUnmountMountedCommit.IsEnabled = ($hasSel -and $canCommit)
+            $script:ctx.BtnUnmountMountedCommit.Content = if ($selectedItems.Count -gt 1) { 'Auswahl Commit' } else { 'Unmount (Commit)' }
+        } catch {}
+    }
     if ($script:ctx.BtnRepairMounts) { try { $script:ctx.BtnRepairMounts.IsEnabled = $true } catch {} }
-    if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedSelectionHint -MountedItem $selected) } catch {} }
+    if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedBatchSelectionHint -Items $selectedItems) } catch {} }
 }
 
 function Get-MountRepairProblemItems {

@@ -487,6 +487,230 @@ Unmount-WimImage -MountDir '$safeDir' -Commit:$commit -Discard:$discard
     }
 }
 
+function Invoke-UnmountMountedBatch {
+    param(
+        [Parameter(Mandatory)][object[]]$MountedItems,
+        [Parameter(Mandatory)][ValidateSet("Commit","Discard")] [string]$Mode
+    )
+
+    if (-not $script:ctx) { return }
+    if ($script:isBusy) { return }
+
+    try {
+        $items = @($MountedItems | Where-Object { $null -ne $_ })
+        if ($items.Count -lt 1) { throw "Bitte mindestens ein Mounted Image auswählen." }
+
+        $requests = New-Object System.Collections.Generic.List[object]
+        $skipped = New-Object System.Collections.Generic.List[object]
+        $seen = @{}
+
+        foreach ($item in $items) {
+            $mountDir = ''
+            try {
+                if ($item.PSObject.Properties.Match("MountDir").Count -gt 0) { $mountDir = Normalize-PathText ([string]$item.MountDir) }
+            } catch { $mountDir = '' }
+
+            $display = $mountDir
+            try {
+                if ($item.PSObject.Properties.Match("ImageFile").Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$item.ImageFile)) {
+                    $fileName = [System.IO.Path]::GetFileName([string]$item.ImageFile)
+                    $idx = ''
+                    if ($item.PSObject.Properties.Match("ImageIndex").Count -gt 0) { $idx = [string]$item.ImageIndex }
+                    $display = if ([string]::IsNullOrWhiteSpace($idx)) { $fileName } else { "{0} Index {1}" -f $fileName, $idx }
+                }
+            } catch {}
+
+            if ([string]::IsNullOrWhiteSpace($mountDir)) {
+                $skipped.Add([pscustomobject]@{ MountDir = ''; Display = $display; Reason = 'MountDir nicht ermittelbar' }) | Out-Null
+                continue
+            }
+
+            $key = $mountDir.ToLowerInvariant().TrimEnd('\')
+            if ($seen.ContainsKey($key)) { continue }
+            $seen[$key] = $true
+
+            $allowed = if ($Mode -eq 'Commit') {
+                Test-MountedWritable -MountedItem $item
+            } else {
+                Test-MountedDiscardAllowed -MountedItem $item
+            }
+
+            if (-not $allowed) {
+                $reason = if ($Mode -eq 'Commit') { 'Commit nicht möglich' } else { 'Discard nicht möglich' }
+                try {
+                    $hint = Get-MountedSelectionHint -MountedItem $item
+                    if (-not [string]::IsNullOrWhiteSpace($hint)) { $reason = $hint }
+                } catch {}
+                $skipped.Add([pscustomobject]@{ MountDir = $mountDir; Display = $display; Reason = $reason }) | Out-Null
+                continue
+            }
+
+            $requests.Add([pscustomobject]@{
+                MountDir = $mountDir
+                Display  = $display
+            }) | Out-Null
+        }
+
+        $requestArray = @($requests.ToArray())
+        $skippedArray = @($skipped.ToArray())
+
+        if ($requestArray.Count -lt 1) {
+            $lines = @($skippedArray | ForEach-Object { "{0}: {1}" -f [string]$_.Display, [string]$_.Reason })
+            $msg = "Für {0} ist kein ausgewählter Mount ausführbar." -f $Mode
+            if ($lines.Count -gt 0) { $msg += "`n`n" + ($lines -join "`n") }
+            Show-UiInfo -Title ("Unmount {0}" -f $Mode) -Message $msg
+            return
+        }
+
+        $fnSetBusy         = (Get-Item function:Set-ImagesBusy                          -ErrorAction Stop).ScriptBlock
+        $fnUpdBtns         = (Get-Item function:Update-MountedButtons                   -ErrorAction Stop).ScriptBlock
+        $fnUpdMountUi      = (Get-Item function:Update-MountUiFromState                 -ErrorAction Stop).ScriptBlock
+        $fnRefreshPage     = (Get-Item function:Refresh-ImagesUI                        -ErrorAction Stop).ScriptBlock
+        $fnClear           = (Get-Item function:Clear-MountState                        -ErrorAction Stop).ScriptBlock
+        $fnRefMounted      = (Get-Item function:Refresh-MountedList                     -ErrorAction Stop).ScriptBlock
+        $fnNorm            = (Get-Item function:Normalize-PathText                      -ErrorAction Stop).ScriptBlock
+        $fnSetSvcBusy      = (Get-Item function:Set-ImageServicingBusyState             -ErrorAction Stop).ScriptBlock
+        $fnClearDriverSel  = (Get-Item function:Clear-DriverSelectionForUnmountedMount  -ErrorAction Stop).ScriptBlock
+        $fnSyncDriver      = (Get-Item function:Sync-DriverControllerAfterMountChange   -ErrorAction Stop).ScriptBlock
+        $fnShowUiError     = (Get-Item function:Show-UiError                            -ErrorAction Stop).ScriptBlock
+        $fnShowUiInfo      = (Get-Item function:Show-UiInfo                             -ErrorAction Stop).ScriptBlock
+
+        $ctxLocal = $script:ctx
+        $setStatus = $script:ctx.SetStatus
+
+        & $fnSetBusy -Busy $true -Reason ("Unmount {0} läuft ({1} Mounts nacheinander)..." -f $Mode, $requestArray.Count) -Context $ctxLocal
+        & $fnSetSvcBusy -Busy $true
+
+        $coreBoot   = (Resolve-ProjectPath "Core\Bootstrap.psm1" -MustExist)
+        $coreCfg    = (Resolve-ProjectPath "Core\Config.psm1"    -MustExist)
+        $coreLog    = (Resolve-ProjectPath "Core\Logger.psm1"    -MustExist)
+        $svcDism    = (Resolve-ProjectPath "Services\DismService.psm1"  -MustExist)
+        $svcMount   = (Resolve-ProjectPath "Services\MountService.psm1" -MustExist)
+
+        $safeBoot  = $coreBoot.Replace("'", "''")
+        $safeCfg   = $coreCfg.Replace("'", "''")
+        $safeLog   = $coreLog.Replace("'", "''")
+        $safeDism  = $svcDism.Replace("'", "''")
+        $safeMount = $svcMount.Replace("'", "''")
+        $safeMode = $Mode.Replace("'", "''")
+        $commit = if ($Mode -eq "Commit") { '$true' } else { '$false' }
+        $discard = if ($Mode -eq "Discard") { '$true' } else { '$false' }
+        $requestsJson = @($requestArray) | ConvertTo-Json -Compress -Depth 6
+        $requestsB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$requestsJson))
+
+        $code = @"
+`$ErrorActionPreference = 'Stop'
+Import-Module '$safeBoot'  -Force
+Import-Module '$safeCfg'   -Force
+Import-Module '$safeLog'   -Force
+Import-Module '$safeDism'  -Force
+Import-Module '$safeMount' -Force
+
+function ConvertFrom-WorkerBase64Json {
+    param([Parameter(Mandatory)][string]`$Base64)
+
+    `$json = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(`$Base64))
+    if ([string]::IsNullOrWhiteSpace(`$json) -or `$json -eq 'null') { return @() }
+    return @(`$json | ConvertFrom-Json)
+}
+
+`$requests = @(ConvertFrom-WorkerBase64Json -Base64 '$requestsB64')
+`$results = New-Object System.Collections.Generic.List[object]
+`$position = 0
+foreach (`$request in `$requests) {
+    `$position++
+    `$mountDir = [string]`$request.MountDir
+    `$display = [string]`$request.Display
+    try {
+        Write-Log -Level INFO -Message ("Images: Batch-Unmount $safeMode {0}/{1}: {2}" -f `$position, @(`$requests).Count, `$mountDir)
+        Unmount-WimImage -MountDir `$mountDir -Commit:$commit -Discard:$discard | Out-Null
+        `$results.Add([pscustomobject]@{
+            Success = `$true
+            MountDir = `$mountDir
+            Display = `$display
+            Error = ''
+        }) | Out-Null
+    } catch {
+        `$results.Add([pscustomobject]@{
+            Success = `$false
+            MountDir = `$mountDir
+            Display = `$display
+            Error = `$_.Exception.Message
+        }) | Out-Null
+    }
+}
+
+return ,(`$results.ToArray())
+"@
+
+        $onCompleted = {
+            param($result)
+            try {
+                $itemsResult = @($result)
+                if ($itemsResult.Count -eq 1 -and $itemsResult[0] -is [array]) { $itemsResult = @($itemsResult[0]) }
+
+                $ok = @($itemsResult | Where-Object { $_ -and [bool]$_.Success })
+                $failed = @($itemsResult | Where-Object { $_ -and -not [bool]$_.Success })
+
+                $cur = Get-AppStateValue -Key "CurrentMountDir" -Default $null
+                if ($cur) {
+                    $nCur = (& $fnNorm $cur)
+                    foreach ($done in $ok) {
+                        $nDir = (& $fnNorm ([string]$done.MountDir))
+                        if ($nCur -eq $nDir) {
+                            try { & $fnClear } catch {}
+                            break
+                        }
+                    }
+                }
+
+                foreach ($done in $ok) {
+                    try { & $fnClearDriverSel -MountDir ([string]$done.MountDir) } catch {}
+                }
+
+                & $fnUpdMountUi
+                $statusText = "Unmount {0}: {1} OK, {2} übersprungen, {3} Fehler" -f $Mode, $ok.Count, $skippedArray.Count, $failed.Count
+                if ($setStatus) { & $setStatus $statusText }
+
+                $lines = New-Object System.Collections.Generic.List[string]
+                foreach ($done in $ok) { $lines.Add(("OK: {0}" -f [string]$done.Display)) | Out-Null }
+                foreach ($skip in $skippedArray) { $lines.Add(("Übersprungen: {0} ({1})" -f [string]$skip.Display, [string]$skip.Reason)) | Out-Null }
+                foreach ($fail in $failed) { $lines.Add(("Fehler: {0} ({1})" -f [string]$fail.Display, [string]$fail.Error)) | Out-Null }
+
+                $message = "{0}`n`n{1}" -f $statusText, ($lines.ToArray() -join "`n")
+                if ($failed.Count -gt 0) {
+                    & $fnShowUiError -Title ("Unmount {0}" -f $Mode) -Message $message
+                } else {
+                    & $fnShowUiInfo -Title ("Unmount {0}" -f $Mode) -Message $message
+                }
+            } finally {
+                & $fnSetSvcBusy -Busy $false
+                & $fnSetBusy -Busy $false -Context $ctxLocal
+                try { & $fnRefreshPage } catch {}
+                try { & $fnRefMounted } catch {}
+                try { & $fnSyncDriver -Reason ("Unmount {0} batch" -f $Mode) } catch {}
+                try { & $fnUpdBtns } catch {}
+            }
+        }.GetNewClosure()
+
+        $onError = {
+            param($ex)
+            try { & $fnShowUiError -Message $ex.Message -Title ("Unmount {0}" -f $Mode) }
+            finally {
+                & $fnSetSvcBusy -Busy $false
+                & $fnSetBusy -Busy $false -Context $ctxLocal
+                if ($setStatus) { & $setStatus "Ready" }
+            }
+        }.GetNewClosure()
+
+        Start-UiTask -Work (New-WorkerScript -Code $code) -OnCompleted $onCompleted -OnError $onError -Label ("Unmount:{0}:Batch_{1}" -f $Mode, $requestArray.Count)
+    } catch {
+        try { Set-ImageServicingBusyState -Busy $false } catch {}
+        try { Set-ImagesBusy -Busy $false } catch {}
+        Show-UiError -Message $_.Exception.Message
+    }
+}
+
 function Unmount-CurrentCommit {
     if ($script:isBusy) { return }
     $dir = Get-AppStateValue -Key "CurrentMountDir" -Default $null
@@ -505,6 +729,11 @@ function Unmount-CurrentDiscard {
 
 function Unmount-MountedSelectedDiscard {
     if ($script:isBusy) { return }
+    $items = @(Get-SelectedMountedItems)
+    if ($items.Count -gt 1) {
+        Invoke-UnmountMountedBatch -MountedItems $items -Mode "Discard"
+        return
+    }
     $dir = Get-SelectedMountedDir
     if (-not $dir) { Show-UiError -Message "Bitte ein Mounted Image auswählen."; return }
     Invoke-UnmountMounted -MountDir $dir -Mode "Discard"
@@ -513,6 +742,11 @@ function Unmount-MountedSelectedDiscard {
 function Unmount-MountedSelectedCommit {
     if ($script:isBusy) { return }
     if (-not $script:ctx -or -not $script:ctx.LstMountedWims) { return }
+    $items = @(Get-SelectedMountedItems)
+    if ($items.Count -gt 1) {
+        Invoke-UnmountMountedBatch -MountedItems $items -Mode "Commit"
+        return
+    }
     $sel = $script:ctx.LstMountedWims.SelectedItem
     if (-not $sel) { Show-UiError -Message "Bitte ein Mounted Image auswählen."; return }
     if (-not (Test-MountedWritable -MountedItem $sel)) {
