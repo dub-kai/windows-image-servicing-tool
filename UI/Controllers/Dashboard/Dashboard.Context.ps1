@@ -17,6 +17,9 @@
         BtnDismountIso = $null
         BtnSelectImage = $null
         BtnRefreshJobs = $null
+        BtnCopyJobDetails = $null
+        BtnOpenHistory = $null
+        BtnOpenDismLog = $null
         GridRecentJobs = $null
     }
 
@@ -27,6 +30,9 @@
     $script:ctx.BtnDismountIso  = Find-Ui -Root $p -Name "BtnDismountIso"
     $script:ctx.BtnSelectImage  = Find-Ui -Root $p -Name "BtnSelectImage"
     $script:ctx.BtnRefreshJobs  = Find-Ui -Root $p -Name "BtnDashRefreshJobs"
+    $script:ctx.BtnCopyJobDetails = Find-Ui -Root $p -Name "BtnDashCopyJobDetails"
+    $script:ctx.BtnOpenHistory = Find-Ui -Root $p -Name "BtnDashOpenHistory"
+    $script:ctx.BtnOpenDismLog = Find-Ui -Root $p -Name "BtnDashOpenDismLog"
     $script:ctx.GridRecentJobs  = Find-Ui -Root $p -Name "GridDashRecentJobs"
 
     if ($script:ctx.BtnSelectIso) {
@@ -119,6 +125,39 @@
             try {
                 Update-DashboardJobDetails -Root $script:ctx.DashboardPage -JobView $script:ctx.GridRecentJobs.SelectedItem
             } catch {}
+        })
+    }
+
+    if ($script:ctx.BtnCopyJobDetails) {
+        $script:ctx.BtnCopyJobDetails.Add_Click({
+            try {
+                Copy-DashboardSelectedJobDetails -Root $script:ctx.DashboardPage
+                Invoke-SetStatusSafe "Jobdetails kopiert."
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnOpenHistory) {
+        $script:ctx.BtnOpenHistory.Add_Click({
+            try {
+                Open-DashboardJobHistoryFile
+                Invoke-SetStatusSafe "Job-History geöffnet."
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.BtnOpenDismLog) {
+        $script:ctx.BtnOpenDismLog.Add_Click({
+            try {
+                Open-DashboardDismLog
+                Invoke-SetStatusSafe "DISM-Log geöffnet."
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
         })
     }
 

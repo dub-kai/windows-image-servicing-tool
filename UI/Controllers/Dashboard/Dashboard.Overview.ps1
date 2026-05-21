@@ -90,6 +90,74 @@ function Update-DashboardJobDetails {
     Set-UiText -Root $Root -Name "TxtDashJobError" -Value $errorText
 }
 
+function Get-DashboardSelectedJobView {
+    param($Root)
+
+    if (-not $Root) { return $null }
+    try {
+        $grid = Find-Ui -Root $Root -Name "GridDashRecentJobs"
+        if ($grid) { return $grid.SelectedItem }
+    } catch {}
+
+    return $null
+}
+
+function Get-DashboardSelectedJobText {
+    param($Root)
+
+    $job = Get-DashboardSelectedJobView -Root $Root
+    $text = Format-DashboardJobDetails -JobView $job
+
+    $errorText = ''
+    if ($job) {
+        try { $errorText = [string]$job.Error } catch {}
+    }
+    if (-not [string]::IsNullOrWhiteSpace($errorText)) {
+        $text = $text + "`n`nFehler:`n" + $errorText
+    }
+
+    return $text
+}
+
+function Copy-DashboardSelectedJobDetails {
+    param($Root)
+
+    $text = Get-DashboardSelectedJobText -Root $Root
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        Show-UiInfo -Message "Keine Jobdetails zum Kopieren vorhanden." -Title "Dashboard"
+        return
+    }
+
+    Add-Type -AssemblyName PresentationCore -ErrorAction SilentlyContinue | Out-Null
+    [System.Windows.Clipboard]::SetText($text)
+}
+
+function Open-DashboardPath {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "Pfad ist leer."
+    }
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Pfad nicht gefunden: $Path"
+    }
+
+    Start-Process -FilePath $Path | Out-Null
+}
+
+function Open-DashboardJobHistoryFile {
+    if (-not (Get-Command Get-JobHistoryFilePath -ErrorAction SilentlyContinue)) {
+        throw "JobHistory-Modul ist nicht geladen."
+    }
+
+    Open-DashboardPath -Path (Get-JobHistoryFilePath)
+}
+
+function Open-DashboardDismLog {
+    $path = Join-Path $env:WINDIR "Logs\DISM\dism.log"
+    Open-DashboardPath -Path $path
+}
+
 function Refresh-DashboardJobOverview {
     param($Root)
 
@@ -142,6 +210,10 @@ function Refresh-DashboardJobOverview {
                 Update-DashboardJobDetails -Root $Root -JobView $grid.SelectedItem
             } else {
                 Update-DashboardJobDetails -Root $Root
+            }
+
+            foreach ($buttonName in @("BtnDashCopyJobDetails","BtnDashOpenHistory","BtnDashOpenDismLog")) {
+                Set-UiEnabled -Root $Root -Name $buttonName -Enabled $true
             }
         }
     } catch {

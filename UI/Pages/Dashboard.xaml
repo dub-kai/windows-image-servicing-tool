@@ -128,7 +128,33 @@
                       CornerRadius="10"
                       Padding="10">
                 <StackPanel>
-                  <TextBlock FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Details" Margin="0,0,0,6"/>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               FontWeight="SemiBold"
+                               Foreground="#0F172A"
+                               VerticalAlignment="Center"
+                               Text="Job-Details"/>
+                    <WrapPanel Grid.Column="1">
+                      <Button Name="BtnDashCopyJobDetails"
+                              Content="Kopieren"
+                              Height="26"
+                              MinWidth="84"
+                              Margin="0,0,6,0"/>
+                      <Button Name="BtnDashOpenHistory"
+                              Content="History"
+                              Height="26"
+                              MinWidth="76"
+                              Margin="0,0,6,0"/>
+                      <Button Name="BtnDashOpenDismLog"
+                              Content="DISM-Log"
+                              Height="26"
+                              MinWidth="82"/>
+                    </WrapPanel>
+                  </Grid>
                   <TextBlock Name="TxtDashJobDetails"
                              Foreground="#475569"
                              Text="Job auswählen, um Details zu sehen."
