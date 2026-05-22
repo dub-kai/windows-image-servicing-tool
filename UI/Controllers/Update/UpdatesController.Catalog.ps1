@@ -126,6 +126,18 @@ function Update-UpdatesActionButtons {
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled $canSelect
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogDownload'  -Enabled ($canSelect -and (-not $isLocal) -and $hasUpdateId)
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrate' -Enabled $canSelect
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogAddLocal' -Enabled (-not $script:isBusy)
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogCopyTitle' -Enabled $canSelect
+    if ($script:ctx.MiCatalogDownload)     { try { $script:ctx.MiCatalogDownload.IsEnabled = ($canSelect -and (-not $isLocal) -and $hasUpdateId) } catch {} }
+    if ($script:ctx.MiCatalogIntegrate)    { try { $script:ctx.MiCatalogIntegrate.IsEnabled = $canSelect } catch {} }
+    if ($script:ctx.MiCatalogIntegrateAll) { try { $script:ctx.MiCatalogIntegrateAll.IsEnabled = ($canSelect -and (@($script:mountItems).Count -gt 0)) } catch {} }
+    if ($script:ctx.MiCatalogPreflight)    { try { $script:ctx.MiCatalogPreflight.IsEnabled = ($canSelect -and (@($script:mountItems).Count -gt 0)) } catch {} }
+    if ($script:ctx.MiCatalogAddLocal)     { try { $script:ctx.MiCatalogAddLocal.IsEnabled = (-not $script:isBusy) } catch {} }
+    if ($script:ctx.MiCatalogCopyTitle)    { try { $script:ctx.MiCatalogCopyTitle.IsEnabled = $canSelect } catch {} }
 }
 
 function New-LocalCatalogItem {

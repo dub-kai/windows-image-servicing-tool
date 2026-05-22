@@ -68,6 +68,39 @@ function Find-Ui {
     try { return $Root.FindName($Name) } catch { return $null }
 }
 
+function Find-ContextMenuItem {
+    param(
+        [Parameter(Mandatory)]$Owner,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $menu = $null
+    try { $menu = $Owner.ContextMenu } catch { $menu = $null }
+    if (-not $menu) { return $null }
+
+    $queue = New-Object System.Collections.Queue
+    try {
+        foreach ($item in @($menu.Items)) {
+            if ($null -ne $item) { $queue.Enqueue($item) }
+        }
+    } catch {}
+
+    while ($queue.Count -gt 0) {
+        $item = $queue.Dequeue()
+        try {
+            if ([string]$item.Name -eq $Name) { return $item }
+        } catch {}
+
+        try {
+            foreach ($child in @($item.Items)) {
+                if ($null -ne $child) { $queue.Enqueue($child) }
+            }
+        } catch {}
+    }
+
+    return $null
+}
+
 function Set-UiText {
     param(
         [Parameter(Mandatory)]$Root,
@@ -108,6 +141,7 @@ Set-Item -Path function:global:New-BitmapImageFromFile  -Value ${function:New-Bi
 Set-Item -Path function:global:Show-UiError             -Value ${function:Show-UiError}             -Force
 Set-Item -Path function:global:Show-UiInfo              -Value ${function:Show-UiInfo}              -Force
 Set-Item -Path function:global:Find-Ui                  -Value ${function:Find-Ui}                  -Force
+Set-Item -Path function:global:Find-ContextMenuItem     -Value ${function:Find-ContextMenuItem}     -Force
 Set-Item -Path function:global:Set-UiText               -Value ${function:Set-UiText}               -Force
 Set-Item -Path function:global:Set-UiEnabled            -Value ${function:Set-UiEnabled}            -Force
 
@@ -117,5 +151,6 @@ Export-ModuleMember -Function `
     Show-UiError, `
     Show-UiInfo, `
     Find-Ui, `
+    Find-ContextMenuItem, `
     Set-UiText, `
     Set-UiEnabled

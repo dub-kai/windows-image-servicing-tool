@@ -238,6 +238,11 @@ function Update-MountedButtons {
         } catch {}
     }
     if ($script:ctx.BtnRepairMounts) { try { $script:ctx.BtnRepairMounts.IsEnabled = $true } catch {} }
+    if ($script:ctx.MiMountedCommit)  { try { $script:ctx.MiMountedCommit.IsEnabled = ($hasSel -and $canCommit) } catch {} }
+    if ($script:ctx.MiMountedDiscard) { try { $script:ctx.MiMountedDiscard.IsEnabled = ($hasSel -and $canDiscard) } catch {} }
+    if ($script:ctx.MiMountedCopyPath) { try { $script:ctx.MiMountedCopyPath.IsEnabled = $hasSel } catch {} }
+    if ($script:ctx.MiMountedRefresh) { try { $script:ctx.MiMountedRefresh.IsEnabled = $true } catch {} }
+    if ($script:ctx.MiMountedRepair) { try { $script:ctx.MiMountedRepair.IsEnabled = $true } catch {} }
     try { Update-MountedHealthSummary } catch {}
     if ($script:ctx.TxtMountedHint) { try { $script:ctx.TxtMountedHint.Text = (Get-MountedBatchSelectionHint -Items $selectedItems) } catch {} }
 }

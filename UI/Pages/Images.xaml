@@ -291,6 +291,17 @@
                         SelectedValuePath="MountDir"
                         SelectionMode="Extended"
                         MinHeight="260">
+                <ListView.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Name="MiMountedCommit" Header="Auswahl committen"/>
+                    <MenuItem Name="MiMountedDiscard" Header="Auswahl verwerfen / bereinigen"/>
+                    <Separator/>
+                    <MenuItem Name="MiMountedRefresh" Header="Mounts aktualisieren"/>
+                    <MenuItem Name="MiMountedRepair" Header="DISM Mount-Reparatur starten"/>
+                    <Separator/>
+                    <MenuItem Name="MiMountedCopyPath" Header="MountDir kopieren"/>
+                  </ContextMenu>
+                </ListView.ContextMenu>
                 <ListView.View>
                   <GridView>
                     <GridViewColumn Header="MountDir" Width="260" DisplayMemberBinding="{Binding MountDir}" />

@@ -578,7 +578,7 @@ function Invoke-UnmountMountedBatch {
         $ctxLocal = $script:ctx
         $setStatus = $script:ctx.SetStatus
 
-        & $fnSetBusy -Busy $true -Reason ("Unmount {0} läuft ({1} Mounts nacheinander)..." -f $Mode, $requestArray.Count) -Context $ctxLocal
+        & $fnSetBusy -Busy $true -Reason ("Unmount {0} läuft ({1} Mounts nacheinander, mit kurzer Freigabe-Wartezeit)..." -f $Mode, $requestArray.Count) -Context $ctxLocal
         & $fnSetSvcBusy -Busy $true
 
         $coreBoot   = (Resolve-ProjectPath "Core\Bootstrap.psm1" -MustExist)
@@ -595,11 +595,38 @@ function Invoke-UnmountMountedBatch {
         $safeMode = $Mode.Replace("'", "''")
         $commit = if ($Mode -eq "Commit") { '$true' } else { '$false' }
         $discard = if ($Mode -eq "Discard") { '$true' } else { '$false' }
+        $preCommitDelaySec = 0
+        $stepDelaySec = 0
+        if ($Mode -eq "Commit") {
+            $lastRefreshRaw = $null
+            try { $lastRefreshRaw = Get-AppStateValue -Key "LastMountedWimRefreshAtUtc" -Default $null } catch { $lastRefreshRaw = $null }
+            $quietPeriodSec = 15
+            try { $quietPeriodSec = [int](Get-ConfigValue -Key "MountedWimRefreshQuietPeriodSec" -Default 15) } catch { $quietPeriodSec = 15 }
+            if ($quietPeriodSec -lt 0) { $quietPeriodSec = 0 }
+
+            if (-not [string]::IsNullOrWhiteSpace([string]$lastRefreshRaw) -and $quietPeriodSec -gt 0) {
+                $lastRefreshUtc = [DateTime]::MinValue
+                if ([DateTime]::TryParse([string]$lastRefreshRaw, [ref]$lastRefreshUtc)) {
+                    $elapsedSec = [Math]::Max(0, [int]([DateTime]::UtcNow - $lastRefreshUtc.ToUniversalTime()).TotalSeconds)
+                    if ($elapsedSec -lt $quietPeriodSec) {
+                        $preCommitDelaySec = $quietPeriodSec - $elapsedSec
+                    }
+                }
+            }
+
+            try { $stepDelaySec = [int](Get-ConfigValue -Key "BatchUnmountStepDelaySec" -Default 4) } catch { $stepDelaySec = 4 }
+            if ($stepDelaySec -lt 0) { $stepDelaySec = 0 }
+        }
+
+        $safePreCommitDelaySec = [int]$preCommitDelaySec
+        $safeStepDelaySec = [int]$stepDelaySec
         $requestsJson = @($requestArray) | ConvertTo-Json -Compress -Depth 6
         $requestsB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$requestsJson))
 
         $code = @"
 `$ErrorActionPreference = 'Stop'
+`$preCommitDelaySec = $safePreCommitDelaySec
+`$stepDelaySec = $safeStepDelaySec
 Import-Module '$safeBoot'  -Force
 Import-Module '$safeCfg'   -Force
 Import-Module '$safeLog'   -Force
@@ -614,14 +641,37 @@ function ConvertFrom-WorkerBase64Json {
     return @(`$json | ConvertFrom-Json)
 }
 
+function Get-UnmountWorkerHint {
+    param([string]`$Message)
+
+    if ([string]::IsNullOrWhiteSpace(`$Message)) { return '' }
+    if (`$Message -match '0xc142011d|partial unmount|partially unmounted|teilweise') {
+        return 'DISM sieht diesen Mount als teilweise ausgehängt. Wenn ein vorheriger Commit durchgelaufen ist, danach ohne Commit bereinigen.'
+    }
+    if (`$Message -match '0xc144012f|0x80070020|sharing violation|Failed to unload offline registry|client may still need it open|E_ACCESSDENIED|Access is denied|Zugriff.*verweigert') {
+        return 'Der Mount ist noch in Benutzung. Explorer, Virenscanner, DISMHost oder unsere Paketprüfung können kurz Handles offen halten. Kurz warten, Mount nicht im Explorer öffnen und erneut versuchen.'
+    }
+    if (`$Message -match 'ExitCode=32|Error:\s*32') {
+        return 'DISM meldet eine gesperrte Datei. Meist ist die Quell-WIM oder ein Mount-Verzeichnis noch von einem Prozess geöffnet.'
+    }
+    return ''
+}
+
 `$requests = @(ConvertFrom-WorkerBase64Json -Base64 '$requestsB64')
 `$results = New-Object System.Collections.Generic.List[object]
 `$position = 0
+if ($commit -and `$preCommitDelaySec -gt 0) {
+    Write-Log -Level INFO -Message ("Images: Batch-Unmount $safeMode wartet {0}s auf freie Mount-Handles." -f `$preCommitDelaySec)
+    Start-Sleep -Seconds `$preCommitDelaySec
+}
 foreach (`$request in `$requests) {
     `$position++
     `$mountDir = [string]`$request.MountDir
     `$display = [string]`$request.Display
     try {
+        if ($commit -and `$position -gt 1 -and `$stepDelaySec -gt 0) {
+            Start-Sleep -Seconds `$stepDelaySec
+        }
         Write-Log -Level INFO -Message ("Images: Batch-Unmount $safeMode {0}/{1}: {2}" -f `$position, @(`$requests).Count, `$mountDir)
         Unmount-WimImage -MountDir `$mountDir -Commit:$commit -Discard:$discard | Out-Null
         `$results.Add([pscustomobject]@{
@@ -629,13 +679,16 @@ foreach (`$request in `$requests) {
             MountDir = `$mountDir
             Display = `$display
             Error = ''
+            Hint = ''
         }) | Out-Null
     } catch {
+        `$message = `$_.Exception.Message
         `$results.Add([pscustomobject]@{
             Success = `$false
             MountDir = `$mountDir
             Display = `$display
-            Error = `$_.Exception.Message
+            Error = `$message
+            Hint = (Get-UnmountWorkerHint -Message `$message)
         }) | Out-Null
     }
 }
@@ -675,7 +728,15 @@ return ,(`$results.ToArray())
                 $lines = New-Object System.Collections.Generic.List[string]
                 foreach ($done in $ok) { $lines.Add(("OK: {0}" -f [string]$done.Display)) | Out-Null }
                 foreach ($skip in $skippedArray) { $lines.Add(("Übersprungen: {0} ({1})" -f [string]$skip.Display, [string]$skip.Reason)) | Out-Null }
-                foreach ($fail in $failed) { $lines.Add(("Fehler: {0} ({1})" -f [string]$fail.Display, [string]$fail.Error)) | Out-Null }
+                foreach ($fail in $failed) {
+                    $line = "Fehler: {0} ({1})" -f [string]$fail.Display, [string]$fail.Error
+                    try {
+                        if (-not [string]::IsNullOrWhiteSpace([string]$fail.Hint)) {
+                            $line = "{0}`nHinweis: {1}" -f $line, [string]$fail.Hint
+                        }
+                    } catch {}
+                    $lines.Add($line) | Out-Null
+                }
 
                 $message = "{0}`n`n{1}" -f $statusText, ($lines.ToArray() -join "`n")
                 if ($failed.Count -gt 0) {

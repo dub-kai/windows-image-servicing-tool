@@ -289,6 +289,11 @@ function Initialize-ImagesController {
         TxtMountedHealthSummary  = Find-Ui -Root $Page -Name 'TxtMountedHealthSummary'
         TxtMountedHint           = Find-Ui -Root $Page -Name 'TxtMountedHint'
         LstMountedWims           = Find-Ui -Root $Page -Name 'LstMountedWims'
+        MiMountedCommit          = Find-Ui -Root $Page -Name 'MiMountedCommit'
+        MiMountedDiscard         = Find-Ui -Root $Page -Name 'MiMountedDiscard'
+        MiMountedRefresh         = Find-Ui -Root $Page -Name 'MiMountedRefresh'
+        MiMountedRepair          = Find-Ui -Root $Page -Name 'MiMountedRepair'
+        MiMountedCopyPath        = Find-Ui -Root $Page -Name 'MiMountedCopyPath'
 
         BusyOverlay              = Find-Ui -Root $Page -Name 'BusyOverlay'
         TxtBusyMessage           = Find-Ui -Root $Page -Name 'TxtBusyMessage'
@@ -306,6 +311,14 @@ function Initialize-ImagesController {
     if (-not $script:ctx.LstMountedWims)           { throw "LstMountedWims nicht gefunden." }
     if (-not $script:ctx.BtnMountSelected)         { throw "BtnMountSelected nicht gefunden." }
     if (-not $script:ctx.BtnRefreshMounted)        { throw "BtnRefreshMounted nicht gefunden." }
+
+    if ($script:ctx.LstMountedWims) {
+        if (-not $script:ctx.MiMountedCommit)   { try { $script:ctx.MiMountedCommit = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedCommit' } catch {} }
+        if (-not $script:ctx.MiMountedDiscard)  { try { $script:ctx.MiMountedDiscard = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedDiscard' } catch {} }
+        if (-not $script:ctx.MiMountedRefresh)  { try { $script:ctx.MiMountedRefresh = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedRefresh' } catch {} }
+        if (-not $script:ctx.MiMountedRepair)   { try { $script:ctx.MiMountedRepair = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedRepair' } catch {} }
+        if (-not $script:ctx.MiMountedCopyPath) { try { $script:ctx.MiMountedCopyPath = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedCopyPath' } catch {} }
+    }
 
     Write-Log -Level INFO -Message ("Images UI wires: CmbView={0} BtnLoad={1} LstWimImages={2} LstMountedWims={3} BtnMountSelected={4} BtnRefreshMounted={5}" -f
         [bool]($script:ctx.CmbView),
@@ -500,6 +513,59 @@ function Initialize-ImagesController {
         $script:ctx.BtnRepairMounts.Add_Click({
             try {
                 Start-MountRepairAssistant
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiMountedCommit) {
+        $script:ctx.MiMountedCommit.Add_Click({
+            try {
+                Unmount-MountedSelectedCommit
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiMountedDiscard) {
+        $script:ctx.MiMountedDiscard.Add_Click({
+            try {
+                Unmount-MountedSelectedDiscard
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiMountedRefresh) {
+        $script:ctx.MiMountedRefresh.Add_Click({
+            try {
+                Refresh-MountedList
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiMountedRepair) {
+        $script:ctx.MiMountedRepair.Add_Click({
+            try {
+                Start-MountRepairAssistant
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiMountedCopyPath) {
+        $script:ctx.MiMountedCopyPath.Add_Click({
+            try {
+                $dir = Get-SelectedMountedDir
+                if ([string]::IsNullOrWhiteSpace([string]$dir)) { return }
+                [System.Windows.Clipboard]::SetText([string]$dir)
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus "MountDir kopiert." }
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }

@@ -38,86 +38,138 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Aktionen -->
-        <WrapPanel Grid.Row="0" Orientation="Horizontal">
-          <Button Name="BtnUpdatesRefresh"
-                  Content="Refresh"
-                  Height="30"
-                  MinWidth="100"
-                  Padding="12,0"
-                  Margin="0,0,8,8"/>
+        <!-- Werkzeugleiste -->
+        <Grid Grid.Row="0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
 
-          <Button Name="BtnCatalogSearch"
-                  Content="Catalog suchen"
-                  Height="30"
-                  MinWidth="120"
-                  Padding="12,0"
-                  Margin="0,0,8,8"/>
+          <Border Grid.Column="0"
+                  BorderBrush="#E5E7EB"
+                  BorderThickness="1"
+                  Background="White"
+                  CornerRadius="10"
+                  Padding="10,8">
+            <StackPanel>
+              <TextBlock Text="Quelle"
+                         FontWeight="SemiBold"
+                         Foreground="#334155"
+                         Margin="0,0,0,6"/>
+              <WrapPanel Orientation="Horizontal">
+                <Button Name="BtnUpdatesRefresh"
+                        Content="Refresh"
+                        Height="30"
+                        MinWidth="100"
+                        Padding="12,0"
+                        Margin="0,0,8,0"/>
+                <Button Name="BtnCatalogSearch"
+                        Content="Catalog suchen"
+                        Height="30"
+                        MinWidth="120"
+                        Padding="12,0"
+                        Margin="0,0,8,0"/>
+                <Button Name="BtnAddLocalUpdate"
+                        Content="MSU/CAB wählen"
+                        Height="30"
+                        MinWidth="120"
+                        Padding="12,0"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
 
-          <Button Name="BtnAddLocalUpdate"
-                  Content="MSU/CAB wählen"
-                  Height="30"
-                  MinWidth="120"
-                  Padding="12,0"
-                  Margin="0,0,8,8"/>
+          <Border Grid.Column="2"
+                  BorderBrush="#E5E7EB"
+                  BorderThickness="1"
+                  Background="White"
+                  CornerRadius="10"
+                  Padding="10,8">
+            <StackPanel>
+              <TextBlock Text="Aktionen"
+                         FontWeight="SemiBold"
+                         Foreground="#334155"
+                         Margin="0,0,0,6"/>
+              <WrapPanel Orientation="Horizontal">
+                <Button Name="BtnCatalogDownload"
+                        Content="Download"
+                        Height="30"
+                        MinWidth="100"
+                        Padding="12,0"
+                        IsEnabled="False"
+                        Margin="0,0,8,0"/>
+                <Button Name="BtnCatalogIntegrate"
+                        Content="In Mount"
+                        Height="30"
+                        MinWidth="115"
+                        Padding="12,0"
+                        IsEnabled="False"
+                        Margin="0,0,8,0"/>
+                <Button Name="BtnCatalogIntegrateAll"
+                        Content="In alle Mounts"
+                        Height="30"
+                        MinWidth="130"
+                        Padding="12,0"
+                        IsEnabled="False"
+                        Margin="0,0,8,0"/>
+                <Button Name="BtnCatalogPreflight"
+                        Content="Batch prüfen"
+                        Height="30"
+                        MinWidth="120"
+                        Padding="12,0"
+                        IsEnabled="False"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
 
-          <Button Name="BtnCatalogDownload"
-                  Content="Download"
-                  Height="30"
-                  MinWidth="100"
-                  Padding="12,0"
-                  IsEnabled="False"
-                  Margin="0,0,8,8"/>
-
-          <Button Name="BtnCatalogIntegrate"
-                  Content="In Mount integrieren"
-                  Height="30"
-                  MinWidth="150"
-                  Padding="12,0"
-                  IsEnabled="False"
-                  Margin="0,0,8,8"/>
-
-          <Button Name="BtnCatalogIntegrateAll"
-                  Content="In alle Mounts"
-                  Height="30"
-                  MinWidth="130"
-                  Padding="12,0"
-                  IsEnabled="False"
-                  Margin="0,0,8,8"/>
-
-          <Button Name="BtnCatalogPreflight"
-                  Content="Batch prüfen"
-                  Height="30"
-                  MinWidth="120"
-                  Padding="12,0"
-                  IsEnabled="False"
-                  Margin="0,0,16,8"/>
-
-          <TextBlock Text="Ansicht:"
-                     VerticalAlignment="Center"
-                     FontWeight="SemiBold"
-                     Margin="0,0,8,8"/>
-
-          <ComboBox Name="CmbUpdatesFilterMode"
-                    Height="28"
-                    MinWidth="210"
-                    SelectedIndex="0"
-                    Margin="0,0,16,8">
-            <ComboBoxItem Name="CmbUpdatesModeRecommended" Content="Nur empfohlene Treffer"/>
-            <ComboBoxItem Name="CmbUpdatesModeAll" Content="Alle Treffer"/>
-            <ComboBoxItem Name="CmbUpdatesModePackages" Content="Nur echte Updates"/>
-          </ComboBox>
-
-          <TextBlock Text="Suche:"
-                     VerticalAlignment="Center"
-                     FontWeight="SemiBold"
-                     Margin="0,0,8,8"/>
-
-          <TextBox Name="TxtUpdatesFilterText"
-                   Height="28"
-                   MinWidth="220"
-                   Margin="0,0,0,8"/>
-        </WrapPanel>
+          <Border Grid.Column="4"
+                  BorderBrush="#E5E7EB"
+                  BorderThickness="1"
+                  Background="White"
+                  CornerRadius="10"
+                  Padding="10,8">
+            <StackPanel>
+              <TextBlock Text="Ansicht &amp; Suche"
+                         FontWeight="SemiBold"
+                         Foreground="#334155"
+                         Margin="0,0,0,6"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="220"/>
+                  <ColumnDefinition Width="14"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Ansicht:"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"/>
+                <ComboBox Grid.Column="2"
+                          Name="CmbUpdatesFilterMode"
+                          Height="28"
+                          MinWidth="210"
+                          SelectedIndex="0">
+                  <ComboBoxItem Name="CmbUpdatesModeRecommended" Content="Nur empfohlene Treffer"/>
+                  <ComboBoxItem Name="CmbUpdatesModeAll" Content="Alle Treffer"/>
+                  <ComboBoxItem Name="CmbUpdatesModePackages" Content="Nur echte Updates"/>
+                </ComboBox>
+                <TextBlock Grid.Column="4"
+                           Text="Suche:"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"/>
+                <TextBox Grid.Column="6"
+                         Name="TxtUpdatesFilterText"
+                         Height="28"
+                         MinWidth="220"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </Grid>
 
         <!-- Mount -->
         <Grid Grid.Row="2">
@@ -420,6 +472,18 @@
                     GridLinesVisibility="Horizontal"
                     RowHeaderWidth="0"
                     AlternatingRowBackground="#FAFAFA">
+            <DataGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Name="MiCatalogDownload" Header="Download"/>
+                <MenuItem Name="MiCatalogIntegrate" Header="In ausgewählten Mount integrieren"/>
+                <MenuItem Name="MiCatalogIntegrateAll" Header="In alle passenden Mounts integrieren"/>
+                <Separator/>
+                <MenuItem Name="MiCatalogPreflight" Header="Batch vorher prüfen"/>
+                <MenuItem Name="MiCatalogAddLocal" Header="Lokale MSU/CAB hinzufügen"/>
+                <Separator/>
+                <MenuItem Name="MiCatalogCopyTitle" Header="Titel kopieren"/>
+              </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
               <DataGridTextColumn Header="KB" Binding="{Binding KB}" Width="95"/>
               <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="90"/>

@@ -27,10 +27,32 @@
     $cmbMode      = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesFilterMode'
     $txtFilter    = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesFilterText'
     $gridCatalog  = Find-Ui -Root $UpdatesPage -Name 'GridCatalogResults'
+    $miDownload   = Find-Ui -Root $UpdatesPage -Name 'MiCatalogDownload'
+    $miIntegrate  = Find-Ui -Root $UpdatesPage -Name 'MiCatalogIntegrate'
+    $miIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'MiCatalogIntegrateAll'
+    $miPreflight  = Find-Ui -Root $UpdatesPage -Name 'MiCatalogPreflight'
+    $miAddLocal   = Find-Ui -Root $UpdatesPage -Name 'MiCatalogAddLocal'
+    $miCopyTitle  = Find-Ui -Root $UpdatesPage -Name 'MiCatalogCopyTitle'
     $cmbMounts    = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesMounts'
     $chkAuto      = Find-Ui -Root $UpdatesPage -Name 'ChkUpdatesAutoCatalog'
     $cmbPkgMode   = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesPackagesMode'
     $txtPkgFilter = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesPackagesFilter'
+
+    if ($gridCatalog) {
+        if (-not $miDownload)     { try { $miDownload = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogDownload' } catch {} }
+        if (-not $miIntegrate)    { try { $miIntegrate = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogIntegrate' } catch {} }
+        if (-not $miIntegrateAll) { try { $miIntegrateAll = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogIntegrateAll' } catch {} }
+        if (-not $miPreflight)    { try { $miPreflight = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogPreflight' } catch {} }
+        if (-not $miAddLocal)     { try { $miAddLocal = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogAddLocal' } catch {} }
+        if (-not $miCopyTitle)    { try { $miCopyTitle = Find-ContextMenuItem -Owner $gridCatalog -Name 'MiCatalogCopyTitle' } catch {} }
+    }
+
+    $script:ctx.MiCatalogDownload = $miDownload
+    $script:ctx.MiCatalogIntegrate = $miIntegrate
+    $script:ctx.MiCatalogIntegrateAll = $miIntegrateAll
+    $script:ctx.MiCatalogPreflight = $miPreflight
+    $script:ctx.MiCatalogAddLocal = $miAddLocal
+    $script:ctx.MiCatalogCopyTitle = $miCopyTitle
 
     try {
         Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnAddLocal={2} BtnDownload={3} BtnIntegrate={4} BtnIntegrateAll={5} BtnPreflight={6} BtnExportPkg={7} BtnExportCat={8} CmbMode={9} TxtFilter={10} GridCatalog={11} CmbMounts={12} ChkAuto={13} CmbPkgMode={14} TxtPkgFilter={15}' -f `
@@ -147,6 +169,74 @@
             try {
                 Update-SelectedCatalogDetails
             } catch {}
+        })
+    }
+
+    if ($miDownload) {
+        $miDownload.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogDownloadUi
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Download fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
+        })
+    }
+
+    if ($miIntegrate) {
+        $miIntegrate.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogIntegrateUi
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Integration fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
+        })
+    }
+
+    if ($miIntegrateAll) {
+        $miIntegrateAll.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogIntegrateAllUi
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Batch fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
+        })
+    }
+
+    if ($miPreflight) {
+        $miPreflight.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogPreflightUi
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Batch-Prüfung fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
+        })
+    }
+
+    if ($miAddLocal) {
+        $miAddLocal.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Add-LocalUpdatePackageUi
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Lokalpaket fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
+        })
+    }
+
+    if ($miCopyTitle) {
+        $miCopyTitle.Add_Click({
+            try {
+                $item = Get-SelectedCatalogItem
+                if ($null -eq $item) { return }
+                [System.Windows.Clipboard]::SetText([string]$item.Title)
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'Catalog-Titel kopiert.' }
+            } catch {
+                try { Write-Log -Level WARN -Message ('Updates: Kontext-Kopieren fehlgeschlagen: {0}' -f $_.Exception.Message) } catch {}
+            }
         })
     }
 

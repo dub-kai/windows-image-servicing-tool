@@ -18,7 +18,16 @@ function Test-UnmountSharingViolation {
         $text = ''
     }
 
-    return ($text -match '0x80070020' -or $text -match 'sharing violation' -or $text -match 'Error:\s*32')
+    return (
+        $text -match '0x80070020' -or
+        $text -match '0xc144012f' -or
+        $text -match 'sharing violation' -or
+        $text -match 'Failed to unload offline registry' -or
+        $text -match 'client may still need it open' -or
+        $text -match 'E_ACCESSDENIED' -or
+        $text -match 'Access is denied' -or
+        $text -match 'Error:\s*32'
+    )
 }
 
 function Test-UnmountPartialState {
@@ -422,6 +431,23 @@ function Unmount-WimImage {
             throw "{0} failed (0xc142011d).`n`n{1}`n`n{2}" -f $label, $detail.Trim(), $hint
         }
         throw "{0} failed (0xc142011d).`n`n{1}" -f $label, $hint
+    }
+
+    if ($lastResult -and $lastResult.PSObject.Properties.Name -contains 'ExitCode' -and [int]$lastResult.ExitCode -ne 0 -and (Test-UnmountSharingViolation -Result $lastResult)) {
+        $detail = ''
+        if ($lastResult.PSObject.Properties.Name -contains 'StdErr' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdErr)) {
+            $detail = [string]$lastResult.StdErr
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'StdOut' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.StdOut)) {
+            $detail = [string]$lastResult.StdOut
+        } elseif ($lastResult.PSObject.Properties.Name -contains 'Output' -and -not [string]::IsNullOrWhiteSpace([string]$lastResult.Output)) {
+            $detail = [string]$lastResult.Output
+        }
+
+        $hint = "Der Mount ist noch in Benutzung. Bitte Mount-Ordner nicht im Explorer öffnen, kurz warten und erneut versuchen. Wenn DISM bereits teilweise ausgehängt hat und der Commit vorher fertig war, anschließend ohne Commit bereinigen."
+        if (-not [string]::IsNullOrWhiteSpace($detail)) {
+            throw "{0} failed (ExitCode={1}).`n`n{2}`n`n{3}" -f $label, [int]$lastResult.ExitCode, $detail.Trim(), $hint
+        }
+        throw "{0} failed (ExitCode={1}).`n`n{2}" -f $label, [int]$lastResult.ExitCode, $hint
     }
 
     if ($lastResult -and $lastResult.PSObject.Properties.Name -contains 'ExitCode' -and [int]$lastResult.ExitCode -ne 0) {
