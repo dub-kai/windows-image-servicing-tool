@@ -7,9 +7,15 @@
     )
 
     $script:ctx = [ordered]@{
-        Page           = $UpdatesPage
-        SetStatus      = $SetStatus
-        OnStateChanged = $OnStateChanged
+        Page                  = $UpdatesPage
+        SetStatus             = $SetStatus
+        OnStateChanged        = $OnStateChanged
+        MiCatalogDownload     = $null
+        MiCatalogIntegrate    = $null
+        MiCatalogIntegrateAll = $null
+        MiCatalogPreflight    = $null
+        MiCatalogAddLocal     = $null
+        MiCatalogCopyTitle    = $null
     }
 
     Clear-UpdatesUi
