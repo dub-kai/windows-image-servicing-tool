@@ -379,6 +379,7 @@ function Refresh-MountedList {
     $fnSetBusy = ${function:Set-ImagesBusy}
     $fnNorm    = ${function:Normalize-PathText}
     $fnUpdBtns = ${function:Update-MountedButtons}
+    $fnUpdHealth = ${function:Update-MountedHealthSummary}
 
     & $fnSetBusy -Busy $true -Reason "Mounted list..." -Context $ctxLocal
 
@@ -419,7 +420,7 @@ Get-MountedWimList
 
                 $ctxLocal.LstMountedWims.ItemsSource = $oc
                 try { $ctxLocal.LstMountedWims.Items.Refresh() } catch {}
-                try { Update-MountedHealthSummary -Items @($oc) } catch {}
+                try { & $fnUpdHealth -Items @($oc) } catch {}
 
                 $selected = $null
                 if ($selectDir) {

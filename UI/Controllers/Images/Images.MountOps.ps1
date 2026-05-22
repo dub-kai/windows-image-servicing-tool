@@ -638,7 +638,8 @@ function ConvertFrom-WorkerBase64Json {
 
     `$json = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(`$Base64))
     if ([string]::IsNullOrWhiteSpace(`$json) -or `$json -eq 'null') { return @() }
-    return @(`$json | ConvertFrom-Json)
+    `$decoded = ConvertFrom-Json -InputObject `$json
+    return @(`$decoded)
 }
 
 function Get-UnmountWorkerHint {
