@@ -471,3 +471,143 @@ function Invoke-CatalogUpdateIntegration {
         MountResults      = $results
     }
 }
+
+function New-LocalUpdateDownloadResult {
+    param(
+        [string]$PackagePath,
+        [string]$PackageTitle = '',
+        [string]$KB = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PackagePath)) {
+        throw 'Keine Paketdatei angegeben.'
+    }
+
+    if (-not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+        throw "Paketdatei nicht gefunden: $PackagePath"
+    }
+
+    $ext = [System.IO.Path]::GetExtension($PackagePath).ToLowerInvariant()
+    if ($ext -notin @('.msu', '.cab')) {
+        throw "Nur .msu- und .cab-Dateien können als lokale Updates integriert werden: $PackagePath"
+    }
+
+    $item = Get-Item -LiteralPath $PackagePath -ErrorAction Stop
+    $fileName = [System.IO.Path]::GetFileName($PackagePath)
+
+    if ([string]::IsNullOrWhiteSpace($PackageTitle)) {
+        $PackageTitle = $fileName
+    }
+
+    return [pscustomobject]@{
+        UpdateId           = 'LOCAL'
+        Title              = $PackageTitle
+        KB                 = $KB
+        DownloadDirectory  = ''
+        FileCount          = 1
+        DownloadedCount    = 0
+        SkippedCount       = 1
+        CandidateCount     = 1
+        NonSelectedCount   = 0
+        SelectionStrategy  = 'LocalFile'
+        Files              = @(
+            [pscustomobject]@{
+                Url       = ''
+                FileName  = $fileName
+                LocalPath = [string]$item.FullName
+                Status    = 'LocalFile'
+            }
+        )
+        SkippedUrls        = @()
+    }
+}
+
+function Invoke-LocalUpdateIntegration {
+    param(
+        [string[]]$MountDirs,
+        [string]$PackagePath,
+        [string]$Title = '',
+        [string]$KB = ''
+    )
+
+    $targetList = @(Resolve-UpdateIntegrationMountTargets -MountDirs $MountDirs)
+    if ($targetList.Count -le 0) {
+        throw 'Keine Mount-Ziele für die Integration gefunden.'
+    }
+
+    $downloadResult = New-LocalUpdateDownloadResult -PackagePath $PackagePath -PackageTitle $Title -KB $KB
+    $filesToIntegrate = @(Get-UpdateIntegratableFiles -DownloadResult $downloadResult)
+    if ($filesToIntegrate.Count -le 0) {
+        throw 'Es wurde keine integrierbare lokale .msu- oder .cab-Datei gefunden.'
+    }
+
+    Write-UpdateLog -Level INFO -Message ("Updates: Lokale Integration startet | Mounts={0} | Paket={1} | KB={2}" -f $targetList.Count, $PackagePath, $KB)
+
+    $mountResults = New-Object System.Collections.Generic.List[object]
+
+    foreach ($target in $targetList) {
+        if (-not [bool]$target.CanProcess) {
+            $mountResults.Add([pscustomobject]@{
+                MountDir        = [string]$target.MountDir
+                Display         = [string]$target.Display
+                Status          = 'Skipped'
+                Message         = [string]$target.SkipReason
+                IntegratedCount = 0
+                IntegratedFiles = @()
+            }) | Out-Null
+            continue
+        }
+
+        $integrated = New-Object System.Collections.Generic.List[object]
+        $failedMessage = ''
+
+        try {
+            foreach ($file in $filesToIntegrate) {
+                Write-UpdateLog -Level INFO -Message ("Updates: Add-Package lokal -> Mount={0} Package={1}" -f [string]$target.MountDir, [string]$file.LocalPath)
+                $result = Invoke-UpdateAddPackageToMount -MountDir ([string]$target.MountDir) -PackagePath ([string]$file.LocalPath)
+                $integrated.Add($result) | Out-Null
+            }
+        } catch {
+            $failedMessage = $_.Exception.Message
+        }
+
+        if ([string]::IsNullOrWhiteSpace($failedMessage)) {
+            $mountResults.Add([pscustomobject]@{
+                MountDir        = [string]$target.MountDir
+                Display         = [string]$target.Display
+                Status          = 'Integrated'
+                Message         = 'OK'
+                IntegratedCount = @($integrated.ToArray()).Count
+                IntegratedFiles = @($integrated.ToArray())
+            }) | Out-Null
+        } else {
+            $mountResults.Add([pscustomobject]@{
+                MountDir        = [string]$target.MountDir
+                Display         = [string]$target.Display
+                Status          = 'Failed'
+                Message         = $failedMessage
+                IntegratedCount = @($integrated.ToArray()).Count
+                IntegratedFiles = @($integrated.ToArray())
+            }) | Out-Null
+        }
+    }
+
+    $results = @($mountResults.ToArray())
+
+    return [pscustomobject]@{
+        MountDir          = if ($MountDirs.Count -eq 1) { [string]$MountDirs[0] } else { '' }
+        MountCount        = $targetList.Count
+        UpdateId          = 'LOCAL'
+        Title             = $Title
+        KB                = $KB
+        DownloadDirectory = [string]$downloadResult.DownloadDirectory
+        FileCount         = [int]$downloadResult.FileCount
+        DownloadedCount   = [int]$downloadResult.DownloadedCount
+        SkippedCount      = [int]$downloadResult.SkippedCount
+        IntegratableCount = $filesToIntegrate.Count
+        IntegratedCount   = @($results | Where-Object { [string]$_.Status -eq 'Integrated' }).Count
+        FailedCount       = @($results | Where-Object { [string]$_.Status -eq 'Failed' }).Count
+        SkippedMountCount = @($results | Where-Object { [string]$_.Status -eq 'Skipped' }).Count
+        MountResults      = $results
+    }
+}

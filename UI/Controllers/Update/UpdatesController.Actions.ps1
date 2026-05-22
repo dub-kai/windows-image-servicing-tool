@@ -529,7 +529,7 @@ if (@(`$queries).Count -le 0) {
             if ($null -eq $item) {
                 Reset-CatalogState
                 Apply-CatalogView
-                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Catalog-Suche abgeschlossen, aber ohne Treffer.'
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Catalog-Suche abgeschlossen, aber ohne Treffer. Bei Insider-/Release-Preview-Updates kannst du die .msu/.cab manuell laden und über "MSU/CAB wählen" hinzufügen.'
                 return
             }
 
@@ -548,7 +548,7 @@ if (@(`$queries).Count -le 0) {
             $footer = if (@($script:catalogAllResults).Count -gt 0) {
                 'Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden.'
             } else {
-                'Catalog-Suche abgeschlossen, aber es wurden keine passenden Treffer gefunden.'
+                'Catalog-Suche abgeschlossen, aber es wurden keine passenden Treffer gefunden. Bei Insider-/Release-Preview-Updates bitte "MSU/CAB wählen" nutzen.'
             }
 
             Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value $footer

@@ -17,6 +17,7 @@
 
     $btnRefresh   = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesRefresh'
     $btnSearch    = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogSearch'
+    $btnAddLocal  = Find-Ui -Root $UpdatesPage -Name 'BtnAddLocalUpdate'
     $btnDownload  = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogDownload'
     $btnIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrate'
     $btnIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrateAll'
@@ -32,9 +33,10 @@
     $txtPkgFilter = Find-Ui -Root $UpdatesPage -Name 'TxtUpdatesPackagesFilter'
 
     try {
-        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnDownload={2} BtnIntegrate={3} BtnIntegrateAll={4} BtnPreflight={5} BtnExportPkg={6} BtnExportCat={7} CmbMode={8} TxtFilter={9} GridCatalog={10} CmbMounts={11} ChkAuto={12} CmbPkgMode={13} TxtPkgFilter={14}' -f `
+        Write-Log -Level INFO -Message ('Updates UI wires: BtnRefresh={0} BtnSearch={1} BtnAddLocal={2} BtnDownload={3} BtnIntegrate={4} BtnIntegrateAll={5} BtnPreflight={6} BtnExportPkg={7} BtnExportCat={8} CmbMode={9} TxtFilter={10} GridCatalog={11} CmbMounts={12} ChkAuto={13} CmbPkgMode={14} TxtPkgFilter={15}' -f `
             ($null -ne $btnRefresh),
             ($null -ne $btnSearch),
+            ($null -ne $btnAddLocal),
             ($null -ne $btnDownload),
             ($null -ne $btnIntegrate),
             ($null -ne $btnIntegrateAll),
@@ -78,6 +80,19 @@
             } catch {
                 try {
                     Write-Log -Level WARN -Message ('Updates: Catalog-Suche fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnAddLocal) {
+        $btnAddLocal.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Add-LocalUpdatePackageUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Lokales Update konnte nicht hinzugefügt werden: {0}' -f $_.Exception.Message)
                 } catch {}
             }
         })

@@ -418,6 +418,69 @@ function Save-CatalogFile {
     }
 }
 
+function ConvertFrom-CatalogLocalUpdateId {
+    param([string]$UpdateId)
+
+    if ([string]::IsNullOrWhiteSpace($UpdateId)) { return '' }
+    if ($UpdateId -notmatch '^LOCAL:(?<p>.+)$') { return '' }
+
+    $encoded = [string]$matches['p']
+    $encoded = $encoded.Replace('-', '+').Replace('_', '/')
+    while (($encoded.Length % 4) -ne 0) {
+        $encoded += '='
+    }
+
+    try {
+        return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encoded))
+    } catch {
+        return ''
+    }
+}
+
+function New-LocalCatalogDownloadResult {
+    param(
+        [Parameter(Mandatory)][string]$PackagePath,
+        [string]$Title = '',
+        [string]$KB = ''
+    )
+
+    if (-not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+        throw "Lokale Paketdatei nicht gefunden: $PackagePath"
+    }
+
+    $ext = [System.IO.Path]::GetExtension($PackagePath).ToLowerInvariant()
+    if ($ext -notin @('.msu', '.cab')) {
+        throw "Lokale Updates müssen .msu- oder .cab-Dateien sein: $PackagePath"
+    }
+
+    $item = Get-Item -LiteralPath $PackagePath -ErrorAction Stop
+    if ([string]::IsNullOrWhiteSpace($Title)) {
+        $Title = [string]$item.Name
+    }
+
+    return [pscustomobject]@{
+        UpdateId           = 'LOCAL'
+        Title              = $Title
+        KB                 = $KB
+        DownloadDirectory  = ''
+        FileCount          = 1
+        DownloadedCount    = 0
+        SkippedCount       = 1
+        CandidateCount     = 1
+        NonSelectedCount   = 0
+        SelectionStrategy  = 'LocalFile'
+        Files              = @(
+            [pscustomobject]@{
+                Url       = ''
+                FileName  = [string]$item.Name
+                LocalPath = [string]$item.FullName
+                Status    = 'LocalFile'
+            }
+        )
+        SkippedUrls        = @()
+    }
+}
+
 function Download-CatalogUpdate {
     [CmdletBinding()]
     param(
@@ -428,6 +491,14 @@ function Download-CatalogUpdate {
 
     if ([string]::IsNullOrWhiteSpace($UpdateId)) {
         throw "Download-CatalogUpdate benoetigt eine UpdateId."
+    }
+
+    $localPath = ConvertFrom-CatalogLocalUpdateId -UpdateId $UpdateId
+    if (-not [string]::IsNullOrWhiteSpace($localPath)) {
+        try {
+            Write-Log -Level INFO -Message ("Catalog: Lokale Update-Datei verwendet: {0}" -f $localPath)
+        } catch {}
+        return (New-LocalCatalogDownloadResult -PackagePath $localPath -Title $Title -KB $KB)
     }
 
     $dialog = Invoke-CatalogDownloadDialogRequest -UpdateId $UpdateId

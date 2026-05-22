@@ -201,6 +201,7 @@ function Set-UpdatesBusy {
 
     Set-UiEnabled -Root $page -Name 'BtnUpdatesRefresh'        -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch'         -Enabled (-not $Busy -and $null -ne $script:updateContext)
+    Set-UiEnabled -Root $page -Name 'BtnAddLocalUpdate'        -Enabled (-not $Busy)
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled ((@($script:visiblePackages).Count -gt 0) -and (-not $Busy))
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog'  -Enabled ((@($script:catalogVisibleResults).Count -gt 0) -and (-not $Busy))
     Set-UiEnabled -Root $page -Name 'CmbUpdatesFilterMode'     -Enabled (-not $Busy)
@@ -244,6 +245,7 @@ function Clear-UpdatesUi {
     Apply-PackagesView
 
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $false
+    Set-UiEnabled -Root $page -Name 'BtnAddLocalUpdate' -Enabled (-not $script:isBusy)
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled $false
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled $false
     Set-UiEnabled -Root $page -Name 'BtnCatalogIntegrateAll' -Enabled $false

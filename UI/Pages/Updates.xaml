@@ -54,6 +54,13 @@
                   Padding="12,0"
                   Margin="0,0,8,8"/>
 
+          <Button Name="BtnAddLocalUpdate"
+                  Content="MSU/CAB wählen"
+                  Height="30"
+                  MinWidth="120"
+                  Padding="12,0"
+                  Margin="0,0,8,8"/>
+
           <Button Name="BtnCatalogDownload"
                   Content="Download"
                   Height="30"

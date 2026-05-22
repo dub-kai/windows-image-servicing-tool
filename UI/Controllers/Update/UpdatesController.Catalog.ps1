@@ -15,10 +15,49 @@ function Get-SelectedCatalogItem {
     return $grid.SelectedItem
 }
 
+function Test-CatalogItemIsLocalPackage {
+    param($Item)
+
+    if ($null -eq $Item) { return $false }
+
+    try {
+        if ($Item.PSObject.Properties.Match('IsLocalPackage').Count -gt 0 -and [bool]$Item.IsLocalPackage) {
+            return $true
+        }
+    } catch {}
+
+    try {
+        if ($Item.PSObject.Properties.Match('LocalPackagePath').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$Item.LocalPackagePath)) {
+            return $true
+        }
+    } catch {}
+
+    return $false
+}
+
+function Get-CatalogItemLocalPackagePath {
+    param($Item)
+
+    if ($null -eq $Item) { return '' }
+
+    try {
+        if ($Item.PSObject.Properties.Match('LocalPackagePath').Count -gt 0) {
+            return [string]$Item.LocalPackagePath
+        }
+    } catch {}
+
+    return ''
+}
+
 function Get-CatalogSelectionKey {
     param($Item)
 
     if ($null -eq $Item) { return $null }
+
+    $localPath = Get-CatalogItemLocalPackagePath -Item $Item
+    if (-not [string]::IsNullOrWhiteSpace($localPath)) {
+        return ('LOCAL|' + $localPath)
+    }
 
     $updateId = [string]$Item.UpdateId
     if (-not [string]::IsNullOrWhiteSpace($updateId)) { return $updateId }
@@ -79,11 +118,95 @@ function Update-UpdatesActionButtons {
 
     $selected = Get-SelectedCatalogItem
     $canSelect = ($null -ne $selected) -and (-not $script:isBusy)
+    $isLocal = Test-CatalogItemIsLocalPackage -Item $selected
+    $hasUpdateId = $false
+    try { $hasUpdateId = -not [string]::IsNullOrWhiteSpace([string]$selected.UpdateId) } catch {}
 
-    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogDownload'  -Enabled $canSelect
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogDownload'  -Enabled ($canSelect -and (-not $isLocal) -and $hasUpdateId)
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled $canSelect
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+}
+
+function New-LocalCatalogItem {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+    $name = [string]$item.Name
+    $encodedPath = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$item.FullName))
+    $encodedPath = $encodedPath.TrimEnd('=').Replace('+', '-').Replace('/', '_')
+    $kb = ''
+    $mKb = [regex]::Match($name, '(KB\d{6,8})', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($mKb.Success) { $kb = $mKb.Groups[1].Value.ToUpperInvariant() }
+
+    $version = ''
+    $mVer = [regex]::Match($name, '(?<!\d)(?<v>\d{4,5}\.\d{1,5})(?!\d)')
+    if ($mVer.Success) { $version = [string]$mVer.Groups['v'].Value }
+
+    $kind = if ($name -match 'Preview') { 'Preview' } else { 'Manual' }
+
+    return [pscustomobject]@{
+        Query               = 'LocalPackage'
+        UpdateId            = ('LOCAL:' + $encodedPath)
+        Title               = $name
+        KB                  = $kb
+        Products            = 'Lokale Datei'
+        Classification      = 'Manuell hinzugefügt'
+        LastUpdated         = $item.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
+        Version             = $version
+        CatalogVersionLabel = $version
+        Size                = ('{0:N1} MB' -f ($item.Length / 1MB))
+        Kind                = $kind
+        IsPreview           = ($kind -eq 'Preview')
+        IsInstalled         = $false
+        IsInstalledByKb     = $false
+        IsInstalledByVersion= $false
+        IsLocalPackage      = $true
+        LocalPackagePath    = [string]$item.FullName
+    }
+}
+
+function Add-LocalUpdatePackageUi {
+    if ($script:isBusy) { return }
+
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
+    $dlg = New-Object Microsoft.Win32.OpenFileDialog
+    $dlg.Title = 'Lokales Update auswählen'
+    $dlg.Filter = 'Windows Update Pakete (*.msu;*.cab)|*.msu;*.cab|Alle Dateien (*.*)|*.*'
+    $dlg.Multiselect = $true
+
+    $ok = $dlg.ShowDialog()
+    if ($ok -ne $true) { return }
+
+    $added = New-Object System.Collections.Generic.List[object]
+    foreach ($path in @($dlg.FileNames)) {
+        if ([string]::IsNullOrWhiteSpace([string]$path)) { continue }
+        try {
+            $ext = [System.IO.Path]::GetExtension([string]$path).ToLowerInvariant()
+            if ($ext -notin @('.msu', '.cab')) { continue }
+            $added.Add((New-LocalCatalogItem -Path ([string]$path))) | Out-Null
+        } catch {
+            try { Write-Log -Level WARN -Message ('Lokales Update konnte nicht übernommen werden: {0}' -f $_.Exception.Message) } catch {}
+        }
+    }
+
+    $newItems = @($added.ToArray())
+    if ($newItems.Count -lt 1) {
+        Show-UiInfo -Message 'Es wurde keine gültige .msu- oder .cab-Datei ausgewählt.' -Title 'Lokales Update'
+        return
+    }
+
+    $existing = @($script:catalogAllResults | Where-Object { $null -ne $_ })
+    $script:catalogAllResults = @($newItems + $existing)
+    $script:catalogWorkResults = @($newItems + @($script:catalogWorkResults | Where-Object { $null -ne $_ }))
+    $script:catalogRecommendations = $null
+    $script:lastCatalogSelectionKey = Get-CatalogSelectionKey -Item $newItems[0]
+
+    Apply-CatalogView
+    Set-UpdatesStatusText -Message ('Lokales Update hinzugefügt: {0}' -f [string]$newItems[0].Title)
+    if ($script:ctx -and $script:ctx.Page) {
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value ('Lokale Update-Datei bereit. Du kannst sie jetzt in den ausgewählten Mount oder in alle Mounts integrieren.')
+    }
 }
 
 function Get-CurrentFilterMode {
