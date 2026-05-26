@@ -105,6 +105,9 @@ function Search-WindowsUpdateCatalog {
 
     $results = @()
     $seen = @{}
+    $totalParsedCount = 0
+    $totalRelevantCount = 0
+    $totalSuppressedInstalledCount = 0
 
     foreach ($query in $queryList) {
         $url  = Get-CatalogSearchUrl -Query $query
@@ -191,12 +194,20 @@ function Search-WindowsUpdateCatalog {
                 IsInstalled         = $false
                 IsInstalledByKb     = $false
                 IsInstalledByVersion= $false
+                InstalledState      = ''
             }
 
             $installedState = Test-CatalogItemInstalled -Item $item -Baseline $baseline
             $item.IsInstalled = [bool]$installedState.IsInstalled
             $item.IsInstalledByKb = [bool]$installedState.IsInstalledByKb
             $item.IsInstalledByVersion = [bool]$installedState.IsInstalledByVersion
+            $item.InstalledState = if ($item.IsInstalledByKb) {
+                'Installiert (KB)'
+            } elseif ($item.IsInstalledByVersion) {
+                'Installiert/älter'
+            } else {
+                'Neu/prüfen'
+            }
 
             $parsedForQuery += $item
 
@@ -217,7 +228,6 @@ function Search-WindowsUpdateCatalog {
 
             if ($item.IsInstalled) {
                 $suppressedInstalledCount++
-                continue
             }
 
             $results += $item
@@ -228,6 +238,10 @@ function Search-WindowsUpdateCatalog {
             Write-Log -Level INFO -Message ("Catalog: Query '{0}' -> Roh-Treffer={1}" -f $query, $rawRelevantCount)
             Write-Log -Level INFO -Message ("Catalog: Query '{0}' -> UnterdruecktAlsInstalliert={1}" -f $query, $suppressedInstalledCount)
         } catch {}
+
+        $totalParsedCount += [int]$parsedForQuery.Count
+        $totalRelevantCount += [int]$rawRelevantCount
+        $totalSuppressedInstalledCount += [int]$suppressedInstalledCount
 
         $null = Write-CatalogDebugJson -Prefix ("catalog_parse_{0}_parsed" -f $query) -Object $parsedForQuery
         $null = Write-CatalogDebugJson -Prefix ("catalog_parse_{0}_summary" -f $query) -Object ([pscustomobject]@{
@@ -254,7 +268,7 @@ function Search-WindowsUpdateCatalog {
     )
 
     try {
-        Write-Log -Level INFO -Message ("Catalog: Finale Treffer gesamt: {0}" -f $ordered.Count)
+        Write-Log -Level INFO -Message ("Catalog: Finale Treffer gesamt: {0}; Parsed={1}; Relevant={2}; SuppressedInstalled={3}" -f $ordered.Count, $totalParsedCount, $totalRelevantCount, $totalSuppressedInstalledCount)
     } catch {}
 
     return @($ordered)

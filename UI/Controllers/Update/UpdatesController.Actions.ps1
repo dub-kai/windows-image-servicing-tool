@@ -546,9 +546,9 @@ if (@(`$queries).Count -le 0) {
             Apply-CatalogView
 
             $footer = if (@($script:catalogAllResults).Count -gt 0) {
-                'Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden.'
+                'Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden. Tipp: "Alle Treffer" zeigt auch Preview- und nicht empfohlene Pakete.'
             } else {
-                'Catalog-Suche abgeschlossen, aber es wurden keine passenden Treffer gefunden. Bei Insider-/Release-Preview-Updates bitte "MSU/CAB wählen" nutzen.'
+                'Catalog-Suche abgeschlossen, aber ohne passende Treffer. Nutze "Alle Treffer" fuer Diagnose oder fuege eine heruntergeladene .msu/.cab ueber "MSU/CAB wählen" hinzu.'
             }
 
             Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value $footer

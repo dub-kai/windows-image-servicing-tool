@@ -487,6 +487,7 @@
             <DataGrid.Columns>
               <DataGridTextColumn Header="KB" Binding="{Binding KB}" Width="95"/>
               <DataGridTextColumn Header="Typ" Binding="{Binding Kind}" Width="90"/>
+              <DataGridTextColumn Header="Status" Binding="{Binding InstalledState}" Width="115"/>
               <DataGridTextColumn Header="Datum" Binding="{Binding LastUpdated}" Width="105"/>
               <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110"/>
               <DataGridTextColumn Header="Titel" Binding="{Binding Title}" Width="*"/>

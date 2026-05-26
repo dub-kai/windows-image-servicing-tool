@@ -158,15 +158,8 @@ function Test-CatalogItemTargetMatch {
         }
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($VersionLabel)) {
-        if ($hay -notmatch [regex]::Escape($VersionLabel)) {
-            return $false
-        }
-    }
-
+    $matchesBuild = $false
     if (-not [string]::IsNullOrWhiteSpace($BuildBranch)) {
-        $matchesBuild = $false
-
         if ($title -match [regex]::Escape($BuildBranch)) {
             $matchesBuild = $true
         }
@@ -178,6 +171,22 @@ function Test-CatalogItemTargetMatch {
         }
 
         if (-not $matchesBuild) {
+            return $false
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($VersionLabel)) {
+        $matchesVersionLabel = ($hay -match [regex]::Escape($VersionLabel))
+
+        # Microsoft often publishes one Catalog package for adjacent servicing branches.
+        # For example, a 25H2 mounted image can legitimately use a Catalog title that
+        # still says 24H2 when the concrete build branch already matches.
+        $matchesAdjacentServicingLabel = $false
+        if ($VersionLabel -eq '25H2' -and $hay -match '24H2' -and $matchesBuild) {
+            $matchesAdjacentServicingLabel = $true
+        }
+
+        if (-not $matchesVersionLabel -and -not $matchesAdjacentServicingLabel -and -not $matchesBuild) {
             return $false
         }
     }
@@ -317,7 +326,7 @@ function Select-BestCatalogCandidate {
         [switch]$ExcludePreview
     )
 
-    $all = @($Items)
+    $all = @($Items | Where-Object { -not [bool]$_.IsInstalled })
     if ($all.Count -eq 0) { return $null }
 
     $filtered = @(
@@ -390,7 +399,7 @@ function Get-CatalogRecommendations {
         [string]$CurrentDotNetVersion
     )
 
-    $all = @($Items)
+    $all = @($Items | Where-Object { -not [bool]$_.IsInstalled })
 
     if ($all.Count -eq 0) {
         return [pscustomobject]@{
@@ -435,7 +444,7 @@ function Get-RecommendedCatalogSubset {
         [string]$CurrentDotNetVersion
     )
 
-    $all = @($Items)
+    $all = @($Items | Where-Object { -not [bool]$_.IsInstalled })
     if ($all.Count -eq 0) { return @() }
 
     $recommendations = Get-CatalogRecommendations `

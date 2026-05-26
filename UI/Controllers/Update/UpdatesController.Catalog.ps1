@@ -173,6 +173,7 @@ function New-LocalCatalogItem {
         IsInstalled         = $false
         IsInstalledByKb     = $false
         IsInstalledByVersion= $false
+        InstalledState      = 'Lokale Datei'
         IsLocalPackage      = $true
         LocalPackagePath    = [string]$item.FullName
     }
@@ -348,11 +349,15 @@ function Apply-CatalogView {
     }
 
     $localKbCount = if ($null -ne $script:updateContext) { @($script:updateContext.InstalledKBs).Count } else { 0 }
-    $countText = 'Treffer: {0} | Lokal: {1}' -f $visible.Count, $localKbCount
+    $countText = 'Treffer: {0} | Gesamt: {1} | Empfohlen: {2} | Lokal: {3}' -f `
+        $visible.Count,
+        @($script:catalogAllResults).Count,
+        @($script:catalogWorkResults).Count,
+        $localKbCount
     Set-UiText -Root $page -Name 'TxtCatalogResultsCount' -Value $countText
 
     $packageCount = if ($null -ne $script:updateContext) { @($script:updateContext.Packages).Count } else { 0 }
-    $hintText = 'Ansicht: {0} | Pakete: {1} | Treffer: {2}' -f $mode, $packageCount, $visible.Count
+    $hintText = 'Ansicht: {0} | Pakete: {1} | Sichtbar: {2} | Gesamt: {3}' -f $mode, $packageCount, $visible.Count, @($script:catalogAllResults).Count
     Set-UiText -Root $page -Name 'TxtUpdatesFilterHint' -Value $hintText
 
     try {
@@ -400,6 +405,7 @@ function Export-CatalogResultsCsv {
                 Kind           = [string]$item.Kind
                 LastUpdated    = [string]$item.LastUpdated
                 Version        = [string]$item.Version
+                Status         = [string]$item.InstalledState
                 Classification = [string]$item.Classification
                 Products       = [string]$item.Products
                 Query          = [string]$item.Query
