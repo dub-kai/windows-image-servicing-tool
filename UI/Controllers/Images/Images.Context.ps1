@@ -282,6 +282,12 @@ function Initialize-ImagesController {
         TxtMountDir              = Find-Ui -Root $Page -Name 'TxtMountDir'
 
         LstWimImages             = Find-Ui -Root $Page -Name 'LstWimImages'
+        MiIndexMountReadOnly     = Find-Ui -Root $Page -Name 'MiIndexMountReadOnly'
+        MiIndexMountReadWrite    = Find-Ui -Root $Page -Name 'MiIndexMountReadWrite'
+        MiIndexExport            = Find-Ui -Root $Page -Name 'MiIndexExport'
+        MiIndexCopyPath          = Find-Ui -Root $Page -Name 'MiIndexCopyPath'
+        MiIndexSelectAll         = Find-Ui -Root $Page -Name 'MiIndexSelectAll'
+        MiIndexRefresh           = Find-Ui -Root $Page -Name 'MiIndexRefresh'
 
         BtnRefreshMounted        = Find-Ui -Root $Page -Name 'BtnRefreshMounted'
         BtnUnmountMountedCommit  = Find-Ui -Root $Page -Name 'BtnUnmountMountedCommit'
@@ -312,6 +318,15 @@ function Initialize-ImagesController {
     if (-not $script:ctx.LstMountedWims)           { throw "LstMountedWims nicht gefunden." }
     if (-not $script:ctx.BtnMountSelected)         { throw "BtnMountSelected nicht gefunden." }
     if (-not $script:ctx.BtnRefreshMounted)        { throw "BtnRefreshMounted nicht gefunden." }
+
+    if ($script:ctx.LstWimImages) {
+        if (-not $script:ctx.MiIndexMountReadOnly)  { try { $script:ctx.MiIndexMountReadOnly  = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexMountReadOnly' } catch {} }
+        if (-not $script:ctx.MiIndexMountReadWrite) { try { $script:ctx.MiIndexMountReadWrite = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexMountReadWrite' } catch {} }
+        if (-not $script:ctx.MiIndexExport)         { try { $script:ctx.MiIndexExport         = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexExport' } catch {} }
+        if (-not $script:ctx.MiIndexCopyPath)       { try { $script:ctx.MiIndexCopyPath       = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexCopyPath' } catch {} }
+        if (-not $script:ctx.MiIndexSelectAll)      { try { $script:ctx.MiIndexSelectAll      = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexSelectAll' } catch {} }
+        if (-not $script:ctx.MiIndexRefresh)        { try { $script:ctx.MiIndexRefresh        = Find-ContextMenuItem -Owner $script:ctx.LstWimImages -Name 'MiIndexRefresh' } catch {} }
+    }
 
     if ($script:ctx.LstMountedWims) {
         if (-not $script:ctx.MiMountedCommit)   { try { $script:ctx.MiMountedCommit = Find-ContextMenuItem -Owner $script:ctx.LstMountedWims -Name 'MiMountedCommit' } catch {} }
@@ -419,6 +434,71 @@ function Initialize-ImagesController {
             try {
                 Update-SelectedIndexUi
                 Update-MountUiFromState
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexMountReadOnly) {
+        $script:ctx.MiIndexMountReadOnly.Add_Click({
+            try {
+                if ($script:ctx.ChkReadOnly) { $script:ctx.ChkReadOnly.IsChecked = $true }
+                Update-SelectedIndexUi
+                Start-MountAsync
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexMountReadWrite) {
+        $script:ctx.MiIndexMountReadWrite.Add_Click({
+            try {
+                if ($script:ctx.ChkReadOnly) { $script:ctx.ChkReadOnly.IsChecked = $false }
+                Update-SelectedIndexUi
+                Start-MountAsync
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexExport) {
+        $script:ctx.MiIndexExport.Add_Click({
+            try {
+                Export-SelectedIndexAsync
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexCopyPath) {
+        $script:ctx.MiIndexCopyPath.Add_Click({
+            try {
+                Copy-SelectedWimImagePaths
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexSelectAll) {
+        $script:ctx.MiIndexSelectAll.Add_Click({
+            try {
+                if ($script:ctx.LstWimImages) { $script:ctx.LstWimImages.SelectAll() }
+                Update-SelectedIndexUi
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
+        })
+    }
+
+    if ($script:ctx.MiIndexRefresh) {
+        $script:ctx.MiIndexRefresh.Add_Click({
+            try {
+                Show-ImagesIndexes -ForceReload
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }

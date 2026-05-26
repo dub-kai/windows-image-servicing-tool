@@ -98,6 +98,66 @@ function Get-SelectedWimImagePath {
     return $null
 }
 
+function Get-SelectedWimImagePaths {
+    $items = @(Get-SelectedWimItems)
+    $paths = New-Object System.Collections.Generic.List[string]
+
+    foreach ($item in $items) {
+        if ($null -eq $item) { continue }
+        $path = ''
+        try {
+            if ($item.PSObject.Properties.Match('ImagePath').Count -gt 0) {
+                $path = [string]$item.ImagePath
+            }
+        } catch {}
+
+        if ([string]::IsNullOrWhiteSpace($path)) { continue }
+        $normalized = Normalize-PathText $path
+        if (-not $paths.Contains($normalized)) { $paths.Add($normalized) | Out-Null }
+    }
+
+    return @($paths.ToArray())
+}
+
+function Copy-SelectedWimImagePaths {
+    $paths = @(Get-SelectedWimImagePaths)
+    if ($paths.Count -lt 1) {
+        Show-UiInfo -Title 'Images' -Message 'Bitte zuerst mindestens einen Index auswählen.'
+        return
+    }
+
+    [System.Windows.Clipboard]::SetText(($paths -join [Environment]::NewLine))
+
+    if ($script:ctx -and $script:ctx.SetStatus) {
+        $msg = if ($paths.Count -eq 1) { 'Image-Pfad kopiert.' } else { ("{0} Image-Pfade kopiert." -f $paths.Count) }
+        & $script:ctx.SetStatus $msg
+    }
+}
+
+function Update-IndexContextMenu {
+    if (-not $script:ctx) { return }
+
+    $selectedItems = @(Get-SelectedWimItems)
+    $hasSelection = ($selectedItems.Count -gt 0)
+    $singleSelection = ($selectedItems.Count -eq 1)
+    $hasItems = $false
+
+    try {
+        if ($script:ctx.LstWimImages -and $script:ctx.LstWimImages.Items) {
+            $hasItems = ($script:ctx.LstWimImages.Items.Count -gt 0)
+        }
+    } catch {
+        $hasItems = $false
+    }
+
+    if ($script:ctx.MiIndexMountReadOnly)  { try { $script:ctx.MiIndexMountReadOnly.IsEnabled  = $hasSelection } catch {} }
+    if ($script:ctx.MiIndexMountReadWrite) { try { $script:ctx.MiIndexMountReadWrite.IsEnabled = $hasSelection } catch {} }
+    if ($script:ctx.MiIndexExport)         { try { $script:ctx.MiIndexExport.IsEnabled         = $singleSelection } catch {} }
+    if ($script:ctx.MiIndexCopyPath)       { try { $script:ctx.MiIndexCopyPath.IsEnabled       = $hasSelection } catch {} }
+    if ($script:ctx.MiIndexSelectAll)      { try { $script:ctx.MiIndexSelectAll.IsEnabled      = $hasItems } catch {} }
+    if ($script:ctx.MiIndexRefresh)        { try { $script:ctx.MiIndexRefresh.IsEnabled        = (-not $script:isBusy) } catch {} }
+}
+
 function Get-ImagesSelectedBatchPlanText {
     param([object[]]$Items = @())
 
@@ -326,6 +386,7 @@ function Update-SelectedIndexUi {
     } catch {}
 
     try { Update-ImagesMountAssistantUi -Items @($selectedItems) } catch {}
+    try { Update-IndexContextMenu } catch {}
 
     if (-not $script:isBusy -and $script:ctx.BtnMountSelected) {
         try { $script:ctx.BtnMountSelected.IsEnabled = ($selectedItems.Count -gt 0) } catch {}

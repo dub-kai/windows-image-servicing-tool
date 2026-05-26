@@ -251,6 +251,18 @@
                          Text="WIM/ESD Indexe" />
 
               <ListView Grid.Row="1" Name="LstWimImages" MinHeight="260" SelectionMode="Extended">
+                <ListView.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Name="MiIndexMountReadOnly" Header="Auswahl ReadOnly mounten"/>
+                    <MenuItem Name="MiIndexMountReadWrite" Header="Auswahl Read/Write mounten"/>
+                    <Separator/>
+                    <MenuItem Name="MiIndexExport" Header="Ausgewählten Index exportieren"/>
+                    <MenuItem Name="MiIndexCopyPath" Header="Image-Pfad kopieren"/>
+                    <Separator/>
+                    <MenuItem Name="MiIndexSelectAll" Header="Alle Indexe auswählen"/>
+                    <MenuItem Name="MiIndexRefresh" Header="Indexe neu laden"/>
+                  </ContextMenu>
+                </ListView.ContextMenu>
                 <ListView.View>
                   <GridView>
                     <GridViewColumn Header="Datei" Width="180" DisplayMemberBinding="{Binding FileName}" />
