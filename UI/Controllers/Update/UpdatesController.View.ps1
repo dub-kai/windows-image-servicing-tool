@@ -181,6 +181,110 @@ function Update-UpdatesBatchPlanUi {
     try {
         Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value (Get-UpdatesBatchPlanText)
     } catch {}
+
+    try { Update-UpdatesWorkflowUi } catch {}
+}
+
+function Get-UpdatesWorkflowSelectedUpdateText {
+    $selectedUpdate = $null
+    try {
+        if (Get-Command Get-SelectedCatalogItem -ErrorAction SilentlyContinue) {
+            $selectedUpdate = Get-SelectedCatalogItem
+        }
+    } catch { $selectedUpdate = $null }
+
+    if (-not $selectedUpdate) { return '' }
+
+    $kb = ''
+    $title = ''
+    try { $kb = [string]$selectedUpdate.KB } catch {}
+    try { $title = [string]$selectedUpdate.Title } catch {}
+
+    if (-not [string]::IsNullOrWhiteSpace($kb)) { return $kb }
+    if (-not [string]::IsNullOrWhiteSpace($title)) { return $title }
+    return 'Catalog-Treffer'
+}
+
+function Update-UpdatesWorkflowUi {
+    if (-not $script:ctx -or -not $script:ctx.Page) { return }
+
+    $page = $script:ctx.Page
+    $mounts = @($script:mountItems | Where-Object { $null -ne $_ })
+    $writable = @($mounts | Where-Object { Test-UpdatesMountUiItemWritable -Mount $_ })
+
+    $selectedMount = $null
+    $selectedMountDir = $null
+    try { $selectedMountDir = Get-SelectedMountDir } catch { $selectedMountDir = $script:selectedMountDir }
+    if (-not [string]::IsNullOrWhiteSpace([string]$selectedMountDir)) {
+        $selectedMount = $mounts | Where-Object { ([string]$_.MountDir) -ieq [string]$selectedMountDir } | Select-Object -First 1
+    }
+
+    $mountState = 'Keine Mounts geladen'
+    $mountDetail = 'Öffne Images, mounte ein Image oder klicke hier auf Refresh.'
+    if ($mounts.Count -gt 0) {
+        $display = if ($selectedMount) { [string]$selectedMount.DisplayText } else { 'keine Auswahl' }
+        $mountState = ('{0} Mount(s), {1} Read/Write' -f $mounts.Count, $writable.Count)
+        $mountDetail = ('Auswahl: {0}' -f $display)
+        if ($selectedMount -and -not (Test-UpdatesMountUiItemWritable -Mount $selectedMount)) {
+            $hint = ''
+            try { $hint = [string]$selectedMount.MountGuidance } catch {}
+            if ([string]::IsNullOrWhiteSpace($hint)) { $hint = 'Dieser Mount ist nicht für Update-Integration geeignet.' }
+            $mountDetail = $hint
+        }
+    }
+
+    if ($script:updateContext) {
+        $edition = ''
+        $rw = ''
+        try { $edition = [string]$script:updateContext.Edition } catch {}
+        try { $rw = [string]$script:updateContext.ReadWrite } catch {}
+        if (-not [string]::IsNullOrWhiteSpace($edition)) {
+            $mountDetail = ('{0} | {1}' -f $edition, $(if ([string]::IsNullOrWhiteSpace($rw)) { 'Status geladen' } else { $rw }))
+        }
+    }
+
+    $catalogTotal = @($script:catalogAllResults).Count
+    $catalogVisible = @($script:catalogVisibleResults).Count
+    $catalogRecommended = @($script:catalogWorkResults).Count
+    $selectedUpdateText = Get-UpdatesWorkflowSelectedUpdateText
+
+    $catalogState = 'Catalog noch offen'
+    $catalogDetail = 'Starte die Catalog-Suche oder füge eine lokale MSU/CAB hinzu.'
+    if ($catalogTotal -gt 0) {
+        $catalogState = ('{0} Treffer sichtbar' -f $catalogVisible)
+        $catalogDetail = ('Gesamt: {0} | empfohlen: {1}' -f $catalogTotal, $catalogRecommended)
+        if (-not [string]::IsNullOrWhiteSpace($selectedUpdateText)) {
+            $catalogDetail = ('Ausgewählt: {0}' -f $selectedUpdateText)
+        }
+    }
+
+    $actionState = 'Update auswählen'
+    $actionDetail = 'Wähle einen Treffer und integriere ihn in einen passenden Read/Write-Mount.'
+    if ($script:isBusy) {
+        $actionState = 'Aktion läuft'
+        $actionDetail = 'Bitte warten. Der Fortschritt steht im Busy-Bereich und im Log.'
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($selectedUpdateText)) {
+        if ($writable.Count -gt 0) {
+            $actionState = 'Bereit zum Anwenden'
+            $actionDetail = ('{0} kann in {1} passende(n) Mount(s) integriert werden.' -f $selectedUpdateText, $writable.Count)
+        }
+        else {
+            $actionState = 'Kein Read/Write-Ziel'
+            $actionDetail = 'Zum Integrieren brauchst du mindestens einen passenden Read/Write-Mount.'
+        }
+    }
+    elseif ($catalogTotal -gt 0) {
+        $actionState = 'Treffer auswählen'
+        $actionDetail = 'Wähle einen Catalog-Treffer für Download, Preflight oder Integration.'
+    }
+
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowMountState'    -Value $mountState
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowMountDetail'   -Value $mountDetail
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowCatalogState'  -Value $catalogState
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowCatalogDetail' -Value $catalogDetail
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowActionState'   -Value $actionState
+    Set-UiText -Root $page -Name 'TxtUpdatesWorkflowActionDetail'  -Value $actionDetail
 }
 
 function Set-UpdatesBusy {
@@ -222,6 +326,7 @@ function Set-UpdatesBusy {
     Set-UiEnabled -Root $page -Name 'TxtUpdatesPackagesFilter' -Enabled (-not $Busy)
 
     Update-UpdatesActionButtons
+    try { Update-UpdatesWorkflowUi } catch {}
 }
 
 function Clear-UpdatesUi {
@@ -263,6 +368,7 @@ function Clear-UpdatesUi {
     Set-UiEnabled -Root $page -Name 'BtnCatalogPreflight' -Enabled $false
     Update-UpdatesActionButtons
     Update-UpdatesBatchPlanUi
+    try { Update-UpdatesWorkflowUi } catch {}
 }
 
 function Get-UpdatesDisplayBuildText {
@@ -377,4 +483,5 @@ function Show-UpdateContext {
     Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $catalogSupported
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled (@($script:visiblePackages).Count -gt 0)
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled (@($script:catalogVisibleResults).Count -gt 0)
+    try { Update-UpdatesWorkflowUi } catch {}
 }

@@ -36,10 +36,92 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="8"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="8"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Werkzeugleiste -->
+        <!-- Workflow -->
         <Grid Grid.Row="0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  BorderBrush="#99F6E4"
+                  BorderThickness="1"
+                  Background="#F0FDFA"
+                  CornerRadius="12"
+                  Padding="12,10">
+            <StackPanel>
+              <TextBlock Text="1. Mount wählen"
+                         FontWeight="SemiBold"
+                         Foreground="#134E4A"/>
+              <TextBlock Name="TxtUpdatesWorkflowMountState"
+                         Text="Mounts werden geprüft."
+                         Foreground="#0F172A"
+                         FontWeight="SemiBold"
+                         Margin="0,5,0,0"/>
+              <TextBlock Name="TxtUpdatesWorkflowMountDetail"
+                         Text="Aktualisiere die Mount-Liste oder wähle einen Mount aus."
+                         Foreground="#475569"
+                         TextWrapping="Wrap"
+                         Margin="0,3,0,0"/>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Column="2"
+                  BorderBrush="#BFDBFE"
+                  BorderThickness="1"
+                  Background="#EFF6FF"
+                  CornerRadius="12"
+                  Padding="12,10">
+            <StackPanel>
+              <TextBlock Text="2. Update finden"
+                         FontWeight="SemiBold"
+                         Foreground="#1E3A8A"/>
+              <TextBlock Name="TxtUpdatesWorkflowCatalogState"
+                         Text="Catalog noch offen."
+                         Foreground="#0F172A"
+                         FontWeight="SemiBold"
+                         Margin="0,5,0,0"/>
+              <TextBlock Name="TxtUpdatesWorkflowCatalogDetail"
+                         Text="Starte die Catalog-Suche oder füge eine lokale MSU/CAB hinzu."
+                         Foreground="#475569"
+                         TextWrapping="Wrap"
+                         Margin="0,3,0,0"/>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Column="4"
+                  BorderBrush="#FED7AA"
+                  BorderThickness="1"
+                  Background="#FFF7ED"
+                  CornerRadius="12"
+                  Padding="12,10">
+            <StackPanel>
+              <TextBlock Text="3. Anwenden"
+                         FontWeight="SemiBold"
+                         Foreground="#7C2D12"/>
+              <TextBlock Name="TxtUpdatesWorkflowActionState"
+                         Text="Noch nichts ausgewählt."
+                         Foreground="#0F172A"
+                         FontWeight="SemiBold"
+                         Margin="0,5,0,0"/>
+              <TextBlock Name="TxtUpdatesWorkflowActionDetail"
+                         Text="Wähle einen Treffer und integriere ihn in einen passenden Read/Write-Mount."
+                         Foreground="#475569"
+                         TextWrapping="Wrap"
+                         Margin="0,3,0,0"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Werkzeugleiste -->
+        <Grid Grid.Row="2">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="14"/>
@@ -172,7 +254,7 @@
         </Grid>
 
         <!-- Mount -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="4">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="8"/>
@@ -200,7 +282,7 @@
         </Grid>
 
         <!-- Kompakte Statuszeile -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="6"
                 BorderBrush="#E5E7EB"
                 BorderThickness="1"
               Background="White"
