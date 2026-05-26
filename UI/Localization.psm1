@@ -14,7 +14,7 @@ try { $script:setConfigValueCommand = $script:configModule.ExportedCommands['Set
 
 $script:UiTranslations = @{
     de = @{
-        WindowTitle = "Win Image Admin (Next)"
+        WindowTitle = "Windows Image Servicing Tool"
         HeaderSubtitle = "Deployment, Images, Driver und Updates in einer Oberfläche"
         NavDashboard = "Dashboard"
         NavImages = "Images"
@@ -148,7 +148,7 @@ $script:UiTranslations = @{
         CleanupTitle = "Bereinigung"
     }
     en = @{
-        WindowTitle = "Win Image Admin (Next)"
+        WindowTitle = "Windows Image Servicing Tool"
         HeaderSubtitle = "Deployment, images, drivers and updates in one interface"
         NavDashboard = "Dashboard"
         NavImages = "Images"
@@ -403,6 +403,7 @@ function Apply-LocalizationToRoot {
     }
 
     $namedValues = @{
+        TxtMainTitle = @{ Text = 'WindowTitle' }
         TxtMainSubtitle = @{ Text = 'HeaderSubtitle' }
         BtnDashboard = @{ Content = 'NavDashboard' }
         BtnImages = @{ Content = 'NavImages' }

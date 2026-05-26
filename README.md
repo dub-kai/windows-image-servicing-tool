@@ -24,7 +24,7 @@ PowerShell WPF tool for mounting, servicing, and updating Windows images.
 Recommended GUI start without a PowerShell console:
 
 ```text
-Start-WinImageAdmin.wsf
+Start-WindowsImageServicingTool.wsf
 ```
 
 Alternative start from PowerShell:
@@ -33,7 +33,7 @@ Alternative start from PowerShell:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File .\WinImageAdmin.ps1
 ```
 
-The app will relaunch itself with elevated rights when required. Starting the `.ps1` directly can show a PowerShell console; use the `.wsf` starter for GUI-only launch.
+The app will relaunch itself with elevated rights when required. Starting the `.ps1` directly can show a PowerShell console; use the `.wsf` starter for GUI-only launch. `Start-WinImageAdmin.wsf` remains available as a compatibility launcher.
 
 ## Tests
 

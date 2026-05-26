@@ -96,7 +96,7 @@ function New-StartupSplash {
 
     try {
         $window = New-Object System.Windows.Window
-        $window.Title = "Win Image Admin startet..."
+        $window.Title = "Windows Image Servicing Tool startet..."
         $window.Width = 560
         $window.Height = 250
         $window.ResizeMode = [System.Windows.ResizeMode]::NoResize
@@ -134,7 +134,7 @@ function New-StartupSplash {
         $titleStack.Orientation = [System.Windows.Controls.Orientation]::Vertical
 
         $txtTitle = New-Object System.Windows.Controls.TextBlock
-        $txtTitle.Text = 'Win Image Admin (Next)'
+        $txtTitle.Text = 'Windows Image Servicing Tool'
         $txtTitle.FontSize = 22
         $txtTitle.FontWeight = [System.Windows.FontWeights]::SemiBold
         $txtTitle.Foreground = [System.Windows.Media.Brushes]::White
