@@ -229,11 +229,13 @@ function Start-MountAsync {
 
         $safeMode  = $mode.Replace("'", "''")
         $safeRO    = if ($readOnly) { '$true' } else { '$false' }
+        $safeExpectedCount = [int]$mountRequestArray.Count
         $requestsJson = @($mountRequestArray) | ConvertTo-Json -Compress -Depth 6
         $requestsB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$requestsJson))
 
         $code = @"
 `$ErrorActionPreference = 'Stop'
+`$expectedCount = $safeExpectedCount
 Import-Module '$safeBoot'  -Force
 Import-Module '$safeCfg'   -Force
 Import-Module '$safeLog'   -Force
@@ -248,11 +250,15 @@ function ConvertFrom-WorkerBase64Json {
         return @()
     }
 
-    `$value = `$json | ConvertFrom-Json
-    return @(`$value)
+    `$decoded = ConvertFrom-Json -InputObject `$json
+    return @(`$decoded)
 }
 
 `$requests = @(ConvertFrom-WorkerBase64Json -Base64 '$requestsB64')
+Write-Log -Level INFO -Message ("Images: Batch-Mount decoded {0}/{1} requests." -f @(`$requests).Count, `$expectedCount)
+if (`$expectedCount -gt 0 -and @(`$requests).Count -ne `$expectedCount) {
+    throw ("Batch-Mount request count mismatch: erwartet {0}, erhalten {1}. Abbruch vor DISM." -f `$expectedCount, @(`$requests).Count)
+}
 `$results = New-Object System.Collections.Generic.List[object]
 `$mode = '$safeMode'
 `$readOnly = $safeRO
@@ -620,6 +626,7 @@ function Invoke-UnmountMountedBatch {
 
         $safePreCommitDelaySec = [int]$preCommitDelaySec
         $safeStepDelaySec = [int]$stepDelaySec
+        $safeExpectedCount = [int]$requestArray.Count
         $requestsJson = @($requestArray) | ConvertTo-Json -Compress -Depth 6
         $requestsB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$requestsJson))
 
@@ -627,6 +634,7 @@ function Invoke-UnmountMountedBatch {
 `$ErrorActionPreference = 'Stop'
 `$preCommitDelaySec = $safePreCommitDelaySec
 `$stepDelaySec = $safeStepDelaySec
+`$expectedCount = $safeExpectedCount
 Import-Module '$safeBoot'  -Force
 Import-Module '$safeCfg'   -Force
 Import-Module '$safeLog'   -Force
@@ -659,6 +667,10 @@ function Get-UnmountWorkerHint {
 }
 
 `$requests = @(ConvertFrom-WorkerBase64Json -Base64 '$requestsB64')
+Write-Log -Level INFO -Message ("Images: Batch-Unmount $safeMode decoded {0}/{1} requests." -f @(`$requests).Count, `$expectedCount)
+if (`$expectedCount -gt 0 -and @(`$requests).Count -ne `$expectedCount) {
+    throw ("Batch-Unmount request count mismatch: erwartet {0}, erhalten {1}. Abbruch vor DISM." -f `$expectedCount, @(`$requests).Count)
+}
 `$results = New-Object System.Collections.Generic.List[object]
 `$position = 0
 if ($commit -and `$preCommitDelaySec -gt 0) {
