@@ -135,6 +135,117 @@ function Get-ImagesSelectedBatchPlanText {
     return ("Batch-Auswahl: {0} Indexe aus {1} Datei(en). Ablauf nacheinander: {2}{3}" -f $items.Count, $fileNames.Count, ($preview -join '; '), $more)
 }
 
+function Test-ImagesPathReadOnly {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    try {
+        $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+        return [bool]($item.Attributes -band [System.IO.FileAttributes]::ReadOnly)
+    } catch {
+        return $false
+    }
+}
+
+function Get-ImagesSourceKind {
+    param([string]$Path)
+
+    $leaf = ''
+    try { $leaf = [System.IO.Path]::GetFileName($Path).ToLowerInvariant() } catch {}
+    switch ($leaf) {
+        'boot.wim'    { return 'Boot/WinPE' }
+        'winre.wim'   { return 'Recovery' }
+        'install.wim' { return 'Install-Image' }
+        'install.esd' { return 'Install-Image' }
+        default       { return 'Image' }
+    }
+}
+
+function Get-ImagesSelectedMountAssistantText {
+    param([object[]]$Items = @())
+
+    $items = @($Items | Where-Object { $null -ne $_ })
+    if ($items.Count -lt 1) {
+        return "Mount-Assistent: Wähle einen oder mehrere Indexe. ReadOnly ist sicher zum Prüfen; Read/Write brauchst du für Updates, Treiber und Commit."
+    }
+
+    $readOnly = $true
+    try {
+        if ($script:ctx -and $script:ctx.ChkReadOnly) {
+            $readOnly = [bool]$script:ctx.ChkReadOnly.IsChecked
+        }
+    } catch {
+        $readOnly = $true
+    }
+
+    $paths = New-Object System.Collections.Generic.List[string]
+    $readonlyFiles = New-Object System.Collections.Generic.List[string]
+    $bootLike = New-Object System.Collections.Generic.List[string]
+
+    foreach ($item in $items) {
+        $path = ''
+        try {
+            if ($item.PSObject.Properties.Match('ImagePath').Count -gt 0) {
+                $path = [string]$item.ImagePath
+            }
+        } catch {}
+
+        if ([string]::IsNullOrWhiteSpace($path)) { continue }
+        $normalized = Normalize-PathText $path
+        if (-not $paths.Contains($normalized)) { $paths.Add($normalized) | Out-Null }
+
+        if (Test-ImagesPathReadOnly -Path $normalized) {
+            $leaf = [System.IO.Path]::GetFileName($normalized)
+            if (-not $readonlyFiles.Contains($leaf)) { $readonlyFiles.Add($leaf) | Out-Null }
+        }
+
+        $kind = Get-ImagesSourceKind -Path $normalized
+        if ($kind -eq 'Boot/WinPE' -or $kind -eq 'Recovery') {
+            $leaf = [System.IO.Path]::GetFileName($normalized)
+            if (-not $bootLike.Contains($leaf)) { $bootLike.Add($leaf) | Out-Null }
+        }
+    }
+
+    $scope = if ($items.Count -eq 1) {
+        "1 Index"
+    } else {
+        "{0} Indexe aus {1} Datei(en), nacheinander" -f $items.Count, ([Math]::Max(1, $paths.Count))
+    }
+
+    if ($readOnly) {
+        return ("Mount-Assistent: Plan ReadOnly für {0}. Sicher zum Prüfen und Exportieren; Updates, Treiber und Commit bleiben gesperrt." -f $scope)
+    }
+
+    if ($readonlyFiles.Count -gt 0) {
+        $preview = @($readonlyFiles | Select-Object -First 3) -join ', '
+        $more = if ($readonlyFiles.Count -gt 3) { " + {0} weitere" -f ($readonlyFiles.Count - 3) } else { "" }
+        return ("Mount-Assistent: Achtung, Read/Write wird so scheitern. Schreibgeschützte Quelle: {0}{1}. Aktiviere ReadOnly oder mache eine beschreibbare WIM-Kopie." -f $preview, $more)
+    }
+
+    if ($bootLike.Count -gt 0) {
+        $preview = @($bootLike | Select-Object -First 3) -join ', '
+        return ("Mount-Assistent: Boot/WinPE erkannt ({0}). Read/Write nur für gezielte WinPE-/Treiber-Arbeiten nutzen; normale Windows-Updates gehören ins Install-Image." -f $preview)
+    }
+
+    return ("Mount-Assistent: Plan Read/Write für {0}. Updates, Treiber und Commit sind möglich. Danach sauber committen oder verwerfen." -f $scope)
+}
+
+function Update-ImagesMountAssistantUi {
+    param([object[]]$Items = @())
+
+    $text = Get-ImagesSelectedMountAssistantText -Items @($Items)
+    if ($script:ctx.TxtImagesMountAssistant) {
+        try {
+            $script:ctx.TxtImagesMountAssistant.Text = $text
+            return
+        } catch {}
+    }
+
+    if ($script:ctx.Page) {
+        try { Set-UiText -Root $script:ctx.Page -Name 'TxtImagesMountAssistant' -Value $text } catch {}
+    }
+}
+
 function Get-WimSourceSummary {
     param(
         [Parameter(Mandatory)][string[]]$Paths,
@@ -213,6 +324,8 @@ function Update-SelectedIndexUi {
             Set-UiText -Root $script:ctx.Page -Name 'TxtImagesBatchPlan' -Value $planText
         }
     } catch {}
+
+    try { Update-ImagesMountAssistantUi -Items @($selectedItems) } catch {}
 
     if (-not $script:isBusy -and $script:ctx.BtnMountSelected) {
         try { $script:ctx.BtnMountSelected.IsEnabled = ($selectedItems.Count -gt 0) } catch {}

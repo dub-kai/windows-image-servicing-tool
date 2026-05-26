@@ -200,6 +200,26 @@ function Start-MountAsync {
             try { $readOnly = [bool]$script:ctx.ChkReadOnly.IsChecked } catch { $readOnly = $false }
         }
 
+        if (-not $readOnly) {
+            $blockedSources = New-Object System.Collections.Generic.List[string]
+            foreach ($request in $mountRequestArray) {
+                $sourcePath = [string]$request.ImagePath
+                if (Test-ImagesPathReadOnly -Path $sourcePath) {
+                    $leaf = [System.IO.Path]::GetFileName($sourcePath)
+                    if (-not $blockedSources.Contains($leaf)) { $blockedSources.Add($leaf) | Out-Null }
+                }
+            }
+
+            if ($blockedSources.Count -gt 0) {
+                try { Update-ImagesMountAssistantUi -Items @($selectedItems) } catch {}
+
+                $preview = @($blockedSources | Select-Object -First 5) -join ', '
+                $more = if ($blockedSources.Count -gt 5) { " + {0} weitere" -f ($blockedSources.Count - 5) } else { "" }
+                Show-UiInfo -Title 'Mount-Assistent' -Message ("Read/Write-Mount ist für schreibgeschützte Quellen nicht möglich.`r`n`r`nBetroffen: {0}{1}`r`n`r`nAktiviere ReadOnly zum Prüfen oder erstelle eine beschreibbare WIM-Kopie." -f $preview, $more)
+                return
+            }
+        }
+
         $ctxLocal  = $script:ctx
         $setStatus = $script:ctx.SetStatus
 

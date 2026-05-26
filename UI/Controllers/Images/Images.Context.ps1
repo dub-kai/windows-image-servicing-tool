@@ -276,6 +276,7 @@ function Initialize-ImagesController {
 
         TxtSelectedIndex         = Find-Ui -Root $Page -Name 'TxtSelectedIndex'
         TxtImagesBatchPlan       = Find-Ui -Root $Page -Name 'TxtImagesBatchPlan'
+        TxtImagesMountAssistant  = Find-Ui -Root $Page -Name 'TxtImagesMountAssistant'
         ChkMountReadOnly         = Find-Ui -Root $Page -Name 'ChkMountReadOnly'
         ChkReadOnly              = Find-Ui -Root $Page -Name 'ChkMountReadOnly'
         TxtMountDir              = Find-Ui -Root $Page -Name 'TxtMountDir'
@@ -428,12 +429,14 @@ function Initialize-ImagesController {
         $script:ctx.ChkMountReadOnly.Add_Checked({
             try {
                 Set-ConfigValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkMountReadOnly.IsChecked) -Persist | Out-Null
+                Update-SelectedIndexUi
                 Update-MountUiFromState
             } catch {}
         })
         $script:ctx.ChkMountReadOnly.Add_Unchecked({
             try {
                 Set-ConfigValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkMountReadOnly.IsChecked) -Persist | Out-Null
+                Update-SelectedIndexUi
                 Update-MountUiFromState
             } catch {}
         })
