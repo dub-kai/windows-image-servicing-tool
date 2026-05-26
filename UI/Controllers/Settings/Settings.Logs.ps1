@@ -43,14 +43,30 @@ function Get-SettingsDismLogPath {
 }
 
 function Get-SettingsCurrentLogPath {
+    $logDir = Get-SettingsLogDirectory
+
     try {
         if (Get-Command Get-LogFilePath -ErrorAction SilentlyContinue) {
             $path = [string](Get-LogFilePath)
-            if (-not [string]::IsNullOrWhiteSpace($path)) { return $path }
+            if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+                return $path
+            }
         }
     } catch {}
 
-    return (Join-Path (Get-SettingsLogDirectory) ('WinImageAdmin_{0}.log' -f (Get-Date -Format 'yyyy-MM-dd')))
+    try {
+        if (Test-Path -LiteralPath $logDir -PathType Container) {
+            $latest = Get-ChildItem -LiteralPath $logDir -Filter 'WinImageAdmin_*.log' -File -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending |
+                Select-Object -First 1
+
+            if ($latest) {
+                return [string]$latest.FullName
+            }
+        }
+    } catch {}
+
+    return (Join-Path $logDir ('WinImageAdmin_{0}.log' -f (Get-Date -Format 'yyyy-MM-dd')))
 }
 
 function Get-SettingsFileTail {
