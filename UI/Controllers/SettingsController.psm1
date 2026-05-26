@@ -145,6 +145,106 @@ function Save-SettingsValue {
     }
 }
 
+function Get-SettingsIntValue {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][int]$Default,
+        [Parameter()][int]$Min = 0,
+        [Parameter()][int]$Max = 2147483647
+    )
+
+    $value = $Default
+    try { $value = [int](Get-SettingsConfigValue -Key $Key -Default $Default) } catch { $value = $Default }
+    if ($value -lt $Min) { return $Min }
+    if ($value -gt $Max) { return $Max }
+    return $value
+}
+
+function Set-SettingsTextBoxInt {
+    param(
+        $TextBox,
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][int]$Default,
+        [Parameter()][int]$Min = 0,
+        [Parameter()][int]$Max = 2147483647
+    )
+
+    if (-not $TextBox) { return }
+    $TextBox.Text = [string](Get-SettingsIntValue -Key $Key -Default $Default -Min $Min -Max $Max)
+}
+
+function Get-SettingsTextBoxInt {
+    param(
+        $TextBox,
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][int]$Min,
+        [Parameter(Mandatory)][int]$Max
+    )
+
+    $raw = ''
+    try { $raw = [string]$TextBox.Text } catch { $raw = '' }
+
+    $value = 0
+    if (-not [int]::TryParse($raw.Trim(), [ref]$value)) {
+        throw ("{0}: Bitte eine ganze Zahl eingeben." -f $Label)
+    }
+
+    if ($value -lt $Min -or $value -gt $Max) {
+        throw ("{0}: Wert muss zwischen {1} und {2} liegen." -f $Label, $Min, $Max)
+    }
+
+    return $value
+}
+
+function Refresh-SettingsDismBatchUI {
+    if (-not $script:ctx) { return }
+
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Key 'DismTimeoutSec' -Default 900 -Min 60 -Max 86400
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Key 'DismLockTimeoutSec' -Default 1800 -Min 30 -Max 86400
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Key 'DismUnmountCommitTimeoutSec' -Default 7200 -Min 900 -Max 172800
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Key 'DismUnmountCommitRetryCount' -Default 3 -Min 1 -Max 20
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Key 'DismUnmountCommitRetryDelaySec' -Default 12 -Min 1 -Max 600
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Key 'MountedWimRefreshQuietPeriodSec' -Default 15 -Min 0 -Max 600
+    Set-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Key 'BatchUnmountStepDelaySec' -Default 4 -Min 0 -Max 600
+}
+
+function Save-SettingsDismBatchValues {
+    $values = [ordered]@{
+        DismTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Label 'Standard-DISM-Timeout' -Min 60 -Max 86400
+        DismLockTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Label 'DISM-Lock-Timeout' -Min 30 -Max 86400
+        DismUnmountCommitTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Label 'Commit-Timeout' -Min 900 -Max 172800
+        DismUnmountCommitRetryCount = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Label 'Commit-Retry-Anzahl' -Min 1 -Max 20
+        DismUnmountCommitRetryDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Label 'Commit-Retry-Pause' -Min 1 -Max 600
+        MountedWimRefreshQuietPeriodSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Label 'Mount-Refresh-Wartezeit' -Min 0 -Max 600
+        BatchUnmountStepDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Label 'Batch-Unmount-Pause' -Min 0 -Max 600
+    }
+
+    foreach ($key in $values.Keys) {
+        Set-SettingsConfigValue -Key $key -Value ([int]$values[$key]) -Persist | Out-Null
+    }
+
+    Refresh-SettingsDismBatchUI
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Einstellungen gespeichert.' } catch {} }
+}
+
+function Reset-SettingsDismBatchValues {
+    $defaults = New-DefaultConfig
+    foreach ($key in @(
+        'DismTimeoutSec',
+        'DismLockTimeoutSec',
+        'DismUnmountCommitTimeoutSec',
+        'DismUnmountCommitRetryCount',
+        'DismUnmountCommitRetryDelaySec',
+        'MountedWimRefreshQuietPeriodSec',
+        'BatchUnmountStepDelaySec'
+    )) {
+        Set-SettingsConfigValue -Key $key -Value ([int]$defaults[$key]) -Persist | Out-Null
+    }
+
+    Refresh-SettingsDismBatchUI
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Standardwerte wiederhergestellt.' } catch {} }
+}
+
 function Get-CurrentAdkStatus {
     $adkRoot = [string](Get-SettingsConfigValue -Key 'AdkRoot' -Default $null)
     $winPeRoot = [string](Get-SettingsConfigValue -Key 'WinPeRoot' -Default $null)
@@ -710,6 +810,7 @@ function Refresh-SettingsUI {
 
         Refresh-SettingsAdkUI
         Refresh-SettingsLogsUI
+        Refresh-SettingsDismBatchUI
 
         if ($script:ctx.CmbSettingsStartPage) {
             $startPage = [string](Get-SettingsConfigValue -Key 'StartPage' -Default 'Dashboard')
@@ -804,6 +905,17 @@ function Initialize-SettingsController {
         TxtSettingsLogPreviewTitle = $null
         TxtSettingsLogPreview = $null
 
+        TxtSettingsDismTimeoutSec = $null
+        TxtSettingsDismLockTimeoutSec = $null
+        TxtSettingsDismUnmountCommitTimeoutSec = $null
+        TxtSettingsDismUnmountCommitRetryCount = $null
+        TxtSettingsDismUnmountCommitRetryDelaySec = $null
+        TxtSettingsMountedWimRefreshQuietPeriodSec = $null
+        TxtSettingsBatchUnmountStepDelaySec = $null
+        BtnSettingsSaveDismBatch = $null
+        BtnSettingsResetDismBatch = $null
+        TxtSettingsDismBatchHint = $null
+
         TxtSettingsProjectRoot = $null
         TxtSettingsLogFile = $null
         TxtSettingsConfigFile = $null
@@ -858,6 +970,17 @@ function Initialize-SettingsController {
     $script:ctx.LstSettingsLogFiles = Find-Ui -Root $p -Name 'LstSettingsLogFiles'
     $script:ctx.TxtSettingsLogPreviewTitle = Find-Ui -Root $p -Name 'TxtSettingsLogPreviewTitle'
     $script:ctx.TxtSettingsLogPreview = Find-Ui -Root $p -Name 'TxtSettingsLogPreview'
+
+    $script:ctx.TxtSettingsDismTimeoutSec = Find-Ui -Root $p -Name 'TxtSettingsDismTimeoutSec'
+    $script:ctx.TxtSettingsDismLockTimeoutSec = Find-Ui -Root $p -Name 'TxtSettingsDismLockTimeoutSec'
+    $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec = Find-Ui -Root $p -Name 'TxtSettingsDismUnmountCommitTimeoutSec'
+    $script:ctx.TxtSettingsDismUnmountCommitRetryCount = Find-Ui -Root $p -Name 'TxtSettingsDismUnmountCommitRetryCount'
+    $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec = Find-Ui -Root $p -Name 'TxtSettingsDismUnmountCommitRetryDelaySec'
+    $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec = Find-Ui -Root $p -Name 'TxtSettingsMountedWimRefreshQuietPeriodSec'
+    $script:ctx.TxtSettingsBatchUnmountStepDelaySec = Find-Ui -Root $p -Name 'TxtSettingsBatchUnmountStepDelaySec'
+    $script:ctx.BtnSettingsSaveDismBatch = Find-Ui -Root $p -Name 'BtnSettingsSaveDismBatch'
+    $script:ctx.BtnSettingsResetDismBatch = Find-Ui -Root $p -Name 'BtnSettingsResetDismBatch'
+    $script:ctx.TxtSettingsDismBatchHint = Find-Ui -Root $p -Name 'TxtSettingsDismBatchHint'
 
     $script:ctx.TxtSettingsProjectRoot = Find-Ui -Root $p -Name 'TxtSettingsProjectRoot'
     $script:ctx.TxtSettingsLogFile = Find-Ui -Root $p -Name 'TxtSettingsLogFile'
@@ -1121,6 +1244,26 @@ function Initialize-SettingsController {
         $script:ctx.CmbSettingsLogPreviewSource.Add_SelectionChanged({
             if ($script:suppressSettingsEvents) { return }
             Refresh-SettingsLogsUI
+        })
+    }
+
+    if ($script:ctx.BtnSettingsSaveDismBatch) {
+        $script:ctx.BtnSettingsSaveDismBatch.Add_Click({
+            try {
+                Save-SettingsDismBatchValues
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title 'DISM & Batch'
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsResetDismBatch) {
+        $script:ctx.BtnSettingsResetDismBatch.Add_Click({
+            try {
+                Reset-SettingsDismBatchValues
+            } catch {
+                Show-UiError -Message $_.Exception.Message -Title 'DISM & Batch'
+            }
         })
     }
 

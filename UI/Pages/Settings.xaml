@@ -368,6 +368,73 @@
           </Grid>
         </GroupBox>
 
+        <GroupBox Name="GrpSettingsDismBatch" Header="DISM &amp; Batch-Verhalten" Margin="0,0,0,12">
+          <Grid Margin="10">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="260"/>
+              <ColumnDefinition Width="140"/>
+              <ColumnDefinition Width="12"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Standard-DISM-Timeout:"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Name="TxtSettingsDismTimeoutSec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="0" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Sekunden für normale DISM-Befehle."/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="DISM-Lock-Timeout:"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Name="TxtSettingsDismLockTimeoutSec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="1" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Wie lange ein Befehl auf den DISM-Mutex wartet."/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Commit-Timeout:"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Name="TxtSettingsDismUnmountCommitTimeoutSec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="2" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Sekunden für Unmount mit Commit. Große WIMs brauchen lange."/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Commit-Retry-Anzahl:"/>
+            <TextBox Grid.Row="3" Grid.Column="1" Name="TxtSettingsDismUnmountCommitRetryCount" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="3" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Wiederholungen bei gesperrter WIM oder Registry-Handles."/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Commit-Retry-Pause:"/>
+            <TextBox Grid.Row="4" Grid.Column="1" Name="TxtSettingsDismUnmountCommitRetryDelaySec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="4" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Sekunden zwischen Commit-Retrys."/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Mount-Refresh-Wartezeit:"/>
+            <TextBox Grid.Row="5" Grid.Column="1" Name="TxtSettingsMountedWimRefreshQuietPeriodSec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="5" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Kurze Pause nach Mount-Listen-Refresh vor Commit."/>
+
+            <TextBlock Grid.Row="6" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="Batch-Unmount-Pause:"/>
+            <TextBox Grid.Row="6" Grid.Column="1" Name="TxtSettingsBatchUnmountStepDelaySec" Height="28" Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="6" Grid.Column="3" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,0,8" Text="Sekunden Pause zwischen mehreren Commit-Unmounts."/>
+
+            <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,4,0,0">
+              <Button Name="BtnSettingsSaveDismBatch"
+                      Content="DISM/Batch speichern"
+                      Height="30"
+                      MinWidth="170"
+                      Margin="0,0,10,0"/>
+              <Button Name="BtnSettingsResetDismBatch"
+                      Content="Standardwerte"
+                      Height="30"
+                      MinWidth="130"/>
+              <TextBlock Name="TxtSettingsDismBatchHint"
+                         Margin="14,0,0,0"
+                         VerticalAlignment="Center"
+                         Foreground="#64748B"
+                         TextWrapping="Wrap"
+                         Text="Änderungen gelten für neue DISM-Aufgaben."/>
+            </StackPanel>
+          </Grid>
+        </GroupBox>
+
         <GroupBox Name="GrpSettingsMountRoot" Header="MountRoot (Arbeitsordner für DISM-Mounts)" Margin="0,0,0,12">
           <Grid Margin="10">
             <Grid.RowDefinitions>

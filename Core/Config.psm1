@@ -117,7 +117,14 @@ function Test-ConfigKeyPersistable {
         "ImageMountReadOnlyDefault",
         "AdkRoot",
         "WinPeRoot",
-        "OscdimgPath"
+        "OscdimgPath",
+        "DismTimeoutSec",
+        "DismLockTimeoutSec",
+        "DismUnmountCommitTimeoutSec",
+        "DismUnmountCommitRetryCount",
+        "DismUnmountCommitRetryDelaySec",
+        "MountedWimRefreshQuietPeriodSec",
+        "BatchUnmountStepDelaySec"
     )
 
     return ($persistableKeys -contains [string]$Key)
@@ -155,10 +162,12 @@ function New-DefaultConfig {
         DefaultMountRoot = $mountDir
 
         DismTimeoutSec   = 900
+        DismLockTimeoutSec = 1800
         DismUnmountCommitTimeoutSec = 7200
         DismUnmountCommitRetryCount = 3
         DismUnmountCommitRetryDelaySec = 12
         MountedWimRefreshQuietPeriodSec = 15
+        BatchUnmountStepDelaySec = 4
         JobHistoryMaxEntries = 250
         IsoMountRetry    = @{
             Count = 25
