@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+    [string]$ProjectRoot = '',
     [string]$SourceWim = 'D:\25H2\Iso\boot.wim',
     [int]$Index = 1,
     [string]$OutputDir,
@@ -12,6 +12,19 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $scriptRoot = $PSScriptRoot
+    if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
+        try { $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path } catch { $scriptRoot = '' }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
+        throw 'ProjectRoot konnte nicht automatisch ermittelt werden. Bitte -ProjectRoot angeben.'
+    }
+
+    $ProjectRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
+}
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $ProjectRoot 'Work\Temp\MountTests'
