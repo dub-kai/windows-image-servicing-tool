@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<job>
+  <script language="JScript"><![CDATA[
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+var shell = new ActiveXObject("WScript.Shell");
+
+var scriptDir = fso.GetParentFolderName(WScript.ScriptFullName);
+var psExe = shell.ExpandEnvironmentStrings("%WINDIR%") + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+var appScript = scriptDir + "\\WinImageAdmin.ps1";
+
+function quote(value) {
+  return '"' + String(value).replace(/"/g, '""') + '"';
+}
+
+var args = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File " + quote(appScript);
+shell.Run(quote(psExe) + " " + args, 0, false);
+  ]]></script>
+</job>

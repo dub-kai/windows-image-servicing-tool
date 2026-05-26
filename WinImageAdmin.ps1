@@ -48,7 +48,7 @@ function Ensure-STA {
         }
 
         $argList += "-SkipStaCheck"
-        Start-Process -FilePath $psExe -ArgumentList $argList | Out-Null
+        Start-Process -FilePath $psExe -ArgumentList $argList -WindowStyle Hidden | Out-Null
         exit 0
     }
 }
@@ -77,7 +77,7 @@ function Ensure-Admin {
 
         $argList += "-SkipAdminCheck"
         $argList += "-SkipStaCheck"
-        Start-Process -FilePath $psExe -ArgumentList $argList -Verb RunAs | Out-Null
+        Start-Process -FilePath $psExe -ArgumentList $argList -Verb RunAs -WindowStyle Hidden | Out-Null
         exit 0
     }
 }
