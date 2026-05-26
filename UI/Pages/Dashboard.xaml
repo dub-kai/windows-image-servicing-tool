@@ -5,103 +5,272 @@
   <Grid Margin="2">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
-      <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <TextBlock Grid.Row="0"
-               FontSize="24"
-               FontWeight="SemiBold"
-               Foreground="#0F172A"
-               Margin="0,0,0,16"
-               Text="Dashboard" />
+    <Grid Grid.Row="0" Margin="0,0,0,14">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
 
-    <!-- Aktionen -->
-    <WrapPanel Grid.Row="1" Margin="0,0,0,12">
-      <Button Name="BtnSelectIso" Width="160" Height="34" Margin="0,0,10,10" Content="ISO wählen"/>
-      <Button Name="BtnMountIso" Width="160" Height="34" Margin="0,0,10,10" Content="ISO mounten"/>
-      <Button Name="BtnAutoDetectIso" Width="160" Height="34" Margin="0,0,10,10" Content="AutoDetect ISO"/>
-      <Button Name="BtnDismountIso" Width="160" Height="34" Margin="0,0,10,10" Content="ISO aushängen"/>
+      <StackPanel Grid.Column="0">
+        <TextBlock FontSize="25"
+                   FontWeight="SemiBold"
+                   Foreground="#0F172A"
+                   Text="Arbeitszentrale"/>
+        <TextBlock Foreground="#64748B"
+                   Margin="0,4,0,0"
+                   Text="Aktueller Stand, nächste sinnvolle Aktion und die wichtigsten Wege durchs Tool."/>
+      </StackPanel>
 
-      <Button Name="BtnSelectImage" Width="160" Height="34" Margin="0,0,10,10" Content="WIM/ESD wählen"/>
-    </WrapPanel>
+      <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+        <Button Name="BtnDashGoImages" Height="32" MinWidth="100" Margin="0,0,8,0" Content="Images"/>
+        <Button Name="BtnDashGoUpdates" Height="32" MinWidth="100" Margin="0,0,8,0" Content="Updates"/>
+        <Button Name="BtnDashGoMedia" Height="32" MinWidth="100" Margin="0,0,8,0" Content="ISO bauen"/>
+        <Button Name="BtnDashGoDriver" Height="32" MinWidth="100" Margin="0,0,8,0" Content="Treiber"/>
+        <Button Name="BtnDashGoSettings" Height="32" MinWidth="100" Content="Settings"/>
+      </WrapPanel>
+    </Grid>
 
-    <!-- Status -->
-    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
 
-        <Border Background="#ECFDF5" BorderBrush="#99F6E4" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,0,12">
+        <Border Background="#0F766E"
+                BorderBrush="#0F766E"
+                BorderThickness="1"
+                Padding="18"
+                CornerRadius="18"
+                Margin="0,0,0,14">
           <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1.2*"/>
+              <ColumnDefinition Width="18"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Row="0"
-                       FontWeight="SemiBold"
-                       FontSize="15"
-                       Foreground="#0F172A"
-                       Margin="0,0,0,12"
-                       Text="Systemüberblick"/>
+            <StackPanel Grid.Column="0">
+              <TextBlock Foreground="#CCFBF1"
+                         FontSize="13"
+                         FontWeight="SemiBold"
+                         Text="STATUS"/>
+              <TextBlock Name="TxtDashPrimaryStatus"
+                         Foreground="White"
+                         FontSize="24"
+                         FontWeight="SemiBold"
+                         TextWrapping="Wrap"
+                         Margin="0,8,0,0"
+                         Text="Projektstatus wird geladen..."/>
+              <TextBlock Name="TxtDashRecommendedNext"
+                         Foreground="#ECFDF5"
+                         FontSize="14"
+                         TextWrapping="Wrap"
+                         Margin="0,8,0,0"
+                         Text="-"/>
+            </StackPanel>
 
-            <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,12">
-              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
-                <StackPanel>
-                  <TextBlock Foreground="#64748B" Text="Aktive Mounts"/>
-                  <TextBlock Name="TxtDashActiveMounts" FontSize="22" FontWeight="SemiBold" Foreground="#0F766E" Text="-"/>
-                  <TextBlock Name="TxtDashMountHealth" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
-                </StackPanel>
-              </Border>
+            <Border Grid.Column="2"
+                    Background="#F8FAFC"
+                    BorderBrush="#CCFBF1"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="12">
+              <StackPanel>
+                <TextBlock FontWeight="SemiBold"
+                           Foreground="#0F172A"
+                           Margin="0,0,0,8"
+                           Text="Direkt starten"/>
+                <WrapPanel>
+                  <Button Name="BtnSelectIso" Width="145" Height="32" Margin="0,0,8,8" Content="ISO wählen"/>
+                  <Button Name="BtnMountIso" Width="145" Height="32" Margin="0,0,8,8" Content="ISO mounten"/>
+                  <Button Name="BtnAutoDetectIso" Width="145" Height="32" Margin="0,0,8,8" Content="AutoDetect"/>
+                  <Button Name="BtnDismountIso" Width="145" Height="32" Margin="0,0,8,8" Content="ISO aushängen"/>
+                  <Button Name="BtnSelectImage" Width="145" Height="32" Margin="0,0,8,8" Content="WIM/ESD wählen"/>
+                  <Button Name="BtnDashRefreshJobs" Width="145" Height="32" Margin="0,0,8,8" Content="Status aktualisieren"/>
+                </WrapPanel>
+                <TextBlock Foreground="#64748B"
+                           TextWrapping="Wrap"
+                           Text="Tipp: Das Dashboard soll nur vorbereiten und orientieren. Die eigentliche Arbeit passiert danach in Images, Updates, Driver oder ISO bauen."/>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
 
-              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
-                <StackPanel>
-                  <TextBlock Foreground="#64748B" Text="Letzter Job"/>
-                  <TextBlock Name="TxtDashLastJob" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap" Text="-"/>
-                  <TextBlock Name="TxtDashLastJobDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
-                </StackPanel>
-              </Border>
+        <UniformGrid Columns="4" Margin="0,0,0,14">
+          <Border Background="#F8FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,10,0">
+            <StackPanel>
+              <TextBlock Foreground="#64748B" Text="Quelle"/>
+              <TextBlock Name="TxtDashSourceState" FontSize="20" FontWeight="SemiBold" Foreground="#0F172A" Text="-"/>
+              <TextBlock Name="TxtDashSourceDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+            </StackPanel>
+          </Border>
 
-              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12" Margin="0,0,8,0">
-                <StackPanel>
-                  <TextBlock Foreground="#64748B" Text="Letzter Fehler"/>
-                  <TextBlock Name="TxtDashLastError" FontWeight="SemiBold" Foreground="#991B1B" TextWrapping="Wrap" Text="-"/>
-                  <TextBlock Name="TxtDashLastErrorDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
-                </StackPanel>
-              </Border>
+          <Border Background="#F8FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,10,0">
+            <StackPanel>
+              <TextBlock Foreground="#64748B" Text="Aktive Mounts"/>
+              <TextBlock Name="TxtDashActiveMounts" FontSize="20" FontWeight="SemiBold" Foreground="#0F766E" Text="-"/>
+              <TextBlock Name="TxtDashMountHealth" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+            </StackPanel>
+          </Border>
 
-              <Border Background="White" BorderBrush="#CCFBF1" BorderThickness="1" Padding="12" CornerRadius="12">
-                <StackPanel>
-                  <TextBlock Foreground="#64748B" Text="Tools"/>
-                  <TextBlock Name="TxtDashDismStatus" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap" Text="-"/>
-                  <TextBlock Name="TxtDashAdkStatus" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
-                </StackPanel>
-              </Border>
-            </UniformGrid>
+          <Border Background="#F8FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,10,0">
+            <StackPanel>
+              <TextBlock Foreground="#64748B" Text="Letzter Fehler"/>
+              <TextBlock Name="TxtDashLastError" FontWeight="SemiBold" Foreground="#991B1B" TextWrapping="Wrap" Text="-"/>
+              <TextBlock Name="TxtDashLastErrorDetail" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+            </StackPanel>
+          </Border>
 
-            <Grid Grid.Row="2">
+          <Border Background="#F8FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14">
+            <StackPanel>
+              <TextBlock Foreground="#64748B" Text="Werkzeuge"/>
+              <TextBlock Name="TxtDashDismStatus" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap" Text="-"/>
+              <TextBlock Name="TxtDashAdkStatus" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <Grid Margin="0,0,0,14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.1*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Background="#F7FAFC"
+                  BorderBrush="#D5DEE6"
+                  BorderThickness="1"
+                  Padding="14"
+                  CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="160"/>
-                <ColumnDefinition Width="1.35*"/>
-                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
 
-              <StackPanel Grid.Column="0">
-                <TextBlock FontWeight="SemiBold" Foreground="#0F172A" Text="Job-Verlauf:" Margin="0,0,0,8"/>
-                <Button Name="BtnDashRefreshJobs"
-                        Content="Aktualisieren"
-                        Height="28"
-                        Width="120"
-                        HorizontalAlignment="Left"/>
-              </StackPanel>
+              <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                         FontWeight="SemiBold"
+                         FontSize="15"
+                         Foreground="#0F172A"
+                         Margin="0,0,0,12"
+                         Text="Aktuelle Quelle"/>
 
-              <DataGrid Grid.Column="1"
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="ISO:"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtIsoPath" Text="-"/>
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="ISO Root:"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtIsoRoot" Text="-"/>
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="boot.wim:"/>
+              <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtBootPath" Text="-"/>
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="install.wim/esd:"/>
+              <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtIsoInstallPath" Text="-"/>
+
+              <Border Name="PanelStandalone"
+                      Grid.Row="5"
+                      Grid.ColumnSpan="2"
+                      Background="White"
+                      BorderBrush="#D5DEE6"
+                      BorderThickness="1"
+                      Padding="10"
+                      CornerRadius="10"
+                      Visibility="Collapsed"
+                      Margin="0,8,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="Standalone:"/>
+                  <TextBlock Grid.Column="1" TextWrapping="Wrap" Name="TxtStandaloneImagePath" Text="-"/>
+                </Grid>
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="2"
+                  Background="#F7FAFC"
+                  BorderBrush="#D5DEE6"
+                  BorderThickness="1"
+                  Padding="14"
+                  CornerRadius="14">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold"
+                         FontSize="15"
+                         Foreground="#0F172A"
+                         Margin="0,0,0,12"
+                         Text="Nächste Schritte"/>
+              <TextBlock Name="TxtDashStep1"
+                         Foreground="#0F172A"
+                         FontWeight="SemiBold"
+                         TextWrapping="Wrap"
+                         Text="-"/>
+              <TextBlock Name="TxtDashStep2"
+                         Foreground="#475569"
+                         Margin="0,8,0,0"
+                         TextWrapping="Wrap"
+                         Text="-"/>
+              <TextBlock Name="TxtDashStep3"
+                         Foreground="#475569"
+                         Margin="0,8,0,0"
+                         TextWrapping="Wrap"
+                         Text="-"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.25*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Background="#F7FAFC"
+                  BorderBrush="#D5DEE6"
+                  BorderThickness="1"
+                  Padding="14"
+                  CornerRadius="14">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+
+              <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Text="Job-Verlauf"/>
+                  <TextBlock Name="TxtDashLastJob" Foreground="#475569" TextWrapping="Wrap" Text="-"/>
+                  <TextBlock Name="TxtDashLastJobDetail" Foreground="#64748B" TextWrapping="Wrap" Text="-"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <Button Name="BtnDashOpenHistory" Content="History" Height="28" MinWidth="82" Margin="0,0,8,0"/>
+                  <Button Name="BtnDashOpenDismLog" Content="DISM-Log" Height="28" MinWidth="86"/>
+                </WrapPanel>
+              </Grid>
+
+              <DataGrid Grid.Row="1"
                         Name="GridDashRecentJobs"
-                        MinHeight="140"
-                        MaxHeight="190"
+                        MinHeight="170"
                         Background="White"
-                        BorderBrush="#CCFBF1"
+                        BorderBrush="#D5DEE6"
                         BorderThickness="1"
                         AutoGenerateColumns="False"
                         CanUserAddRows="False"
@@ -115,122 +284,51 @@
                         AlternatingRowBackground="#F8FAFC">
                 <DataGrid.Columns>
                   <DataGridTextColumn Header="Zeit" Binding="{Binding Time}" Width="92"/>
-                  <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
+                  <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="86"/>
                   <DataGridTextColumn Header="Aktion" Binding="{Binding Operation}" Width="*"/>
                   <DataGridTextColumn Header="Dauer" Binding="{Binding Duration}" Width="70"/>
                 </DataGrid.Columns>
               </DataGrid>
-
-              <Border Grid.Column="3"
-                      Background="White"
-                      BorderBrush="#CCFBF1"
-                      BorderThickness="1"
-                      CornerRadius="10"
-                      Padding="10">
-                <StackPanel>
-                  <Grid Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*"/>
-                      <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
-                               FontWeight="SemiBold"
-                               Foreground="#0F172A"
-                               VerticalAlignment="Center"
-                               Text="Job-Details"/>
-                    <WrapPanel Grid.Column="1">
-                      <Button Name="BtnDashCopyJobDetails"
-                              Content="Kopieren"
-                              Height="26"
-                              MinWidth="84"
-                              Margin="0,0,6,0"/>
-                      <Button Name="BtnDashOpenHistory"
-                              Content="History"
-                              Height="26"
-                              MinWidth="76"
-                              Margin="0,0,6,0"/>
-                      <Button Name="BtnDashOpenDismLog"
-                              Content="DISM-Log"
-                              Height="26"
-                              MinWidth="82"/>
-                    </WrapPanel>
-                  </Grid>
-                  <TextBlock Name="TxtDashJobDetails"
-                             Foreground="#475569"
-                             Text="Job auswählen, um Details zu sehen."
-                             TextWrapping="Wrap"/>
-                  <TextBlock Name="TxtDashJobError"
-                             Foreground="#991B1B"
-                             Margin="0,8,0,0"
-                             TextWrapping="Wrap"/>
-                </StackPanel>
-              </Border>
             </Grid>
-          </Grid>
-        </Border>
+          </Border>
 
-        <!-- ISO Bereich -->
-        <Border Background="#F7FAFC" BorderBrush="#D5DEE6" BorderThickness="1" Padding="14" CornerRadius="14" Margin="0,0,0,12">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="180"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                       FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
-                       Text="ISO Status" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="ISO Pfad:"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtIsoPath" Text="-"/>
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="ISO Root:"/>
-            <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtIsoRoot" Text="-"/>
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,10,6" FontWeight="SemiBold" Text="Boot (boot.wim):"/>
-            <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" TextWrapping="Wrap" Name="TxtBootPath" Text="-"/>
-
-            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="Install (aus ISO):"/>
-            <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,0,0,0" TextWrapping="Wrap" Name="TxtIsoInstallPath" Text="-"/>
-          </Grid>
-        </Border>
-
-        <!-- Standalone WIM Bereich (standardmäßig verborgen) -->
-        <Border Name="PanelStandalone"
-                Background="#F7FAFC"
-                BorderBrush="#D5DEE6"
-                BorderThickness="1"
-                Padding="14"
-                CornerRadius="14"
-                Visibility="Collapsed">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="180"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                       FontWeight="SemiBold" FontSize="15" Foreground="#0F172A" Margin="0,0,0,12"
-                       Text="Standalone WIM/ESD (manuell gewählt)" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,0" FontWeight="SemiBold" Text="Pfad:"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,0" TextWrapping="Wrap" Name="TxtStandaloneImagePath" Text="-"/>
-          </Grid>
-        </Border>
+          <Border Grid.Column="2"
+                  Background="#F7FAFC"
+                  BorderBrush="#D5DEE6"
+                  BorderThickness="1"
+                  CornerRadius="14"
+                  Padding="14">
+            <StackPanel>
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           FontWeight="SemiBold"
+                           FontSize="15"
+                           Foreground="#0F172A"
+                           VerticalAlignment="Center"
+                           Text="Job-Details"/>
+                <Button Grid.Column="1"
+                        Name="BtnDashCopyJobDetails"
+                        Content="Kopieren"
+                        Height="28"
+                        MinWidth="86"/>
+              </Grid>
+              <TextBlock Name="TxtDashJobDetails"
+                         Foreground="#475569"
+                         Text="Job auswählen, um Details zu sehen."
+                         TextWrapping="Wrap"/>
+              <TextBlock Name="TxtDashJobError"
+                         Foreground="#991B1B"
+                         Margin="0,8,0,0"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </Grid>
 
       </StackPanel>
     </ScrollViewer>
-
   </Grid>
 </Page>

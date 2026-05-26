@@ -16,6 +16,11 @@
         BtnAutoDetect  = $null
         BtnDismountIso = $null
         BtnSelectImage = $null
+        BtnGoImages    = $null
+        BtnGoUpdates   = $null
+        BtnGoMedia     = $null
+        BtnGoDriver    = $null
+        BtnGoSettings  = $null
         BtnRefreshJobs = $null
         BtnCopyJobDetails = $null
         BtnOpenHistory = $null
@@ -29,6 +34,11 @@
     $script:ctx.BtnAutoDetect   = Find-Ui -Root $p -Name "BtnAutoDetectIso"
     $script:ctx.BtnDismountIso  = Find-Ui -Root $p -Name "BtnDismountIso"
     $script:ctx.BtnSelectImage  = Find-Ui -Root $p -Name "BtnSelectImage"
+    $script:ctx.BtnGoImages     = Find-Ui -Root $p -Name "BtnDashGoImages"
+    $script:ctx.BtnGoUpdates    = Find-Ui -Root $p -Name "BtnDashGoUpdates"
+    $script:ctx.BtnGoMedia      = Find-Ui -Root $p -Name "BtnDashGoMedia"
+    $script:ctx.BtnGoDriver     = Find-Ui -Root $p -Name "BtnDashGoDriver"
+    $script:ctx.BtnGoSettings   = Find-Ui -Root $p -Name "BtnDashGoSettings"
     $script:ctx.BtnRefreshJobs  = Find-Ui -Root $p -Name "BtnDashRefreshJobs"
     $script:ctx.BtnCopyJobDetails = Find-Ui -Root $p -Name "BtnDashCopyJobDetails"
     $script:ctx.BtnOpenHistory = Find-Ui -Root $p -Name "BtnDashOpenHistory"
@@ -107,6 +117,28 @@
             } catch { Show-UiError -Message $_.Exception.Message }
             finally { Invoke-StateChangedSafe; Refresh-DashboardUI; Invoke-SetStatusSafe "Ready" }
         })
+    }
+
+    $navMap = @{
+        BtnGoImages   = 'BtnImages'
+        BtnGoUpdates  = 'BtnUpdates'
+        BtnGoMedia    = 'BtnMedia'
+        BtnGoDriver   = 'BtnDriver'
+        BtnGoSettings = 'BtnSettings'
+    }
+
+    foreach ($entry in $navMap.GetEnumerator()) {
+        $button = $script:ctx[$entry.Key]
+        $target = [string]$entry.Value
+        if ($button) {
+            $button.Add_Click({
+                try {
+                    Invoke-DashboardMainNavigation -ButtonName $target
+                } catch {
+                    Show-UiError -Message $_.Exception.Message
+                }
+            }.GetNewClosure())
+        }
     }
 
     if ($script:ctx.BtnRefreshJobs) {
