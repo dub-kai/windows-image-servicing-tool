@@ -213,6 +213,8 @@
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="6"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="6"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -312,6 +314,19 @@
                        Text="Batch: Mounts werden geladen."
                        Foreground="#475569"
                        TextWrapping="Wrap"/>
+
+            <Border Grid.Row="6"
+                    Background="#F0FDFA"
+                    BorderBrush="#99F6E4"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8,6">
+              <TextBlock Name="TxtUpdatesServiceHint"
+                         Text="Eignung: Mount-Kontext wird geladen."
+                         Foreground="#134E4A"
+                         FontWeight="SemiBold"
+                         TextWrapping="Wrap"/>
+            </Border>
           </Grid>
         </Border>
       </Grid>

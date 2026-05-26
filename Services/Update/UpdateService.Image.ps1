@@ -74,10 +74,22 @@ function Get-MountedWimMeta {
                 try { $imageFile = [string]$b.'Image File' } catch {}
                 try { $imageIndex = [string]$b.'Image Index' } catch {}
                 try { $mountMode = [string]$b.'Mount Mode' } catch {}
+                if ([string]::IsNullOrWhiteSpace($mountMode)) {
+                    try { $mountMode = [string]$b.'Mounted Read/Write' } catch {}
+                }
+                if ([string]::IsNullOrWhiteSpace($mountMode)) {
+                    try { $mountMode = [string]$b.'Read/Write' } catch {}
+                }
                 try { $mountStatus = [string]$b.'Mount Status' } catch {}
 
                 $rw = '-'
-                if ($mountMode -match 'read.?write') {
+                if ($mountMode -match '^(?i)(yes|true)$') {
+                    $rw = 'Read/Write'
+                }
+                elseif ($mountMode -match '^(?i)(no|false)$') {
+                    $rw = 'ReadOnly'
+                }
+                elseif ($mountMode -match 'read.?write') {
                     $rw = 'Read/Write'
                 }
                 elseif ($mountMode -match 'read.?only') {

@@ -697,6 +697,19 @@ function Invoke-CatalogIntegrateUi {
         return
     }
 
+    if ($script:updateContext -and $script:updateContext.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
+        try {
+            if (-not [bool]$script:updateContext.CanIntegrateUpdates) {
+                $hint = 'Dieser Mount ist für normale Update-Integration nicht freigegeben.'
+                if ($script:updateContext.PSObject.Properties.Match('UpdateServiceHint').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$script:updateContext.UpdateServiceHint)) {
+                    $hint = [string]$script:updateContext.UpdateServiceHint
+                }
+                Show-UiInfo -Message $hint -Title 'Integration'
+                return
+            }
+        } catch {}
+    }
+
     $updateId = [string]$item.UpdateId
     $title    = [string]$item.Title
     $kb       = [string]$item.KB

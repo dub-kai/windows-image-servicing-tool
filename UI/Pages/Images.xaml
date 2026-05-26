@@ -308,7 +308,9 @@
                     <GridViewColumn Header="ImageFile" Width="240" DisplayMemberBinding="{Binding ImageFile}" />
                     <GridViewColumn Header="Index" Width="60" DisplayMemberBinding="{Binding ImageIndex}" />
                     <GridViewColumn Header="Zustand" Width="130" DisplayMemberBinding="{Binding Health}" />
+                    <GridViewColumn Header="Eignung" Width="120" DisplayMemberBinding="{Binding MountCapability}" />
                     <GridViewColumn Header="Aktion" Width="160" DisplayMemberBinding="{Binding RecommendedAction}" />
+                    <GridViewColumn Header="Hinweis" Width="260" DisplayMemberBinding="{Binding MountGuidance}" />
                     <GridViewColumn Header="Status" Width="110" DisplayMemberBinding="{Binding Status}" />
                     <GridViewColumn Header="RW" Width="60" DisplayMemberBinding="{Binding ReadWrite}" />
                   </GridView>

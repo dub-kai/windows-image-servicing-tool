@@ -52,6 +52,10 @@ function Update-MountSelectorUi {
             ImageIndex  = [string]$mount.ImageIndex
             Status      = [string]$mount.Status
             ReadWrite   = [string]$mount.ReadWrite
+            MountKind   = if ($mount.PSObject.Properties.Match('MountKind').Count -gt 0) { [string]$mount.MountKind } else { '' }
+            MountCapability = if ($mount.PSObject.Properties.Match('MountCapability').Count -gt 0) { [string]$mount.MountCapability } else { '' }
+            MountGuidance = if ($mount.PSObject.Properties.Match('MountGuidance').Count -gt 0) { [string]$mount.MountGuidance } else { '' }
+            CanIntegrateUpdates = if ($mount.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) { [bool]$mount.CanIntegrateUpdates } else { $false }
             DisplayText = New-MountDisplayText -Mount $mount
         }
     }
@@ -100,6 +104,12 @@ function Test-UpdatesMountUiItemWritable {
     param($Mount)
 
     if ($null -eq $Mount) { return $false }
+
+    try {
+        if ($Mount.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
+            return [bool]$Mount.CanIntegrateUpdates
+        }
+    } catch {}
 
     $rw = ''
     $status = ''
@@ -231,6 +241,7 @@ function Clear-UpdatesUi {
     Set-UiText -Root $page -Name 'TxtUpdatesInstalledKbCount' -Value '0'
     Set-UiText -Root $page -Name 'TxtUpdatesPackagesCount'    -Value 'Pakete: 0'
     Set-UiText -Root $page -Name 'TxtUpdatesFooterHint'       -Value 'Mount-Daten laden. Danach kann die Catalog-Suche ausgefuehrt werden.'
+    Set-UiText -Root $page -Name 'TxtUpdatesServiceHint'       -Value 'Eignung: Kein Mount-Kontext geladen.'
     Set-UiText -Root $page -Name 'TxtUpdatesBatchPlan'        -Value 'Batch: Mounts werden geladen.'
     Set-UpdatesStatusText -Message '-'
 
@@ -326,6 +337,20 @@ function Show-UpdateContext {
         }
     } catch { $catalogSupported = $true }
 
+    $canIntegrateUpdates = $true
+    try {
+        if ($Context.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
+            $canIntegrateUpdates = [bool]$Context.CanIntegrateUpdates
+        }
+    } catch { $canIntegrateUpdates = $true }
+
+    $serviceStatus = 'Eignung'
+    $serviceHint = 'Mount-Daten geladen.'
+    try {
+        if ($Context.PSObject.Properties.Match('UpdateServiceStatus').Count -gt 0) { $serviceStatus = [string]$Context.UpdateServiceStatus }
+        if ($Context.PSObject.Properties.Match('UpdateServiceHint').Count -gt 0) { $serviceHint = [string]$Context.UpdateServiceHint }
+    } catch {}
+
     $footerHint = 'Mount-Daten geladen. Catalog-Suche kann gestartet werden.'
     if (-not $catalogSupported) {
         $reason = 'Boot-/WinPE-Image erkannt. Pakete werden angezeigt, aber die automatische Catalog-Suche ist deaktiviert.'
@@ -337,9 +362,14 @@ function Show-UpdateContext {
         $statusLine = $statusLine + ' | Boot/WinPE'
         $footerHint = $reason
     }
+    elseif (-not $canIntegrateUpdates) {
+        $statusLine = $statusLine + (' | {0}' -f $serviceStatus)
+        $footerHint = $serviceHint
+    }
 
     Set-UpdatesStatusText -Message $statusLine
     Set-UiText -Root $page -Name 'TxtUpdatesFooterHint' -Value $footerHint
+    Set-UiText -Root $page -Name 'TxtUpdatesServiceHint' -Value ('Eignung: {0} | {1}' -f $serviceStatus, $serviceHint)
 
     Reset-CatalogState
     Apply-CatalogView

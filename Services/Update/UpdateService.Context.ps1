@@ -442,6 +442,55 @@ function Get-MountedImageUpdateContext {
     $effectiveBuildVersion = if (-not [string]::IsNullOrWhiteSpace($osBuildVersion)) { $osBuildVersion } else { $servicingBuildVersion }
 
     $isWinPeLike = Test-MountedImageIsWinPeLike -Meta $meta -OfflineInfo $offlineInfo -MountDir $MountDir -Edition $edition
+    $readWriteText = [string]$meta.ReadWrite
+    $isReadOnly = $false
+    $isReadWrite = $false
+    if (-not [string]::IsNullOrWhiteSpace($readWriteText)) {
+        $rwLower = $readWriteText.ToLowerInvariant()
+        $isReadOnly = (
+            $rwLower -match 'readonly' -or
+            $rwLower -match 'read\s*only' -or
+            $rwLower -match '^no$' -or
+            $rwLower -match '^false$'
+        )
+        $isReadWrite = (
+            -not $isReadOnly -and (
+                $rwLower -match 'read/write' -or
+                $rwLower -match 'readwrite' -or
+                $rwLower -match '^yes$' -or
+                $rwLower -match '^true$' -or
+                $rwLower -match '\brw\b'
+            )
+        )
+    }
+
+    $canIntegrateUpdates = ($isReadWrite -and (-not $isWinPeLike))
+    $serviceStatus = if ($isWinPeLike) {
+        'Boot/WinPE'
+    }
+    elseif ($isReadOnly) {
+        'Nur lesen'
+    }
+    elseif ($canIntegrateUpdates) {
+        'Bereit'
+    }
+    else {
+        'Prüfen'
+    }
+
+    $serviceHint = if ($isWinPeLike) {
+        'Boot-/WinPE-Image erkannt. Normale Windows-Updates werden hier nicht automatisch integriert.'
+    }
+    elseif ($isReadOnly) {
+        'ReadOnly-Mount. Paketlisten und Catalog-Suche sind möglich, Integration ist gesperrt.'
+    }
+    elseif ($canIntegrateUpdates) {
+        'Read/Write-Mount. Updates können integriert werden; danach über Images committen.'
+    }
+    else {
+        'Mount-Modus konnte nicht eindeutig bewertet werden. Vor Integration bitte Images-Mountstatus prüfen.'
+    }
+
     $catalogSearchSupported = (-not $isWinPeLike)
     $catalogSkipReason = if ($isWinPeLike) { 'Boot-/WinPE-Images werden nicht automatisch im Microsoft Update Catalog gesucht.' } else { '' }
 
@@ -482,6 +531,11 @@ function Get-MountedImageUpdateContext {
         ReleaseLabels         = @($releaseLabels)
         CatalogQueries        = @($queries)
         IsWinPeLike           = [bool]$isWinPeLike
+        IsReadOnly            = [bool]$isReadOnly
+        IsReadWrite           = [bool]$isReadWrite
+        CanIntegrateUpdates   = [bool]$canIntegrateUpdates
+        UpdateServiceStatus   = $serviceStatus
+        UpdateServiceHint     = $serviceHint
         CatalogSearchSupported= [bool]$catalogSearchSupported
         CatalogSkipReason     = $catalogSkipReason
     }

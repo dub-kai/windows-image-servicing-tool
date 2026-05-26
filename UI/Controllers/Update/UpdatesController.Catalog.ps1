@@ -122,19 +122,40 @@ function Update-UpdatesActionButtons {
     $hasUpdateId = $false
     try { $hasUpdateId = -not [string]::IsNullOrWhiteSpace([string]$selected.UpdateId) } catch {}
 
+    $currentCanIntegrate = $true
+    try {
+        if ($script:updateContext -and $script:updateContext.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
+            $currentCanIntegrate = [bool]$script:updateContext.CanIntegrateUpdates
+        }
+    } catch { $currentCanIntegrate = $true }
+
+    $batchTargets = @($script:mountItems | Where-Object {
+        $can = $false
+        try {
+            if ($_.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
+                $can = [bool]$_.CanIntegrateUpdates
+            }
+            else {
+                $rw = [string]$_.ReadWrite
+                $can = ($rw -match 'read/write|readwrite|^yes$|^true$|\brw\b') -and ($rw -notmatch 'readonly|read\s*only|^no$|^false$')
+            }
+        } catch { $can = $false }
+        $can
+    })
+
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogDownload'  -Enabled ($canSelect -and (-not $isLocal) -and $hasUpdateId)
-    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled $canSelect
-    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrate' -Enabled ($canSelect -and $currentCanIntegrate)
+    Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogIntegrateAll' -Enabled ($canSelect -and (@($batchTargets).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'BtnCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogDownload'  -Enabled ($canSelect -and (-not $isLocal) -and $hasUpdateId)
-    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrate' -Enabled $canSelect
-    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrateAll' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrate' -Enabled ($canSelect -and $currentCanIntegrate)
+    Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogIntegrateAll' -Enabled ($canSelect -and (@($batchTargets).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogPreflight' -Enabled ($canSelect -and (@($script:mountItems).Count -gt 0))
     Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogAddLocal' -Enabled (-not $script:isBusy)
     Set-UiEnabled -Root $script:ctx.Page -Name 'MiCatalogCopyTitle' -Enabled $canSelect
     if ($script:ctx.Contains('MiCatalogDownload') -and $script:ctx.MiCatalogDownload) { try { $script:ctx.MiCatalogDownload.IsEnabled = ($canSelect -and (-not $isLocal) -and $hasUpdateId) } catch {} }
-    if ($script:ctx.Contains('MiCatalogIntegrate') -and $script:ctx.MiCatalogIntegrate) { try { $script:ctx.MiCatalogIntegrate.IsEnabled = $canSelect } catch {} }
-    if ($script:ctx.Contains('MiCatalogIntegrateAll') -and $script:ctx.MiCatalogIntegrateAll) { try { $script:ctx.MiCatalogIntegrateAll.IsEnabled = ($canSelect -and (@($script:mountItems).Count -gt 0)) } catch {} }
+    if ($script:ctx.Contains('MiCatalogIntegrate') -and $script:ctx.MiCatalogIntegrate) { try { $script:ctx.MiCatalogIntegrate.IsEnabled = ($canSelect -and $currentCanIntegrate) } catch {} }
+    if ($script:ctx.Contains('MiCatalogIntegrateAll') -and $script:ctx.MiCatalogIntegrateAll) { try { $script:ctx.MiCatalogIntegrateAll.IsEnabled = ($canSelect -and (@($batchTargets).Count -gt 0)) } catch {} }
     if ($script:ctx.Contains('MiCatalogPreflight') -and $script:ctx.MiCatalogPreflight) { try { $script:ctx.MiCatalogPreflight.IsEnabled = ($canSelect -and (@($script:mountItems).Count -gt 0)) } catch {} }
     if ($script:ctx.Contains('MiCatalogAddLocal') -and $script:ctx.MiCatalogAddLocal) { try { $script:ctx.MiCatalogAddLocal.IsEnabled = (-not $script:isBusy) } catch {} }
     if ($script:ctx.Contains('MiCatalogCopyTitle') -and $script:ctx.MiCatalogCopyTitle) { try { $script:ctx.MiCatalogCopyTitle.IsEnabled = $canSelect } catch {} }

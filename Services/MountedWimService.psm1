@@ -70,6 +70,111 @@ function Convert-MountedWimRegistryStatus {
     }
 }
 
+function Test-MountedWimReadOnlyText {
+    [CmdletBinding()]
+    param([AllowEmptyString()][string]$ReadWrite)
+
+    if ([string]::IsNullOrWhiteSpace($ReadWrite)) { return $false }
+
+    $x = $ReadWrite.ToLowerInvariant()
+    if ($x -match 'readonly') { return $true }
+    if ($x -match 'read\s*only') { return $true }
+    if ($x -match '^no$') { return $true }
+    if ($x -match '^false$') { return $true }
+    if ($x -match 'readonly\s*=\s*yes') { return $true }
+
+    return $false
+}
+
+function Test-MountedWimReadWriteText {
+    [CmdletBinding()]
+    param([AllowEmptyString()][string]$ReadWrite)
+
+    if ([string]::IsNullOrWhiteSpace($ReadWrite)) { return $false }
+    if (Test-MountedWimReadOnlyText -ReadWrite $ReadWrite) { return $false }
+
+    $x = $ReadWrite.ToLowerInvariant()
+    if ($x -match 'read/write') { return $true }
+    if ($x -match 'readwrite') { return $true }
+    if ($x -match '^yes$') { return $true }
+    if ($x -match '^true$') { return $true }
+    if ($x -match '\brw\b') { return $true }
+
+    return $false
+}
+
+function Get-MountedWimKind {
+    [CmdletBinding()]
+    param([AllowEmptyString()][string]$ImageFile)
+
+    if ([string]::IsNullOrWhiteSpace($ImageFile)) { return 'Unbekannt' }
+
+    try {
+        $leaf = [System.IO.Path]::GetFileName($ImageFile)
+        if ($leaf -ieq 'boot.wim') { return 'Boot/WinPE' }
+        if ($leaf -ieq 'winre.wim') { return 'Recovery' }
+        if ($leaf -match '(?i)^install\.(wim|esd)$') { return 'Install-Image' }
+    } catch {}
+
+    return 'Image'
+}
+
+function Get-MountedWimCapability {
+    [CmdletBinding()]
+    param(
+        [AllowEmptyString()][string]$ImageFile,
+        [AllowEmptyString()][string]$ReadWrite,
+        [AllowEmptyString()][string]$Health,
+        [bool]$RegistryOnly = $false,
+        [bool]$CanCommit = $false,
+        [bool]$CanDiscard = $false
+    )
+
+    $kind = Get-MountedWimKind -ImageFile $ImageFile
+    $isReadOnly = Test-MountedWimReadOnlyText -ReadWrite $ReadWrite
+    $isWritable = Test-MountedWimReadWriteText -ReadWrite $ReadWrite
+    $isHealthy = ([string]::IsNullOrWhiteSpace($Health) -or $Health -eq 'OK')
+
+    $capability = 'Prüfen'
+    $guidance = 'Mount-Zustand prüfen, bevor du Updates, Treiber oder Commit ausführst.'
+    $canIntegrateUpdates = $false
+
+    if ($RegistryOnly) {
+        $capability = 'Bereinigung nötig'
+        $guidance = 'DISM führt diesen Mount nur noch als Rest. Bitte über Images reparieren oder Cleanup-Wim ausführen.'
+    }
+    elseif (-not $isHealthy) {
+        $capability = 'Problem'
+        $guidance = 'Mount ist nicht im normalen Zustand. Erst bereinigen oder DISM-Log prüfen, nicht committen.'
+    }
+    elseif ($isReadOnly) {
+        $capability = 'Nur lesen'
+        $guidance = 'ReadOnly-Mount: Anzeigen und Export sind ok, Updates/Treiber/Commit sind gesperrt.'
+    }
+    elseif ($kind -eq 'Boot/WinPE') {
+        $capability = 'Boot/WinPE'
+        $guidance = 'Boot-/WinPE-Image: normale Windows-Updates werden nicht automatisch integriert. Nur gezielte WinPE-/Treiber-Arbeiten.'
+    }
+    elseif ($isWritable -and $CanCommit) {
+        $capability = 'Bearbeitbar'
+        $guidance = 'Read/Write und gesund: Updates, Treiber und Commit sind möglich.'
+        $canIntegrateUpdates = $true
+    }
+    elseif ($CanDiscard) {
+        $capability = 'Nur bereinigen'
+        $guidance = 'Commit ist nicht sicher freigegeben. Discard/Bereinigung ist möglich.'
+    }
+
+    return [pscustomobject]@{
+        MountKind           = $kind
+        IsReadOnly          = [bool]$isReadOnly
+        IsReadWrite         = [bool]$isWritable
+        MountCapability     = $capability
+        MountGuidance       = $guidance
+        CanIntegrateUpdates = [bool]$canIntegrateUpdates
+    }
+}
+
 function Get-WimMountRegistryEntries {
     [CmdletBinding()]
     param()
@@ -99,6 +204,13 @@ function Get-WimMountRegistryEntries {
             if ($indexProp) { try { $imageIndex = [int]$indexProp.Value } catch { $imageIndex = $null } }
 
             $health = Convert-MountedWimRegistryStatus -StatusCode $status
+            $capability = Get-MountedWimCapability `
+                -ImageFile $wimPath `
+                -ReadWrite '-' `
+                -Health ([string]$health.Health) `
+                -RegistryOnly $true `
+                -CanCommit ([bool]$health.CanCommit) `
+                -CanDiscard ([bool]$health.CanDiscard)
 
             $items.Add([pscustomobject]@{
                 Key               = [string]$key.PSChildName
@@ -112,6 +224,12 @@ function Get-WimMountRegistryEntries {
                 RecommendedAction = [string]$health.RecommendedAction
                 CanCommit         = [bool]$health.CanCommit
                 CanDiscard        = [bool]$health.CanDiscard
+                MountKind         = [string]$capability.MountKind
+                IsReadOnly        = [bool]$capability.IsReadOnly
+                IsReadWrite       = [bool]$capability.IsReadWrite
+                MountCapability   = [string]$capability.MountCapability
+                MountGuidance     = [string]$capability.MountGuidance
+                CanIntegrateUpdates = [bool]$capability.CanIntegrateUpdates
                 RegistryOnly      = $true
             }) | Out-Null
         } catch {}
@@ -156,9 +274,18 @@ function Add-MountedWimRegistryHealth {
             }
         }
 
+        $effectiveImageFile = if ($registry -and -not [string]::IsNullOrWhiteSpace([string]$registry.ImageFile)) { [string]$registry.ImageFile } else { [string]$item.ImageFile }
+        $capability = Get-MountedWimCapability `
+            -ImageFile $effectiveImageFile `
+            -ReadWrite ([string]$item.ReadWrite) `
+            -Health ([string]$health.Health) `
+            -RegistryOnly $false `
+            -CanCommit ([bool]$health.CanCommit) `
+            -CanDiscard ([bool]$health.CanDiscard)
+
         $merged.Add([pscustomobject]@{
             MountDir          = $mountDir
-            ImageFile         = if ($registry -and -not [string]::IsNullOrWhiteSpace([string]$registry.ImageFile)) { [string]$registry.ImageFile } else { [string]$item.ImageFile }
+            ImageFile         = $effectiveImageFile
             ImageIndex        = if ($registry -and $null -ne $registry.ImageIndex) { $registry.ImageIndex } else { $item.ImageIndex }
             Status            = [string]$item.Status
             StatusCode        = $statusCode
@@ -168,6 +295,12 @@ function Add-MountedWimRegistryHealth {
             RecommendedAction = [string]$health.RecommendedAction
             CanCommit         = [bool]$health.CanCommit
             CanDiscard        = [bool]$health.CanDiscard
+            MountKind         = [string]$capability.MountKind
+            IsReadOnly        = [bool]$capability.IsReadOnly
+            IsReadWrite       = [bool]$capability.IsReadWrite
+            MountCapability   = [string]$capability.MountCapability
+            MountGuidance     = [string]$capability.MountGuidance
+            CanIntegrateUpdates = [bool]$capability.CanIntegrateUpdates
             RegistryOnly      = $false
         }) | Out-Null
     }
@@ -182,6 +315,13 @@ function Add-MountedWimRegistryHealth {
         } else {
             'Der Mount steht noch in der WIMMount-Registry, wird von DISM aber nicht mehr normal gelistet.'
         }
+        $capability = Get-MountedWimCapability `
+            -ImageFile ([string]$entry.ImageFile) `
+            -ReadWrite '-' `
+            -Health $registryOnlyHealth `
+            -RegistryOnly $true `
+            -CanCommit $false `
+            -CanDiscard $false
 
         $merged.Add([pscustomobject]@{
             MountDir          = [string]$entry.MountDir
@@ -195,6 +335,12 @@ function Add-MountedWimRegistryHealth {
             RecommendedAction = 'DISM Cleanup-Wim'
             CanCommit         = $false
             CanDiscard        = $false
+            MountKind         = [string]$capability.MountKind
+            IsReadOnly        = [bool]$capability.IsReadOnly
+            IsReadWrite       = [bool]$capability.IsReadWrite
+            MountCapability   = [string]$capability.MountCapability
+            MountGuidance     = [string]$capability.MountGuidance
+            CanIntegrateUpdates = [bool]$capability.CanIntegrateUpdates
             RegistryOnly      = $true
         }) | Out-Null
     }
