@@ -319,13 +319,32 @@ function Show-UpdateContext {
         $Context.Architecture, `
         $buildText
 
+    $catalogSupported = $true
+    try {
+        if ($Context.PSObject.Properties.Match('CatalogSearchSupported').Count -gt 0) {
+            $catalogSupported = [bool]$Context.CatalogSearchSupported
+        }
+    } catch { $catalogSupported = $true }
+
+    $footerHint = 'Mount-Daten geladen. Catalog-Suche kann gestartet werden.'
+    if (-not $catalogSupported) {
+        $reason = 'Boot-/WinPE-Image erkannt. Pakete werden angezeigt, aber die automatische Catalog-Suche ist deaktiviert.'
+        try {
+            if ($Context.PSObject.Properties.Match('CatalogSkipReason').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$Context.CatalogSkipReason)) {
+                $reason = [string]$Context.CatalogSkipReason
+            }
+        } catch {}
+        $statusLine = $statusLine + ' | Boot/WinPE'
+        $footerHint = $reason
+    }
+
     Set-UpdatesStatusText -Message $statusLine
-    Set-UiText -Root $page -Name 'TxtUpdatesFooterHint' -Value 'Mount-Daten geladen. Catalog-Suche kann gestartet werden.'
+    Set-UiText -Root $page -Name 'TxtUpdatesFooterHint' -Value $footerHint
 
     Reset-CatalogState
     Apply-CatalogView
     Apply-PackagesView
-    Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $true
+    Set-UiEnabled -Root $page -Name 'BtnCatalogSearch' -Enabled $catalogSupported
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportPackages' -Enabled (@($script:visiblePackages).Count -gt 0)
     Set-UiEnabled -Root $page -Name 'BtnUpdatesExportCatalog' -Enabled (@($script:catalogVisibleResults).Count -gt 0)
 }

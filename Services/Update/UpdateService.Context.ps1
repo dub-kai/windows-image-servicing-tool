@@ -363,6 +363,44 @@ function Get-CatalogQueriesForContext {
     return @($queries)
 }
 
+function Test-MountedImageIsWinPeLike {
+    param(
+        $Meta,
+        $OfflineInfo,
+        [Parameter(Mandatory)][string]$MountDir,
+        [string]$Edition = ''
+    )
+
+    $imageFile = ''
+    try { $imageFile = [string]$Meta.ImageFile } catch {}
+
+    if (-not [string]::IsNullOrWhiteSpace($imageFile)) {
+        $leaf = [System.IO.Path]::GetFileName($imageFile)
+        if ($leaf -ieq 'boot.wim') {
+            return $true
+        }
+    }
+
+    $productName = ''
+    try { $productName = [string]$OfflineInfo.ProductName } catch {}
+    if ($productName -match '(?i)(Windows PE|WinPE|Preinstallation Environment)') {
+        return $true
+    }
+
+    if ($Edition -match '(?i)(WinPE|WindowsPE)') {
+        return $true
+    }
+
+    try {
+        $winPeShell = Join-Path -Path $MountDir -ChildPath 'Windows\System32\winpeshl.ini'
+        if (Test-Path -LiteralPath $winPeShell -PathType Leaf) {
+            return $true
+        }
+    } catch {}
+
+    return $false
+}
+
 function Get-MountedImageUpdateContext {
     param(
         [Parameter(Mandatory)][string]$MountDir
@@ -403,8 +441,16 @@ function Get-MountedImageUpdateContext {
     $effectiveBuildBranch = if (-not [string]::IsNullOrWhiteSpace($osBuildBranch)) { $osBuildBranch } else { $servicingBuildBranch }
     $effectiveBuildVersion = if (-not [string]::IsNullOrWhiteSpace($osBuildVersion)) { $osBuildVersion } else { $servicingBuildVersion }
 
-    $releaseLabels = @(Get-PrimaryReleaseLabelsForContext -ProductFamily $productFamily -BuildBranch $effectiveBuildBranch -DisplayVersion $displayVersion)
-    $queries = Get-CatalogQueriesForContext -ProductFamily $productFamily -Architecture $arch -BuildBranch $effectiveBuildBranch -DisplayVersion $displayVersion
+    $isWinPeLike = Test-MountedImageIsWinPeLike -Meta $meta -OfflineInfo $offlineInfo -MountDir $MountDir -Edition $edition
+    $catalogSearchSupported = (-not $isWinPeLike)
+    $catalogSkipReason = if ($isWinPeLike) { 'Boot-/WinPE-Images werden nicht automatisch im Microsoft Update Catalog gesucht.' } else { '' }
+
+    $releaseLabels = @()
+    $queries = @()
+    if ($catalogSearchSupported) {
+        $releaseLabels = @(Get-PrimaryReleaseLabelsForContext -ProductFamily $productFamily -BuildBranch $effectiveBuildBranch -DisplayVersion $displayVersion)
+        $queries = Get-CatalogQueriesForContext -ProductFamily $productFamily -Architecture $arch -BuildBranch $effectiveBuildBranch -DisplayVersion $displayVersion
+    }
 
     return [pscustomobject]@{
         MountDir              = $meta.MountDir
@@ -435,5 +481,8 @@ function Get-MountedImageUpdateContext {
         BuildBranch           = $effectiveBuildBranch
         ReleaseLabels         = @($releaseLabels)
         CatalogQueries        = @($queries)
+        IsWinPeLike           = [bool]$isWinPeLike
+        CatalogSearchSupported= [bool]$catalogSearchSupported
+        CatalogSkipReason     = $catalogSkipReason
     }
 }

@@ -97,8 +97,9 @@ function Invoke-Ui {
         if ($d.CheckAccess()) { & $Action; return }
     } catch {}
 
-    $sb  = $Action
-    $act = [Action]{ & $sb }
+    $sb = $Action
+    $actScript = { & $sb }.GetNewClosure()
+    $act = [Action]$actScript
 
     try {
         $null = $d.Invoke($act, $Priority)

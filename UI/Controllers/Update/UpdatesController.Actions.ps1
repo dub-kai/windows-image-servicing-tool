@@ -53,6 +53,24 @@ function Invoke-AutoCatalogSearchIfEnabled {
         return
     }
 
+    $catalogSupported = $true
+    try {
+        if ($script:updateContext.PSObject.Properties.Match('CatalogSearchSupported').Count -gt 0) {
+            $catalogSupported = [bool]$script:updateContext.CatalogSearchSupported
+        }
+    } catch { $catalogSupported = $true }
+
+    if (-not $catalogSupported) {
+        $reason = 'nicht geeignet'
+        try {
+            if ($script:updateContext.PSObject.Properties.Match('CatalogSkipReason').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$script:updateContext.CatalogSkipReason)) {
+                $reason = [string]$script:updateContext.CatalogSkipReason
+            }
+        } catch {}
+        try { Write-Log -Level INFO -Message ('AutoCatalog: skipped ({0}).' -f $reason) } catch {}
+        return
+    }
+
     $queries = @($script:updateContext.CatalogQueries | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
     if ($queries.Count -le 0) {
         try { Write-Log -Level INFO -Message 'AutoCatalog: skipped (keine Queries).' } catch {}
@@ -408,6 +426,24 @@ function Invoke-CatalogSearchUi {
 
     if ($null -eq $script:updateContext) {
         Show-UiInfo -Message 'Es ist aktuell kein gemountetes Image verfuegbar.' -Title 'Updates'
+        return
+    }
+
+    $catalogSupported = $true
+    try {
+        if ($script:updateContext.PSObject.Properties.Match('CatalogSearchSupported').Count -gt 0) {
+            $catalogSupported = [bool]$script:updateContext.CatalogSearchSupported
+        }
+    } catch { $catalogSupported = $true }
+
+    if (-not $catalogSupported) {
+        $reason = 'Dieses Image ist fuer die automatische Catalog-Suche nicht geeignet.'
+        try {
+            if ($script:updateContext.PSObject.Properties.Match('CatalogSkipReason').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$script:updateContext.CatalogSkipReason)) {
+                $reason = [string]$script:updateContext.CatalogSkipReason
+            }
+        } catch {}
+        Show-UiInfo -Message $reason -Title 'Updates'
         return
     }
 

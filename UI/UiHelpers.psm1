@@ -30,12 +30,16 @@ function New-BitmapImageFromFile {
 }
 
 function Show-UiError {
-    param([string]$Message,[string]$Title="Fehler")
+    param(
+        [string]$Message,
+        [string]$Title = "Fehler",
+        $ErrorRecord = $null
+    )
 
-    # -> WICHTIG: Fehler + Stack ins Log schreiben, damit wir die echte Zeile sehen
+    # Fehler + Stack ins Log schreiben. Nur explizit übergebene ErrorRecords nutzen,
+    # damit alte $global:Error-Einträge keine falsche Ursache vortäuschen.
     try {
-        $er = $null
-        if ($global:Error.Count -gt 0) { $er = $global:Error[0] }
+        $er = $ErrorRecord
 
         $stack = $null
         $exmsg = $null
