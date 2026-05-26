@@ -156,6 +156,19 @@
                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                   VirtualizingPanel.IsVirtualizing="True"
                   VirtualizingPanel.VirtualizationMode="Recycling">
+          <ListView.ContextMenu>
+            <ContextMenu>
+              <MenuItem Name="MiDriverAddDrivers" Header="Treiber hinzufügen..." />
+              <MenuItem Name="MiDriverRemoveSelected" Header="Ausgewählte Treiber entfernen" />
+              <Separator />
+              <MenuItem Name="MiDriverRefreshMounts" Header="Mounts aktualisieren" />
+              <MenuItem Name="MiDriverReloadDrivers" Header="Treiberliste neu laden" />
+              <MenuItem Name="MiDriverExportCsv" Header="Treiberliste als CSV exportieren" />
+              <Separator />
+              <MenuItem Name="MiDriverCopyPublishedName" Header="PublishedName kopieren" />
+              <MenuItem Name="MiDriverCopyOriginalFileName" Header="OriginalFileName kopieren" />
+            </ContextMenu>
+          </ListView.ContextMenu>
           <ListView.View>
             <GridView>
               <GridViewColumn Header="PublishedName" Width="120" DisplayMemberBinding="{Binding PublishedName}" />

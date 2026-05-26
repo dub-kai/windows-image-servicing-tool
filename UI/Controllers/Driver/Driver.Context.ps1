@@ -20,6 +20,14 @@
         BtnDriverRemoveSelected = $null
         BtnDriverExportCsv      = $null
 
+        MiDriverAddDrivers          = $null
+        MiDriverRemoveSelected      = $null
+        MiDriverRefreshMounts       = $null
+        MiDriverReloadDrivers       = $null
+        MiDriverExportCsv           = $null
+        MiDriverCopyPublishedName   = $null
+        MiDriverCopyOriginalFileName = $null
+
         ChkDriverAll           = $null
         ChkDriverRecurse       = $null
         ChkDriverForceUnsigned = $null
@@ -58,6 +66,21 @@
     $ctx["TxtDriverSelected"]  = Find-Ui -Root $p -Name "TxtDriverSelected"
 
     $ctx["LstDrivers"] = Find-Ui -Root $p -Name "LstDrivers"
+
+    foreach ($name in @(
+        "MiDriverAddDrivers",
+        "MiDriverRemoveSelected",
+        "MiDriverRefreshMounts",
+        "MiDriverReloadDrivers",
+        "MiDriverExportCsv",
+        "MiDriverCopyPublishedName",
+        "MiDriverCopyOriginalFileName"
+    )) {
+        try { $ctx[$name] = Find-Ui -Root $p -Name $name } catch { $ctx[$name] = $null }
+        if ((-not $ctx[$name]) -and $ctx["LstDrivers"]) {
+            try { $ctx[$name] = Find-ContextMenuItem -Owner $ctx["LstDrivers"] -Name $name } catch {}
+        }
+    }
 
     return $ctx
 }

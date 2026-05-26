@@ -86,10 +86,16 @@ function Refresh-DriverUI {
     if ($script:ctx["BtnDriverAddDrivers"]) {
         try { $script:ctx["BtnDriverAddDrivers"].IsEnabled = $canWork } catch {}
     }
+    if ($script:ctx["MiDriverAddDrivers"]) {
+        try { $script:ctx["MiDriverAddDrivers"].IsEnabled = $canWork } catch {}
+    }
 
     $canRemove = $canWork -and ($removableCount -gt 0)
     if ($script:ctx["BtnDriverRemoveSelected"]) {
         try { $script:ctx["BtnDriverRemoveSelected"].IsEnabled = $canRemove } catch {}
+    }
+    if ($script:ctx["MiDriverRemoveSelected"]) {
+        try { $script:ctx["MiDriverRemoveSelected"].IsEnabled = $canRemove } catch {}
     }
 
     $count = 0
@@ -105,6 +111,37 @@ function Refresh-DriverUI {
     $canExport = $canWork -and ($count -gt 0)
     if ($script:ctx["BtnDriverExportCsv"]) {
         try { $script:ctx["BtnDriverExportCsv"].IsEnabled = $canExport } catch {}
+    }
+    if ($script:ctx["MiDriverExportCsv"]) {
+        try { $script:ctx["MiDriverExportCsv"].IsEnabled = $canExport } catch {}
+    }
+
+    $canRefresh = (-not $script:isBusy) -and (-not (Get-ImageServicingBusy))
+    foreach ($menuKey in @("MiDriverRefreshMounts", "MiDriverReloadDrivers")) {
+        if ($script:ctx[$menuKey]) {
+            try { $script:ctx[$menuKey].IsEnabled = $canRefresh } catch {}
+        }
+    }
+
+    $canCopyPublished = $false
+    $canCopyOriginal = $false
+    if ($selCount -ge 1) {
+        $first = $selItems[0]
+        try {
+            $canCopyPublished = ($first.PSObject.Properties.Match("PublishedName").Count -gt 0) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$first.PublishedName))
+        } catch {}
+        try {
+            $canCopyOriginal = ($first.PSObject.Properties.Match("OriginalFileName").Count -gt 0) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$first.OriginalFileName))
+        } catch {}
+    }
+
+    if ($script:ctx["MiDriverCopyPublishedName"]) {
+        try { $script:ctx["MiDriverCopyPublishedName"].IsEnabled = $canCopyPublished } catch {}
+    }
+    if ($script:ctx["MiDriverCopyOriginalFileName"]) {
+        try { $script:ctx["MiDriverCopyOriginalFileName"].IsEnabled = $canCopyOriginal } catch {}
     }
 
     if ($script:ctx["TxtDriverCount"]) {

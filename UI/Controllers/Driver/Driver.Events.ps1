@@ -37,6 +37,29 @@ function Register-DriverEventHandlers {
         [Parameter(Mandatory)] $Context
     )
 
+    $copyDriverField = {
+        param([string]$FieldName)
+
+        try {
+            $item = $script:ctx["LstDrivers"].SelectedItem
+            if (-not $item) { return }
+
+            $value = $null
+            if ($item.PSObject.Properties.Match($FieldName).Count -gt 0) {
+                $value = [string]$item.$FieldName
+            }
+
+            if ([string]::IsNullOrWhiteSpace($value)) { return }
+
+            [System.Windows.Clipboard]::SetText($value)
+
+            $setStatus = $script:ctx["SetStatus"]
+            if ($setStatus) {
+                try { & $setStatus ("Driver: {0} kopiert: {1}" -f $FieldName, $value) } catch {}
+            }
+        } catch {}
+    }
+
     if ($Context["BtnDriverRefreshMounts"]) {
         $Context["BtnDriverRefreshMounts"].Add_Click({
             Refresh-DriverMountedList
@@ -119,6 +142,48 @@ function Register-DriverEventHandlers {
             try {
                 Refresh-DriverUI
             } catch {}
+        })
+    }
+
+    if ($Context["MiDriverRefreshMounts"]) {
+        $Context["MiDriverRefreshMounts"].Add_Click({
+            Refresh-DriverMountedList
+        })
+    }
+
+    if ($Context["MiDriverAddDrivers"]) {
+        $Context["MiDriverAddDrivers"].Add_Click({
+            Add-DriversFromFolderAsync
+        })
+    }
+
+    if ($Context["MiDriverRemoveSelected"]) {
+        $Context["MiDriverRemoveSelected"].Add_Click({
+            Remove-SelectedDriverAsync
+        })
+    }
+
+    if ($Context["MiDriverReloadDrivers"]) {
+        $Context["MiDriverReloadDrivers"].Add_Click({
+            Request-DriversReload -Reason "ContextMenu"
+        })
+    }
+
+    if ($Context["MiDriverExportCsv"]) {
+        $Context["MiDriverExportCsv"].Add_Click({
+            Export-DriversCsv
+        })
+    }
+
+    if ($Context["MiDriverCopyPublishedName"]) {
+        $Context["MiDriverCopyPublishedName"].Add_Click({
+            & $copyDriverField "PublishedName"
+        })
+    }
+
+    if ($Context["MiDriverCopyOriginalFileName"]) {
+        $Context["MiDriverCopyOriginalFileName"].Add_Click({
+            & $copyDriverField "OriginalFileName"
         })
     }
 
