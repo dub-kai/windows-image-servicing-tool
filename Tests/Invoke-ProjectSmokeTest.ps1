@@ -364,6 +364,71 @@ function Invoke-SmokeIsoCycle {
     }
 }
 
+function Invoke-SmokeIsoBuildFakeOscdimg {
+    Import-Module (Resolve-ProjectPath 'Services\IsoBuildService.psm1' -MustExist) -Force -DisableNameChecking
+
+    $fakeRoot = Join-Path $runDir 'IsoBuildFakeOscdimg'
+    $sourceRoot = Join-Path $fakeRoot 'source'
+    $workRoot = Join-Path $fakeRoot 'work'
+    $outDir = Join-Path $fakeRoot 'out'
+    $outputPath = Join-Path $outDir 'fake.iso'
+    $fakeExe = Join-Path $fakeRoot 'fake-oscdimg.exe'
+
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'boot') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'sources') -Force | Out-Null
+    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'boot\etfsboot.com') -Value 'fake boot sector' -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'sources\placeholder.txt') -Value 'fake Windows source' -Encoding ASCII
+
+    $fakeSource = @'
+using System;
+using System.IO;
+
+public class FakeOscdimg {
+    public static int Main(string[] args) {
+        for (int i = 0; i < 300; i++) {
+            Console.Out.WriteLine("stdout line " + i);
+            if ((i % 3) == 0) {
+                Console.Error.WriteLine("stderr line " + i);
+            }
+        }
+
+        if (args.Length > 0) {
+            string output = args[args.Length - 1].Trim('"');
+            string dir = Path.GetDirectoryName(output);
+            if (!String.IsNullOrEmpty(dir)) {
+                Directory.CreateDirectory(dir);
+            }
+            File.WriteAllText(output, "fake iso");
+        }
+
+        return 0;
+    }
+}
+'@
+
+    Add-Type -TypeDefinition $fakeSource -OutputType ConsoleApplication -OutputAssembly $fakeExe
+
+    $result = Build-WindowsIso `
+        -SourceRoot $sourceRoot `
+        -OutputPath $outputPath `
+        -OscdimgPath $fakeExe `
+        -WorkingRoot $workRoot `
+        -VolumeLabel 'SMOKE_FAKE'
+
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+        throw "Fake ISO was not created: $outputPath"
+    }
+
+    return [pscustomobject]@{
+        OutputPath = $result.OutputPath
+        StageRoot  = $result.StageRoot
+        Command    = $result.OscdimgCommand
+        SizeBytes  = (Get-Item -LiteralPath $outputPath).Length
+    }
+}
+
 function Invoke-SmokeFeatureMount {
     Import-Module (Resolve-ProjectPath 'Services\DismService.psm1' -MustExist) -Force -DisableNameChecking
     Import-Module (Resolve-ProjectPath 'Services\MountService.psm1' -MustExist) -Force -DisableNameChecking
@@ -520,6 +585,10 @@ try {
 
     Invoke-SmokeStep 'ADK status detection' {
         Get-AdkStatus
+    }
+
+    Invoke-SmokeStep 'ISO build fake oscdimg' {
+        Invoke-SmokeIsoBuildFakeOscdimg
     }
 
     Invoke-SmokeStep 'Mounted ISO detection' {
