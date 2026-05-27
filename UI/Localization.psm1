@@ -283,6 +283,202 @@ $script:UiTranslations = @{
     }
 }
 
+$script:UiStaticTextTranslations = @'
+Key;de;en
+StaticMountStep;1. Mount wählen;1. Select mount
+StaticBuildIsoStep;1. Neue ISO bauen;1. Build new ISO
+StaticBuildInstallStep;2. Ein gemeinsames Install-Image bauen;2. Build one combined install image
+StaticFindUpdateStep;2. Update finden;2. Find update
+StaticApplyStep;3. Anwenden;3. Apply
+StaticUsbStep;3. USB-Stick vorbereiten;3. Prepare USB stick
+StaticAdkRoot;ADK Root:;ADK root:
+StaticAdmin;Admin:;Admin:
+StaticAction;Aktion;Action
+StaticActions;Aktionen;Actions
+StaticActiveMounts;Aktive Mounts;Active mounts
+StaticCurrentSource;Aktuelle Quelle;Current source
+StaticCurrentBuild;Aktueller Build;Current build
+StaticDashboardSubtitle;Aktueller Stand, nächste sinnvolle Aktion und die wichtigsten Wege durchs Tool.;Current state, next useful action, and the most important paths through the tool.
+StaticCurrentAppLog;Aktuelles App-Log;Current app log
+StaticSelectAllIndexes;Alle Indexe auswählen;Select all indexes
+StaticAllPackages;Alle Pakete;All packages
+StaticAllResults;Alle Treffer;All results
+StaticAllDrivers;Alle Treiber (inkl. Inbox);All drivers (including inbox)
+StaticDismBatchChanged;Änderungen gelten für neue DISM-Aufgaben.;Changes apply to new DISM tasks.
+StaticViewSearch;Ansicht & Suche;View & search
+StaticView;Ansicht:;View:
+StaticUsbCopy;Auf USB kopieren;Copy to USB
+StaticRemoveSelectedDrivers;Ausgewählte Treiber entfernen;Remove selected drivers
+StaticExportSelectedIndex;Ausgewählten Index exportieren;Export selected index
+StaticCommitSelection;Auswahl committen;Commit selection
+StaticRemoveSelection;Auswahl entfernen;Remove selection
+StaticMountSelection;Auswahl mounten;Mount selection
+StaticMountReadWriteSelection;Auswahl Read/Write mounten;Mount selection read/write
+StaticMountReadOnlySelection;Auswahl ReadOnly mounten;Mount selection read-only
+StaticDiscardSelection;Auswahl verwerfen / bereinigen;Discard / clean selection
+StaticNoIndexSelected;Auswahl: Noch kein Index ausgewählt.;Selection: no index selected yet.
+StaticBaseIso;Basis-ISO:;Base ISO:
+StaticBatchCheck;Batch prüfen;Check batch
+StaticBatchPreflight;Batch vorher prüfen;Preflight batch
+StaticBatchMountsLoading;Batch: Mounts werden geladen.;Batch: loading mounts.
+StaticBatchUnmountPause;Batch-Unmount-Pause:;Batch unmount pause:
+StaticReady;Bereit;Ready
+StaticPleaseWait;Bitte warten...;Please wait...
+StaticResetBoot;Boot zurücksetzen;Reset boot
+StaticChooseBootWim;boot.wim wählen;Choose boot.wim
+StaticBuildCancel;Build abbrechen;Cancel build
+StaticBuildMode;Build-Modus;Build mode
+StaticCatalogOpen;Catalog noch offen.;Catalog still open.
+StaticCatalogSearch;Catalog suchen;Search Catalog
+StaticCatalogResults;Catalog-Treffer;Catalog results
+StaticClear;Clear;Clear
+StaticCommitRetryCount;Commit-Retry-Anzahl:;Commit retry count:
+StaticCommitRetryPause;Commit-Retry-Pause:;Commit retry pause:
+StaticCommitTimeout;Commit-Timeout:;Commit timeout:
+StaticConfigFile;ConfigFile:;Config file:
+StaticCopy;Kopieren;Copy
+StaticUsbCopyDescription;Kopiert eine vorbereitete Windows-Quelle auf einen USB-Zielordner. Sicherer erster Schritt: Es wird nichts formatiert und nichts gelöscht.;Copies a prepared Windows source to a USB target folder. Safe first step: nothing is formatted or deleted.
+StaticChooseFiles;Dateien wählen;Choose files
+StaticCommitRefreshPause;Kurze Pause nach Mount-Listen-Refresh vor Commit.;Short pause after refreshing the mount list before commit.
+StaticElapsed;Laufzeit: 00:00;Elapsed: 00:00
+StaticSize;Größe:;Size:
+StaticCleanupEmptyMountFolders;Leere Mount-Ordner bereinigen;Clean empty mount folders
+StaticLastError;Letzter Fehler;Last error
+StaticLogFile;Logdatei:;Log file:
+StaticLogFolderOpen;Log-Ordner öffnen;Open log folder
+StaticLogsRefresh;Logs aktualisieren;Refresh logs
+StaticLogsNotLoaded;Logs: noch nicht geladen.;Logs: not loaded yet.
+StaticLogPreview;Log-Vorschau;Log preview
+StaticAddLocalMsuCab;Lokale MSU/CAB hinzufügen;Add local MSU/CAB
+StaticMaintenanceHealth;Maintenance & Health;Maintenance & health
+StaticHealthHintShort;Maintenance-Aktionen bleiben bewusst vorsichtig: Unmount nutzt immer Discard, und die Bereinigung entfernt nur leere Unterordner unterhalb des aktiven MountRoot.;Maintenance actions intentionally stay cautious: unmount always uses Discard, and cleanup removes only empty subfolders below the active MountRoot.
+StaticMount;Mount:;Mount:
+StaticMountDash;Mount: -;Mount: -
+StaticMountAssistant;Mount-Assistent: Wähle einen Index, um den Plan zu prüfen.;Mount assistant: select an index to check the plan.
+StaticMountDirCopy;MountDir kopieren;Copy MountDir
+StaticMountDir;MountDir:;MountDir:
+StaticSelectMountedImage;Mounted Image auswählen;Select mounted image
+StaticMountRefreshWait;Mount-Refresh-Wartezeit:;Mount refresh wait:
+StaticMountsRefresh;Mounts aktualisieren;Refresh mounts
+StaticMountsChecking;Mounts werden geprüft.;Checking mounts.
+StaticMountsSelection;Mounts: 0 | Auswahl: -;Mounts: 0 | selection: -
+StaticMountStatusNotLoaded;Mount-Status: noch nicht geladen.;Mount status: not loaded yet.
+StaticRefreshMountListHint;Aktualisiere die Mount-Liste oder wähle einen Mount aus.;Refresh the mount list or select a mount.
+StaticChooseMsuCab;MSU/CAB wählen;Choose MSU/CAB
+StaticNextSteps;Nächste Schritte;Next steps
+StaticBuildIso;Neue ISO bauen;Build new ISO
+StaticReadonlyDefault;Neue Mounts standardmäßig als ReadOnly anlegen;Create new mounts as read-only by default
+StaticNoBuildStarted;Noch kein Build gestartet.;No build started yet.
+StaticNoCatalogSelected;Noch kein Catalog-Treffer ausgewählt.;No Catalog result selected yet.
+StaticNoCatalogSearch;Noch keine Catalog-Suche ausgeführt.;No Catalog search run yet.
+StaticNoSourceFiles;Noch keine Quell-Dateien ausgewählt.;No source files selected yet.
+StaticNothingSelected;Noch nichts ausgewählt.;Nothing selected yet.
+StaticOnlyRealUpdates;Nur echte Updates;Only real updates
+StaticOnlyRecommended;Nur empfohlene Treffer;Only recommended results
+StaticOnlyKbPackages;Nur Pakete mit KB;Only packages with KB
+StaticOnlyImportantPackages;Nur wichtige Pakete;Only important packages
+StaticLoadFolder;Ordner laden;Load folder
+StaticChooseFolder;Ordner wählen;Choose folder
+StaticOriginalFileNameCopy;OriginalFileName kopieren;Copy OriginalFileName
+StaticPublishedNameCopy;PublishedName kopieren;Copy PublishedName
+StaticPackages;Pakete:;Packages:
+StaticPackagesZero;Pakete: 0;Packages: 0
+StaticProjectRoot;ProjectRoot:;Project root:
+StaticProjectStatusLoading;Projektstatus wird geladen...;Loading project status...
+StaticCheck;Prüfen;Check
+StaticSource;Quelle;Source
+StaticChooseSource;Quelle wählen;Choose source
+StaticSourceLabel;Quelle:;Source:
+StaticReadOnly;ReadOnly:;Read-only:
+StaticRecurse;Recurse (Unterordner);Recurse (subfolders)
+StaticRepairCheck;Reparatur prüfen;Check repair
+StaticSecondsDism;Sekunden für normale DISM-Befehle.;Seconds for normal DISM commands.
+StaticSecondsCommit;Sekunden für Unmount mit Commit. Große WIMs brauchen lange.;Seconds for unmount with commit. Large WIMs take a long time.
+StaticSecondsBatchPause;Sekunden Pause zwischen mehreren Commit-Unmounts.;Seconds to pause between multiple commit unmounts.
+StaticSecondsRetry;Sekunden zwischen Commit-Retrys.;Seconds between commit retries.
+StaticSelectedIndex;Selected Index:;Selected index:
+StaticSelected;Selected: -;Selected: -
+StaticStandaloneImages;Standalone Images;Standalone images
+StaticDefaultDismTimeout;Standard-DISM-Timeout:;Default DISM timeout:
+StaticDefaults;Standardwerte;Defaults
+StaticStartCatalogHint;Starte die Catalog-Suche oder füge eine lokale MSU/CAB hinzu.;Start a Catalog search or add a local MSU/CAB.
+StaticStatusUpper;STATUS;STATUS
+StaticRefreshStatus;Status aktualisieren;Refresh status
+StaticSearch;Suche:;Search:
+StaticUnmountTip;Tipp: Auswahl anklicken, dann Unmount.;Tip: select an item, then unmount.
+StaticDashboardTip;Tipp: Das Dashboard soll nur vorbereiten und orientieren. Die eigentliche Arbeit passiert danach in Images, Updates, Driver oder ISO bauen.;Tip: the dashboard is only for preparation and orientation. The actual work happens in Images, Updates, Drivers, or ISO build.
+StaticTitle;Titel;Title
+StaticCopyTitle;Titel kopieren;Copy title
+StaticSelectJobDetails;Job auswählen, um Details zu sehen.;Select a job to see details.
+StaticHits;Treffer:;Results:
+StaticHitsLocal;Treffer: 0 | Lokal: 0;Results: 0 | local: 0
+StaticResultDetails;Treffer-Details;Result details
+StaticDrivers;Treiber;Drivers
+StaticRemoveDriversSelected;Treiber entfernen (Selected);Remove drivers (selected)
+StaticExportDriversCsv;Treiber exportieren (CSV);Export drivers (CSV)
+StaticAddDriversFolder;Treiber hinzufügen (Ordner)...;Add drivers (folder)...
+StaticAddDrivers;Treiber hinzufügen...;Add drivers...
+StaticImageDrivers;Treiber im Image;Drivers in image
+StaticDriverCountZero;Treiber: 0;Drivers: 0
+StaticExportDriverListCsv;Treiberliste als CSV exportieren;Export driver list as CSV
+StaticReloadDriverList;Treiberliste neu laden;Reload driver list
+StaticType;Typ;Type
+StaticTypeLabel;Typ:;Type:
+StaticUpdatesLabel;Updates:;Updates:
+StaticChooseUsb;USB wählen;Choose USB
+StaticUsbTarget;USB-Ziel:;USB target:
+StaticPreview;Vorschau:;Preview:
+StaticIntegrateSelectionHint;Wähle einen Treffer und integriere ihn in einen passenden Read/Write-Mount.;Select a result and integrate it into a suitable read/write mount.
+StaticIntegrateSelectedMount;In ausgewählten Mount integrieren;Integrate into selected mount
+StaticIntegrateAllMounts;In alle passenden Mounts integrieren;Integrate into all matching mounts
+StaticTools;Werkzeuge;Tools
+StaticDismLockWait;Wie lange ein Befehl auf den DISM-Mutex wartet.;How long a command waits for the DISM mutex.
+StaticRetryLockedWim;Wiederholungen bei gesperrter WIM oder Registry-Handles.;Retries for locked WIMs or registry handles.
+StaticAddWimEsd;WIM/ESD hinzufügen;Add WIM/ESD
+StaticWimEsdIndexes;WIM/ESD Indexe;WIM/ESD indexes
+StaticSaveWimEsd;WIM/ESD speichern;Save WIM/ESD
+StaticChooseWimEsd;WIM/ESD wählen;Choose WIM/ESD
+StaticLoadIndexes;Indexe laden;Load indexes
+StaticReloadIndexes;Indexe neu laden;Reload indexes
+StaticCopyImagePath;Image-Pfad kopieren;Copy image path
+StaticWinPeRoot;WinPE Root:;WinPE root:
+StaticTime;Zeit;Time
+StaticTimeLabel;Zeit:;Time:
+StaticState;Zustand;State
+StaticSourceIsoDescription;Die gemountete Windows-ISO ist die Grundlage. Du kannst bei Bedarf ein anderes Install-Image oder eine andere boot.wim einsetzen und daraus eine neue bootfähige ISO bauen.;The mounted Windows ISO is the base. If needed, you can use a different install image or another boot.wim to build a new bootable ISO.
+StaticUsbHint;Hinweis: Für UEFI-Boot muss der Stick passend vorbereitet sein. Das Tool kopiert hier nur Dateien.;Note: for UEFI boot, the stick must be prepared appropriately. This tool only copies files here.
+StaticSuitabilityLoading;Eignung: Mount-Kontext wird geladen.;Suitability: loading mount context.
+StaticDismBatchGroup;DISM & Batch-Verhalten;DISM & batch behavior
+StaticDismBatchSave;DISM/Batch speichern;Save DISM/batch settings
+StaticDismLockTimeout;DISM-Lock-Timeout:;DISM lock timeout:
+StaticBootImage;Boot-Image:;Boot image:
+StaticInstallImage;Install-Image:;Install image:
+StaticChooseInstallImage;Install-Image wählen;Choose install image
+StaticBuildInstallImage;Install-Image bauen;Build install image
+StaticInstalledPackages;Installierte Pakete;Installed packages
+StaticResetInstall;Install zurücksetzen;Reset install
+StaticResetBootImage;Boot zurücksetzen;Reset boot
+StaticBuildInstallEsd;install.esd bauen (kleiner, kann bei großen Images sehr lange dauern);Build install.esd (smaller, can take a very long time with large images)
+StaticBuildInstallWim;install.wim bauen (empfohlen, deutlich schneller, Datei größer);Build install.wim (recommended, much faster, larger file)
+StaticMountedImagesGerman;Gemountete Images;Mounted images
+StaticMountedImages;Mounted Images;Mounted images
+StaticIsoSources;ISO Quellen;ISO sources
+StaticIsoBuild;ISO bauen;Build ISO
+StaticUnmountIso;ISO aushängen;Dismount ISO
+StaticMountIso;ISO mounten;Mount ISO
+StaticChooseIso;ISO wählen;Choose ISO
+StaticMountedImageDrivers;Treiber im Image;Drivers in image
+StaticLocalMsuCab;MSU/CAB;MSU/CAB
+'@ | ConvertFrom-Csv -Delimiter ';'
+
+foreach ($row in @($script:UiStaticTextTranslations)) {
+    $key = [string]$row.Key
+    if ([string]::IsNullOrWhiteSpace($key)) { continue }
+
+    $script:UiTranslations['de'][$key] = [string]$row.de
+    $script:UiTranslations['en'][$key] = [string]$row.en
+}
+
 function Get-LocalizationConfigValue {
     param(
         [Parameter(Mandatory)][string]$Key,
@@ -391,6 +587,109 @@ function Set-UiElementText {
     }
 }
 
+function Set-LocalizedElementProperty {
+    param(
+        [Parameter(Mandatory)]$Element,
+        [Parameter(Mandatory)][string]$PropertyName,
+        [Parameter(Mandatory)][string]$Language
+    )
+
+    if (-not $Element) { return }
+    if ($Element.PSObject.Properties.Match($PropertyName).Count -lt 1) { return }
+
+    $value = $null
+    try { $value = $Element.$PropertyName } catch { return }
+    if ($value -isnot [string]) { return }
+    if ([string]::IsNullOrWhiteSpace([string]$value)) { return }
+
+    $localized = Get-LocalizedText -Text ([string]$value) -Language $Language
+    if ($localized -ne [string]$value) {
+        try { $Element.$PropertyName = $localized } catch {}
+    }
+}
+
+function Add-LocalizationChild {
+    param(
+        [Parameter(Mandatory)][System.Collections.Queue]$Queue,
+        [AllowNull()]$Child
+    )
+
+    if ($null -ne $Child -and ($Child -isnot [string])) {
+        try { $Queue.Enqueue($Child) } catch {}
+    }
+}
+
+function Add-LocalizationChildren {
+    param(
+        [Parameter(Mandatory)][System.Collections.Queue]$Queue,
+        [Parameter(Mandatory)]$Element
+    )
+
+    try { Add-LocalizationChild -Queue $Queue -Child $Element.ContextMenu } catch {}
+    try { Add-LocalizationChild -Queue $Queue -Child $Element.ToolTip } catch {}
+    try { Add-LocalizationChild -Queue $Queue -Child $Element.Content } catch {}
+    try { Add-LocalizationChild -Queue $Queue -Child $Element.Header } catch {}
+    try { Add-LocalizationChild -Queue $Queue -Child $Element.View } catch {}
+
+    try {
+        foreach ($column in @($Element.Columns)) {
+            Add-LocalizationChild -Queue $Queue -Child $column
+        }
+    } catch {}
+
+    try {
+        foreach ($column in @($Element.View.Columns)) {
+            Add-LocalizationChild -Queue $Queue -Child $column
+        }
+    } catch {}
+
+    try {
+        foreach ($item in @($Element.Items)) {
+            Add-LocalizationChild -Queue $Queue -Child $item
+        }
+    } catch {}
+
+    try {
+        foreach ($child in [System.Windows.LogicalTreeHelper]::GetChildren($Element)) {
+            Add-LocalizationChild -Queue $Queue -Child $child
+        }
+    } catch {}
+
+    try {
+        if ($Element -is [System.Windows.DependencyObject]) {
+            $count = [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($Element)
+            for ($i = 0; $i -lt $count; $i++) {
+                Add-LocalizationChild -Queue $Queue -Child ([System.Windows.Media.VisualTreeHelper]::GetChild($Element, $i))
+            }
+        }
+    } catch {}
+}
+
+function Apply-LocalizationByCurrentText {
+    param(
+        [Parameter(Mandatory)]$Root,
+        [Parameter(Mandatory)][string]$Language
+    )
+
+    $queue = New-Object System.Collections.Queue
+    $seen = New-Object 'System.Collections.Generic.HashSet[int]'
+    Add-LocalizationChild -Queue $queue -Child $Root
+
+    while ($queue.Count -gt 0) {
+        $element = $queue.Dequeue()
+        if ($null -eq $element) { continue }
+
+        $hash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($element)
+        if (-not $seen.Add($hash)) { continue }
+
+        foreach ($propertyName in @('Title', 'Text', 'Content', 'Header', 'ToolTip')) {
+            Set-LocalizedElementProperty -Element $element -PropertyName $propertyName -Language $Language
+        }
+
+        Add-LocalizationChildren -Queue $queue -Element $element
+    }
+}
+
 function Apply-LocalizationToRoot {
     [CmdletBinding()]
     param(
@@ -475,6 +774,8 @@ function Apply-LocalizationToRoot {
             Set-UiElementText -Element $element -PropertyName $propertyName -Text (Get-UiString -Key $textKey -Language $Language)
         }
     }
+
+    Apply-LocalizationByCurrentText -Root $Root -Language $Language
 }
 
 Export-ModuleMember -Function `
