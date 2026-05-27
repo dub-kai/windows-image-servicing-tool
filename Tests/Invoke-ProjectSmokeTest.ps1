@@ -373,6 +373,7 @@ function Invoke-SmokeIsoBuildFakeOscdimg {
     $outDir = Join-Path $fakeRoot 'out'
     $outputPath = Join-Path $outDir 'fake.iso'
     $fakeExe = Join-Path $fakeRoot 'fake-oscdimg.exe'
+    $fakeFailExe = Join-Path $fakeRoot 'fake-oscdimg-fail.exe'
 
     New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'boot') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'sources') -Force | Out-Null
@@ -421,11 +422,48 @@ public class FakeOscdimg {
         throw "Fake ISO was not created: $outputPath"
     }
 
+    $fakeFailSource = @'
+using System;
+
+public class FakeOscdimgFail {
+    public static int Main(string[] args) {
+        Console.Out.WriteLine("fake stdout before failure");
+        Console.Error.WriteLine("fake stderr before failure");
+        return 7;
+    }
+}
+'@
+
+    Add-Type -TypeDefinition $fakeFailSource -OutputType ConsoleApplication -OutputAssembly $fakeFailExe
+
+    $failureMessage = $null
+    try {
+        Build-WindowsIso `
+            -SourceRoot $sourceRoot `
+            -OutputPath (Join-Path $outDir 'fake-fail.iso') `
+            -OscdimgPath $fakeFailExe `
+            -WorkingRoot (Join-Path $fakeRoot 'work-fail') `
+            -VolumeLabel 'SMOKE_FAIL' | Out-Null
+    } catch {
+        $failureMessage = $_.Exception.Message
+    }
+
+    if ([string]::IsNullOrWhiteSpace($failureMessage)) {
+        throw 'Fake oscdimg failure path did not fail.'
+    }
+
+    foreach ($expected in @('ExitCode=7', 'fake stdout before failure', 'fake stderr before failure')) {
+        if ($failureMessage -notmatch ([regex]::Escape($expected))) {
+            throw "Fake oscdimg failure output did not include: $expected"
+        }
+    }
+
     return [pscustomobject]@{
-        OutputPath = $result.OutputPath
-        StageRoot  = $result.StageRoot
-        Command    = $result.OscdimgCommand
-        SizeBytes  = (Get-Item -LiteralPath $outputPath).Length
+        OutputPath          = $result.OutputPath
+        StageRoot           = $result.StageRoot
+        Command             = $result.OscdimgCommand
+        SizeBytes           = (Get-Item -LiteralPath $outputPath).Length
+        FailurePathVerified = $true
     }
 }
 
