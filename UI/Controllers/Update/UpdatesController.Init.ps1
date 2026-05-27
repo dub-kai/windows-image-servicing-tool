@@ -28,6 +28,12 @@
     $btnIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrate'
     $btnIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogIntegrateAll'
     $btnPreflight = Find-Ui -Root $UpdatesPage -Name 'BtnCatalogPreflight'
+    $btnFlowRefresh = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowRefresh'
+    $btnFlowSearch = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowCatalogSearch'
+    $btnFlowAddLocal = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowAddLocal'
+    $btnFlowPreflight = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowPreflight'
+    $btnFlowIntegrate = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowIntegrate'
+    $btnFlowIntegrateAll = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesWorkflowIntegrateAll'
     $btnExportPkg = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportPackages'
     $btnExportCat = Find-Ui -Root $UpdatesPage -Name 'BtnUpdatesExportCatalog'
     $cmbMode      = Find-Ui -Root $UpdatesPage -Name 'CmbUpdatesFilterMode'
@@ -100,6 +106,20 @@
         })
     }
 
+    if ($btnFlowRefresh) {
+        $btnFlowRefresh.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Write-Log -Level INFO -Message 'Updates: Workflow Refresh'
+                Refresh-UpdatesUI
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Refresh fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
     if ($btnSearch) {
         $btnSearch.Add_Click({
             try {
@@ -113,6 +133,19 @@
         })
     }
 
+    if ($btnFlowSearch) {
+        $btnFlowSearch.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogSearchUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Catalog-Suche fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
     if ($btnAddLocal) {
         $btnAddLocal.Add_Click({
             try {
@@ -121,6 +154,19 @@
             } catch {
                 try {
                     Write-Log -Level WARN -Message ('Updates: Lokales Update konnte nicht hinzugefügt werden: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnFlowAddLocal) {
+        $btnFlowAddLocal.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Add-LocalUpdatePackageUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Lokalpaket fehlgeschlagen: {0}' -f $_.Exception.Message)
                 } catch {}
             }
         })
@@ -175,6 +221,45 @@
             try {
                 Update-SelectedCatalogDetails
             } catch {}
+        })
+    }
+
+    if ($btnFlowPreflight) {
+        $btnFlowPreflight.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogPreflightUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Preflight fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnFlowIntegrate) {
+        $btnFlowIntegrate.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogIntegrateUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Integration fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
+        })
+    }
+
+    if ($btnFlowIntegrateAll) {
+        $btnFlowIntegrateAll.Add_Click({
+            try {
+                if ($script:isBusy) { return }
+                Invoke-CatalogIntegrateAllUi
+            } catch {
+                try {
+                    Write-Log -Level WARN -Message ('Updates: Workflow Batch-Integration fehlgeschlagen: {0}' -f $_.Exception.Message)
+                } catch {}
+            }
         })
     }
 
