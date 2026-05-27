@@ -21,6 +21,60 @@ function Get-UpdatesDismPath {
     return $system32
 }
 
+function Import-UpdatesDismService {
+    $cmd = Get-Command Invoke-Dism -ErrorAction SilentlyContinue
+    if ($cmd) { return }
+
+    $dismServicePath = $null
+    try {
+        if (Get-Command Resolve-ProjectPath -ErrorAction SilentlyContinue) {
+            $dismServicePath = Resolve-ProjectPath 'Services\DismService.psm1' -MustExist
+        }
+    } catch {
+        $dismServicePath = $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($dismServicePath)) {
+        $candidate = Join-Path $PSScriptRoot '..\DismService.psm1'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            $dismServicePath = $candidate
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($dismServicePath) -or -not (Test-Path -LiteralPath $dismServicePath -PathType Leaf)) {
+        throw 'Invoke-Dism ist nicht verfügbar und DismService.psm1 konnte nicht gefunden werden.'
+    }
+
+    Import-Module $dismServicePath -Global -Force -DisableNameChecking | Out-Null
+}
+
+function ConvertTo-UpdatesDismResult {
+    param(
+        [Parameter(Mandatory)]$Result,
+        [Parameter(Mandatory)][string]$ArgString
+    )
+
+    $stdout = ''
+    $stderr = ''
+    try { $stdout = [string]$Result.StdOut } catch {}
+    try { $stderr = [string]$Result.StdErr } catch {}
+
+    $combined = (($stdout, $stderr) -join "`r`n").Trim()
+
+    $durationMs = 0
+    try { $durationMs = [int]$Result.DurationMs } catch { $durationMs = 0 }
+
+    return [pscustomobject]@{
+        ExitCode   = [int]$Result.ExitCode
+        StdOut     = $stdout
+        StdErr     = $stderr
+        Text       = $combined
+        Args       = $ArgString
+        Arguments  = $ArgString
+        DurationMs = $durationMs
+    }
+}
+
 function Test-UpdatesDismNeedsRemount {
     param(
         [int]$ExitCode,
@@ -46,54 +100,31 @@ function Invoke-UpdatesDismRemount {
         throw 'Remount nicht moeglich: MountDir ist leer.'
     }
 
-    $dism = Get-UpdatesDismPath
-    $argString = "/English /Remount-Image /MountDir:`"$MountDir`""
+    Import-UpdatesDismService
+
+    $args = @(
+        '/Remount-Image',
+        ('/MountDir:"{0}"' -f $MountDir)
+    )
+    $argString = '/English ' + ($args -join ' ')
 
     Write-UpdateLog -Level WARN -Message ("Updates: DISM-Remount wird versucht fuer {0}" -f $MountDir)
-    Write-UpdateLog -Level DEBUG -Message ("DISM: {0} {1}" -f $dism, $argString)
+    $raw = Invoke-Dism -Arguments $args -EnsureEnglish -TimeoutSec 1800
+    $result = ConvertTo-UpdatesDismResult -Result $raw -ArgString $argString
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $dism
-    $psi.Arguments = $argString
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
-    $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
-
-    $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo = $psi
-
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    $null = $proc.Start()
-    $stdout = $proc.StandardOutput.ReadToEnd()
-    $stderr = $proc.StandardError.ReadToEnd()
-    $proc.WaitForExit()
-    $sw.Stop()
-
-    $exitCode = $proc.ExitCode
-    $combined = (($stdout, $stderr) -join "`r`n").Trim()
-
-    if ($exitCode -ne 0) {
-        $msg = $combined
+    if ($result.ExitCode -ne 0) {
+        $msg = [string]$result.Text
         if ([string]::IsNullOrWhiteSpace($msg)) {
-            $msg = "DISM /Remount-Image fehlgeschlagen mit ExitCode $exitCode."
+            $msg = "DISM /Remount-Image fehlgeschlagen mit ExitCode $($result.ExitCode)."
         }
 
-        Write-UpdateLog -Level ERROR -Message ("Updates: DISM-Remount fehlgeschlagen ({0}ms) fuer {1} | ExitCode={2}" -f $sw.ElapsedMilliseconds, $MountDir, $exitCode)
-        throw ("{0}`nArgs={1}`nExitCode={2}" -f $msg, $argString, $exitCode)
+        Write-UpdateLog -Level ERROR -Message ("Updates: DISM-Remount fehlgeschlagen ({0}ms) fuer {1} | ExitCode={2}" -f $result.DurationMs, $MountDir, $result.ExitCode)
+        throw ("{0}`nArgs={1}`nExitCode={2}" -f $msg, $argString, $result.ExitCode)
     }
 
-    Write-UpdateLog -Level INFO -Message ("Updates: DISM-Remount erfolgreich ({0}ms) fuer {1}" -f $sw.ElapsedMilliseconds, $MountDir)
+    Write-UpdateLog -Level INFO -Message ("Updates: DISM-Remount erfolgreich ({0}ms) fuer {1}" -f $result.DurationMs, $MountDir)
 
-    return [pscustomobject]@{
-        ExitCode = $exitCode
-        StdOut   = $stdout
-        StdErr   = $stderr
-        Text     = $combined
-        Args     = $argString
-    }
+    return $result
 }
 
 function Invoke-UpdatesDism {
@@ -106,59 +137,29 @@ function Invoke-UpdatesDism {
         [bool]$AllowAutoRemount = $true
     )
 
-    $dism = Get-UpdatesDismPath
+    Import-UpdatesDismService
+
     $argString = ($Arguments -join ' ')
 
     for ($attempt = 0; $attempt -le $RetryCount; $attempt++) {
-        Write-UpdateLog -Level DEBUG -Message ("DISM: {0} {1}" -f $dism, $argString)
+        $raw = Invoke-Dism -Arguments $Arguments -EnsureEnglish
+        $result = ConvertTo-UpdatesDismResult -Result $raw -ArgString $argString
 
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = $dism
-        $psi.Arguments = $argString
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
-        $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
-
-        $proc = New-Object System.Diagnostics.Process
-        $proc.StartInfo = $psi
-
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        $null = $proc.Start()
-        $stdout = $proc.StandardOutput.ReadToEnd()
-        $stderr = $proc.StandardError.ReadToEnd()
-        $proc.WaitForExit()
-        $sw.Stop()
-
-        $exitCode = $proc.ExitCode
-        $combined = (($stdout, $stderr) -join "`r`n").Trim()
-
-        if ($exitCode -eq 0) {
-            Write-UpdateLog -Level DEBUG -Message ("DISM OK ({0}ms) Args={1}" -f $sw.ElapsedMilliseconds, $argString)
-            return [pscustomobject]@{
-                ExitCode = $exitCode
-                StdOut   = $stdout
-                StdErr   = $stderr
-                Text     = $combined
-                Args     = $argString
-            }
+        if ($result.ExitCode -eq 0) {
+            return $result
         }
 
         $shouldAutoRemount = (
             $AllowAutoRemount -and
             -not [string]::IsNullOrWhiteSpace($MountDir) -and
-            (Test-UpdatesDismNeedsRemount -ExitCode $exitCode -Text $combined)
+            (Test-UpdatesDismNeedsRemount -ExitCode $result.ExitCode -Text $result.Text)
         )
 
         if ($shouldAutoRemount) {
-            Write-UpdateLog -Level WARN -Message ("DISM ExitCode={0} ({1}ms) Args={2} | Remount-Recovery wird versucht" -f $exitCode, $sw.ElapsedMilliseconds, $argString)
-        } else {
-            Write-UpdateLog -Level ERROR -Message ("DISM ExitCode={0} ({1}ms) Args={2}" -f $exitCode, $sw.ElapsedMilliseconds, $argString)
+            Write-UpdateLog -Level WARN -Message ("DISM ExitCode={0} ({1}ms) Args={2} | Remount-Recovery wird versucht" -f $result.ExitCode, $result.DurationMs, $argString)
         }
 
-        if ($exitCode -eq 183 -and $attempt -lt $RetryCount) {
+        if ($result.ExitCode -eq 183 -and $attempt -lt $RetryCount) {
             Write-UpdateLog -Level WARN -Message ("{0}: DISM busy (183), Retry {1}/{2} fuer Args={3}" -f $RetryPrefix, ($attempt + 1), $RetryCount, $argString)
             Start-Sleep -Milliseconds $RetryDelayMs
             continue
@@ -181,12 +182,12 @@ function Invoke-UpdatesDism {
             return $retryResult
         }
 
-        $msg = $combined
+        $msg = [string]$result.Text
         if ([string]::IsNullOrWhiteSpace($msg)) {
-            $msg = "DISM fehlgeschlagen mit ExitCode $exitCode."
+            $msg = "DISM fehlgeschlagen mit ExitCode $($result.ExitCode)."
         }
 
-        throw ("{0}`nArgs={1}`nExitCode={2}" -f $msg, $argString, $exitCode)
+        throw ("{0}`nArgs={1}`nExitCode={2}" -f $msg, $argString, $result.ExitCode)
     }
 
     throw "DISM-Aufruf unerwartet beendet."
