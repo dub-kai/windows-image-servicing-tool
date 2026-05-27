@@ -730,166 +730,6 @@ function Invoke-CatalogIntegrateUi {
     $workCode = @"
 $preamble
 
-function Test-WorkerDismNeedsRemount {
-    param(
-        [int]`$ExitCode,
-        [AllowEmptyString()][string]`$Text
-    )
-
-    `$blob = [string]`$Text
-
-    if (`$ExitCode -eq -1051655916) { return `$true }
-    if (`$blob -match '0xc1510114') { return `$true }
-    if (`$blob -match 'needs to be remounted') { return `$true }
-    if (`$blob -match 'Remount the Wim') { return `$true }
-
-    return `$false
-}
-
-function Invoke-WorkerRemountImage {
-    param(
-        [Parameter(Mandatory)][string]`$MountDir
-    )
-
-    `$quotedMount = [char]34 + `$MountDir + [char]34
-
-    `$remount = Invoke-Dism -Arguments @(
-        '/Remount-Image',
-        ('/MountDir:' + `$quotedMount)
-    ) -EnsureEnglish -TimeoutSec 1800
-
-    if (`$remount.ExitCode -ne 0) {
-        `$msg = [string]`$remount.StdErr
-        if ([string]::IsNullOrWhiteSpace(`$msg)) {
-            `$msg = [string]`$remount.StdOut
-        }
-        if ([string]::IsNullOrWhiteSpace(`$msg)) {
-            `$msg = "DISM /Remount-Image fehlgeschlagen (ExitCode=`$(`$remount.ExitCode))."
-        }
-
-        throw "`$msg`nArgs=`$(`$remount.Arguments)`nExitCode=`$(`$remount.ExitCode)"
-    }
-
-    return `$remount
-}
-
-function Get-WorkerIntegratableFiles {
-    param(
-        `$DownloadResult
-    )
-
-    `$list = New-Object System.Collections.Generic.List[object]
-
-    if (`$null -ne `$DownloadResult) {
-        foreach (`$file in @(`$DownloadResult.Files)) {
-            if (`$null -eq `$file) { continue }
-
-            `$path = [string]`$file.LocalPath
-            if ([string]::IsNullOrWhiteSpace(`$path)) { continue }
-            if (-not (Test-Path -LiteralPath `$path)) { continue }
-
-            `$ext = [System.IO.Path]::GetExtension(`$path).ToLowerInvariant()
-            if (`$ext -notin @('.msu', '.cab')) { continue }
-
-            `$list.Add([pscustomobject]@{
-                LocalPath = `$path
-                FileName  = [System.IO.Path]::GetFileName(`$path)
-                Extension = `$ext
-                Source    = 'DownloadResult'
-            }) | Out-Null
-        }
-
-        `$downloadDir = [string]`$DownloadResult.DownloadDirectory
-        if (-not [string]::IsNullOrWhiteSpace(`$downloadDir) -and (Test-Path -LiteralPath `$downloadDir)) {
-            `$existingPaths = @{}
-            foreach (`$entry in @(`$list.ToArray())) {
-                `$existingPaths[[string]`$entry.LocalPath] = `$true
-            }
-
-            `$scan = Get-ChildItem -LiteralPath `$downloadDir -File -ErrorAction SilentlyContinue | Where-Object {
-                ([System.IO.Path]::GetExtension(`$_.FullName).ToLowerInvariant()) -in @('.msu', '.cab')
-            }
-
-            foreach (`$file in @(`$scan)) {
-                if (`$existingPaths.ContainsKey([string]`$file.FullName)) { continue }
-
-                `$list.Add([pscustomobject]@{
-                    LocalPath = [string]`$file.FullName
-                    FileName  = [string]`$file.Name
-                    Extension = [System.IO.Path]::GetExtension(`$file.FullName).ToLowerInvariant()
-                    Source    = 'DirectoryScan'
-                }) | Out-Null
-            }
-        }
-    }
-
-    `$ordered = @(
-        `$list.ToArray() | Sort-Object -Property @(
-            @{ Expression = {
-                if ([string]`$_.Extension -eq '.cab') { return 0 }
-                if ([string]`$_.Extension -eq '.msu') { return 1 }
-                return 9
-            }; Descending = `$false },
-            @{ Expression = { [string]`$_.FileName }; Descending = `$false }
-        )
-    )
-
-    return @(`$ordered)
-}
-
-function Invoke-WorkerAddPackageToMount {
-    param(
-        [Parameter(Mandatory)][string]`$MountDir,
-        [Parameter(Mandatory)][string]`$PackagePath
-    )
-
-    if (-not (Test-Path -LiteralPath `$PackagePath)) {
-        throw "Paketdatei nicht gefunden: `$PackagePath"
-    }
-
-    `$quotedMount   = [char]34 + `$MountDir + [char]34
-    `$quotedPackage = [char]34 + `$PackagePath + [char]34
-
-    `$args = @(
-        ('/Image:' + `$quotedMount),
-        '/Add-Package',
-        ('/PackagePath:' + `$quotedPackage)
-    )
-
-    `$res = Invoke-Dism -Arguments `$args -EnsureEnglish -TimeoutSec 7200
-    `$combined = (([string]`$res.StdOut) + "`r`n" + ([string]`$res.StdErr)).Trim()
-
-    if (`$res.ExitCode -ne 0 -and (Test-WorkerDismNeedsRemount -ExitCode `$res.ExitCode -Text `$combined)) {
-        Write-Log -Level WARN -Message ("Updates: Add-Package meldet Remount fuer {0}. Remount und Retry." -f `$MountDir)
-        `$null = Invoke-WorkerRemountImage -MountDir `$MountDir
-        Start-Sleep -Milliseconds 800
-
-        `$res = Invoke-Dism -Arguments `$args -EnsureEnglish -TimeoutSec 7200
-        `$combined = (([string]`$res.StdOut) + "`r`n" + ([string]`$res.StdErr)).Trim()
-    }
-
-    if (`$res.ExitCode -ne 0) {
-        `$msg = [string]`$res.StdErr
-        if ([string]::IsNullOrWhiteSpace(`$msg)) {
-            `$msg = [string]`$res.StdOut
-        }
-        if ([string]::IsNullOrWhiteSpace(`$msg)) {
-            `$msg = "DISM /Add-Package fehlgeschlagen (ExitCode=`$(`$res.ExitCode))."
-        }
-
-        throw "`$msg`nArgs=`$(`$res.Arguments)`nExitCode=`$(`$res.ExitCode)"
-    }
-
-    [pscustomobject]@{
-        PackagePath = `$PackagePath
-        FileName    = [System.IO.Path]::GetFileName(`$PackagePath)
-        ExitCode    = `$res.ExitCode
-        DurationMs  = `$res.DurationMs
-        Arguments   = `$res.Arguments
-        OutputText  = `$combined
-    }
-}
-
 `$mountDir = $mountPs
 `$updateId = $updateIdPs
 `$title    = $titlePs
@@ -905,33 +745,42 @@ if (-not (Test-Path -LiteralPath `$mountDir)) {
 
 Write-Log -Level INFO -Message ("Updates: Integration startet | Mount={0} | UpdateId={1} | KB={2}" -f `$mountDir, `$updateId, `$kb)
 
-`$downloadResult = Download-CatalogUpdate -UpdateId `$updateId -Title `$title -KB `$kb
-`$filesToIntegrate = @(Get-WorkerIntegratableFiles -DownloadResult `$downloadResult)
+`$integrationResult = Invoke-CatalogUpdateIntegration -MountDirs @(`$mountDir) -UpdateId `$updateId -Title `$title -KB `$kb
+`$mountResults = @(`$integrationResult.MountResults)
+`$mountResult = `$null
 
-if (`$filesToIntegrate.Count -le 0) {
-    throw 'Es wurde keine integrierbare .msu- oder .cab-Datei gefunden.'
+`$matchingMountResults = @(
+    `$mountResults | Where-Object { [string]`$_.MountDir -ieq `$mountDir }
+)
+if (`$matchingMountResults.Count -gt 0) {
+    `$mountResult = `$matchingMountResults[0]
+}
+elseif (`$mountResults.Count -gt 0) {
+    `$mountResult = `$mountResults[0]
 }
 
-`$integrated = New-Object System.Collections.Generic.List[object]
-
-foreach (`$file in `$filesToIntegrate) {
-    Write-Log -Level INFO -Message ("Updates: Add-Package -> {0}" -f [string]`$file.LocalPath)
-    `$result = Invoke-WorkerAddPackageToMount -MountDir `$mountDir -PackagePath ([string]`$file.LocalPath)
-    `$integrated.Add(`$result) | Out-Null
+if (`$mountResult -and [string]`$mountResult.Status -eq 'Failed') {
+    throw [string]`$mountResult.Message
 }
+if (`$mountResult -and [string]`$mountResult.Status -eq 'Skipped') {
+    throw ("Integration uebersprungen: {0}" -f [string]`$mountResult.Message)
+}
+
+`$integratedFiles = if (`$mountResult) { @(`$mountResult.IntegratedFiles) } else { @() }
 
 [pscustomobject]@{
     MountDir           = `$mountDir
     UpdateId           = `$updateId
     Title              = `$title
     KB                 = `$kb
-    DownloadDirectory  = [string]`$downloadResult.DownloadDirectory
-    FileCount          = [int]`$downloadResult.FileCount
-    DownloadedCount    = [int]`$downloadResult.DownloadedCount
-    SkippedCount       = [int]`$downloadResult.SkippedCount
-    IntegratableCount  = @(`$filesToIntegrate).Count
-    IntegratedCount    = @(`$integrated.ToArray()).Count
-    IntegratedFiles    = @(`$integrated.ToArray())
+    DownloadDirectory  = [string]`$integrationResult.DownloadDirectory
+    FileCount          = [int]`$integrationResult.FileCount
+    DownloadedCount    = [int]`$integrationResult.DownloadedCount
+    SkippedCount       = [int]`$integrationResult.SkippedCount
+    IntegratableCount  = [int]`$integrationResult.IntegratableCount
+    IntegratedCount    = @(`$integratedFiles).Count
+    IntegratedFiles    = @(`$integratedFiles)
+    MountResult        = `$mountResult
 }
 "@
 
