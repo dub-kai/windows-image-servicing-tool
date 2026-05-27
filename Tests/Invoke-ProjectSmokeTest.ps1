@@ -467,6 +467,53 @@ public class FakeOscdimgFail {
     }
 }
 
+function Invoke-SmokeImageCompositionPreflight {
+    Import-Module (Resolve-ProjectPath 'Services\ImageCompositionService.psm1' -MustExist) -Force -DisableNameChecking
+
+    $testRoot = Join-Path $runDir 'ImageCompositionPreflight'
+    $outputPath = Join-Path $testRoot 'existing-install.wim'
+    $missingSource = Join-Path $testRoot 'missing-source.wim'
+    $sentinel = 'existing image should survive preflight failure'
+
+    New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+    Set-Content -LiteralPath $outputPath -Value $sentinel -Encoding ASCII
+
+    $failureMessage = $null
+    try {
+        Build-CombinedInstallImage `
+            -ImageSpecs @([pscustomobject]@{
+                Path  = $missingSource
+                Index = 1
+                Name  = 'Missing Source'
+            }) `
+            -OutputPath $outputPath `
+            -Compression max | Out-Null
+    } catch {
+        $failureMessage = $_.Exception.Message
+    }
+
+    if ([string]::IsNullOrWhiteSpace($failureMessage)) {
+        throw 'Image composition preflight did not fail for a missing source image.'
+    }
+
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+        throw "Existing output was removed during preflight failure: $outputPath"
+    }
+
+    $actual = (Get-Content -LiteralPath $outputPath -Raw -Encoding ASCII).Trim()
+    if ($actual -ne $sentinel) {
+        throw "Existing output changed during preflight failure: $outputPath"
+    }
+
+    return [pscustomobject]@{
+        OutputPath      = $outputPath
+        MissingSource   = $missingSource
+        FailureObserved = $true
+        OutputPreserved = $true
+        Message         = $failureMessage
+    }
+}
+
 function Invoke-SmokeFeatureMount {
     Import-Module (Resolve-ProjectPath 'Services\DismService.psm1' -MustExist) -Force -DisableNameChecking
     Import-Module (Resolve-ProjectPath 'Services\MountService.psm1' -MustExist) -Force -DisableNameChecking
@@ -627,6 +674,10 @@ try {
 
     Invoke-SmokeStep 'ISO build fake oscdimg' {
         Invoke-SmokeIsoBuildFakeOscdimg
+    }
+
+    Invoke-SmokeStep 'Image composition preflight preserves output' {
+        Invoke-SmokeImageCompositionPreflight
     }
 
     Invoke-SmokeStep 'Mounted ISO detection' {
