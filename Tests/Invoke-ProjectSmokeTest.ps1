@@ -364,6 +364,156 @@ function Invoke-SmokeIsoCycle {
     }
 }
 
+function Invoke-SmokeIsoBuildFakeOscdimg {
+    Import-Module (Resolve-ProjectPath 'Services\IsoBuildService.psm1' -MustExist) -Force -DisableNameChecking
+
+    $fakeRoot = Join-Path $runDir 'IsoBuildFakeOscdimg'
+    $sourceRoot = Join-Path $fakeRoot 'source'
+    $workRoot = Join-Path $fakeRoot 'work'
+    $outDir = Join-Path $fakeRoot 'out'
+    $outputPath = Join-Path $outDir 'fake.iso'
+    $fakeExe = Join-Path $fakeRoot 'fake-oscdimg.exe'
+    $fakeFailExe = Join-Path $fakeRoot 'fake-oscdimg-fail.exe'
+
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'boot') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'sources') -Force | Out-Null
+    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'boot\etfsboot.com') -Value 'fake boot sector' -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'sources\placeholder.txt') -Value 'fake Windows source' -Encoding ASCII
+
+    $fakeSource = @'
+using System;
+using System.IO;
+
+public class FakeOscdimg {
+    public static int Main(string[] args) {
+        for (int i = 0; i < 300; i++) {
+            Console.Out.WriteLine("stdout line " + i);
+            if ((i % 3) == 0) {
+                Console.Error.WriteLine("stderr line " + i);
+            }
+        }
+
+        if (args.Length > 0) {
+            string output = args[args.Length - 1].Trim('"');
+            string dir = Path.GetDirectoryName(output);
+            if (!String.IsNullOrEmpty(dir)) {
+                Directory.CreateDirectory(dir);
+            }
+            File.WriteAllText(output, "fake iso");
+        }
+
+        return 0;
+    }
+}
+'@
+
+    Add-Type -TypeDefinition $fakeSource -OutputType ConsoleApplication -OutputAssembly $fakeExe
+
+    $result = Build-WindowsIso `
+        -SourceRoot $sourceRoot `
+        -OutputPath $outputPath `
+        -OscdimgPath $fakeExe `
+        -WorkingRoot $workRoot `
+        -VolumeLabel 'SMOKE_FAKE'
+
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+        throw "Fake ISO was not created: $outputPath"
+    }
+
+    $fakeFailSource = @'
+using System;
+
+public class FakeOscdimgFail {
+    public static int Main(string[] args) {
+        Console.Out.WriteLine("fake stdout before failure");
+        Console.Error.WriteLine("fake stderr before failure");
+        return 7;
+    }
+}
+'@
+
+    Add-Type -TypeDefinition $fakeFailSource -OutputType ConsoleApplication -OutputAssembly $fakeFailExe
+
+    $failureMessage = $null
+    try {
+        Build-WindowsIso `
+            -SourceRoot $sourceRoot `
+            -OutputPath (Join-Path $outDir 'fake-fail.iso') `
+            -OscdimgPath $fakeFailExe `
+            -WorkingRoot (Join-Path $fakeRoot 'work-fail') `
+            -VolumeLabel 'SMOKE_FAIL' | Out-Null
+    } catch {
+        $failureMessage = $_.Exception.Message
+    }
+
+    if ([string]::IsNullOrWhiteSpace($failureMessage)) {
+        throw 'Fake oscdimg failure path did not fail.'
+    }
+
+    foreach ($expected in @('ExitCode=7', 'fake stdout before failure', 'fake stderr before failure')) {
+        if ($failureMessage -notmatch ([regex]::Escape($expected))) {
+            throw "Fake oscdimg failure output did not include: $expected"
+        }
+    }
+
+    return [pscustomobject]@{
+        OutputPath          = $result.OutputPath
+        StageRoot           = $result.StageRoot
+        Command             = $result.OscdimgCommand
+        SizeBytes           = (Get-Item -LiteralPath $outputPath).Length
+        FailurePathVerified = $true
+    }
+}
+
+function Invoke-SmokeImageCompositionPreflight {
+    Import-Module (Resolve-ProjectPath 'Services\ImageCompositionService.psm1' -MustExist) -Force -DisableNameChecking
+
+    $testRoot = Join-Path $runDir 'ImageCompositionPreflight'
+    $outputPath = Join-Path $testRoot 'existing-install.wim'
+    $missingSource = Join-Path $testRoot 'missing-source.wim'
+    $sentinel = 'existing image should survive preflight failure'
+
+    New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+    Set-Content -LiteralPath $outputPath -Value $sentinel -Encoding ASCII
+
+    $failureMessage = $null
+    try {
+        Build-CombinedInstallImage `
+            -ImageSpecs @([pscustomobject]@{
+                Path  = $missingSource
+                Index = 1
+                Name  = 'Missing Source'
+            }) `
+            -OutputPath $outputPath `
+            -Compression max | Out-Null
+    } catch {
+        $failureMessage = $_.Exception.Message
+    }
+
+    if ([string]::IsNullOrWhiteSpace($failureMessage)) {
+        throw 'Image composition preflight did not fail for a missing source image.'
+    }
+
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+        throw "Existing output was removed during preflight failure: $outputPath"
+    }
+
+    $actual = (Get-Content -LiteralPath $outputPath -Raw -Encoding ASCII).Trim()
+    if ($actual -ne $sentinel) {
+        throw "Existing output changed during preflight failure: $outputPath"
+    }
+
+    return [pscustomobject]@{
+        OutputPath      = $outputPath
+        MissingSource   = $missingSource
+        FailureObserved = $true
+        OutputPreserved = $true
+        Message         = $failureMessage
+    }
+}
+
 function Invoke-SmokeFeatureMount {
     Import-Module (Resolve-ProjectPath 'Services\DismService.psm1' -MustExist) -Force -DisableNameChecking
     Import-Module (Resolve-ProjectPath 'Services\MountService.psm1' -MustExist) -Force -DisableNameChecking
@@ -520,6 +670,14 @@ try {
 
     Invoke-SmokeStep 'ADK status detection' {
         Get-AdkStatus
+    }
+
+    Invoke-SmokeStep 'ISO build fake oscdimg' {
+        Invoke-SmokeIsoBuildFakeOscdimg
+    }
+
+    Invoke-SmokeStep 'Image composition preflight preserves output' {
+        Invoke-SmokeImageCompositionPreflight
     }
 
     Invoke-SmokeStep 'Mounted ISO detection' {

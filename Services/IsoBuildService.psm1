@@ -171,13 +171,21 @@ function Update-IsoBuildImagesInStage {
     }
 }
 
+function ConvertTo-IsoBuildCommandArgument {
+    param([Parameter(Mandatory)][string]$Value)
+
+    if ($Value -notmatch '[\s"]') { return $Value }
+    return ('"{0}"' -f ($Value.Replace('"', '\"')))
+}
+
 function Invoke-OscdimgBuild {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$OscdimgPath,
         [Parameter(Mandatory)][string]$StageRoot,
         [Parameter(Mandatory)][string]$OutputPath,
-        [Parameter(Mandatory)][string]$VolumeLabel
+        [Parameter(Mandatory)][string]$VolumeLabel,
+        [int]$TimeoutSec = 0
     )
 
     $bootArg = Resolve-IsoBuildBootData -StageRoot $StageRoot
@@ -191,32 +199,79 @@ function Invoke-OscdimgBuild {
         $StageRoot,
         $OutputPath
     )
+    $displayArgs = @($args | ForEach-Object { ConvertTo-IsoBuildCommandArgument -Value ([string]$_) })
+    $argumentLine = [string]::Join(' ', $displayArgs)
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $OscdimgPath
-    $psi.Arguments = [string]::Join(' ', $args)
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+    $scriptPath = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), '.ps1')
+    $process = $null
+    $exitCode = $null
+    $stdout = ''
+    $stderr = ''
 
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
+    try {
+        $argLiteral = ($args | ForEach-Object {
+            "'" + ([string]$_).Replace("'", "''") + "'"
+        }) -join ', '
 
-    [void]$process.Start()
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
+        $scriptContent = @"
+`$ErrorActionPreference = 'Continue'
+`$exe = '$($OscdimgPath.Replace("'", "''"))'
+`$argv = @($argLiteral)
+& `$exe @argv 1> '$($stdoutPath.Replace("'", "''"))' 2> '$($stderrPath.Replace("'", "''"))'
+if (`$null -eq `$LASTEXITCODE) { exit 1 }
+exit `$LASTEXITCODE
+"@
+        [System.IO.File]::WriteAllText($scriptPath, $scriptContent, [System.Text.UTF8Encoding]::new($true))
 
-    if ($process.ExitCode -ne 0) {
-        throw ("oscdimg fehlgeschlagen (ExitCode={0}).`n`nSTDOUT:`n{1}`nSTDERR:`n{2}" -f $process.ExitCode, $stdout, $stderr)
+        $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        if (-not (Test-Path -LiteralPath $psExe -PathType Leaf)) { $psExe = 'powershell.exe' }
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $psExe
+        $psi.Arguments = ('-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $scriptPath.Replace('"','""'))
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $psi
+
+        [void]$process.Start()
+
+        if ($TimeoutSec -gt 0) {
+            $completed = $process.WaitForExit([int]($TimeoutSec * 1000))
+            if (-not $completed) {
+                try { $process.Kill() } catch {}
+                throw ("oscdimg Timeout nach {0}s.`nCommand: `"{1}`" {2}" -f $TimeoutSec, $OscdimgPath, $argumentLine)
+            }
+        } else {
+            $process.WaitForExit()
+        }
+
+        $exitCode = $process.ExitCode
+        if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+            $stdout = [System.IO.File]::ReadAllText($stdoutPath, [System.Text.Encoding]::UTF8)
+        }
+        if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            $stderr = [System.IO.File]::ReadAllText($stderrPath, [System.Text.Encoding]::UTF8)
+        }
+    } finally {
+        if ($process) { try { $process.Dispose() } catch {} }
+        if ($stdoutPath -and (Test-Path -LiteralPath $stdoutPath)) { try { Remove-Item -LiteralPath $stdoutPath -Force } catch {} }
+        if ($stderrPath -and (Test-Path -LiteralPath $stderrPath)) { try { Remove-Item -LiteralPath $stderrPath -Force } catch {} }
+        if ($scriptPath -and (Test-Path -LiteralPath $scriptPath)) { try { Remove-Item -LiteralPath $scriptPath -Force } catch {} }
+    }
+
+    if ($exitCode -ne 0) {
+        throw ("oscdimg fehlgeschlagen (ExitCode={0}).`n`nSTDOUT:`n{1}`nSTDERR:`n{2}" -f $exitCode, $stdout, $stderr)
     }
 
     return [pscustomobject]@{
-        ExitCode = $process.ExitCode
+        ExitCode = $exitCode
         StdOut   = $stdout
         StdErr   = $stderr
-        Command  = ('"{0}" {1}' -f $OscdimgPath, $psi.Arguments)
+        Command  = ('"{0}" {1}' -f $OscdimgPath, $argumentLine)
     }
 }
 

@@ -144,6 +144,32 @@ function Build-CombinedInstallImage {
         $null = New-Item -ItemType Directory -Path $scratchDir -Force
     }
 
+    $validatedItems = New-Object System.Collections.Generic.List[object]
+    foreach ($spec in $items) {
+        $path = [string](Get-ImageSpecValue -Spec $spec -Names @('Path', 'SourceImage', 'SourceImagePath'))
+        $indexRaw = Get-ImageSpecValue -Spec $spec -Names @('Index', 'SourceIndex', 'ImageIndex')
+
+        if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Quellimage nicht gefunden: $path"
+        }
+
+        $parsedIndex = 0
+        if ($null -eq $indexRaw -or -not [int]::TryParse([string]$indexRaw, [ref]$parsedIndex)) {
+            throw "Image-Index fehlt oder ist ungültig für: $path"
+        }
+
+        $displayName = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
+        if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = [System.IO.Path]::GetFileName($path) }
+
+        $validatedItems.Add([pscustomobject]@{
+            Path        = $path
+            Index       = $parsedIndex
+            DisplayName = $displayName
+            Name        = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
+            Description = [string](Get-ImageSpecValue -Spec $spec -Names @('Description', 'ImageDescription'))
+        }) | Out-Null
+    }
+
     if (Test-Path -LiteralPath $outputFull -PathType Leaf) {
         Remove-Item -LiteralPath $outputFull -Force
     }
@@ -154,23 +180,11 @@ function Build-CombinedInstallImage {
     Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Starting' -Current 0 -Total $items.Count -Message ("{0} wird vorbereitet..." -f $targetLabel) -OutputPath $outputFull -Hint $runningHint
 
     try {
-        foreach ($spec in $items) {
+        foreach ($item in @($validatedItems.ToArray())) {
             $position++
-            $path = [string](Get-ImageSpecValue -Spec $spec -Names @('Path', 'SourceImage', 'SourceImagePath'))
-            $indexRaw = Get-ImageSpecValue -Spec $spec -Names @('Index', 'SourceIndex', 'ImageIndex')
-
-            if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
-                throw "Quellimage nicht gefunden: $path"
-            }
-
-            $parsedIndex = 0
-            if ($null -eq $indexRaw -or -not [int]::TryParse([string]$indexRaw, [ref]$parsedIndex)) {
-                throw "Image-Index fehlt oder ist ungültig für: $path"
-            }
-            $index = $parsedIndex
-
-            $displayName = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
-            if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = [System.IO.Path]::GetFileName($path) }
+            $path = [string]$item.Path
+            $index = [int]$item.Index
+            $displayName = [string]$item.DisplayName
             $msg = ("Exportiere {0}/{1}: {2} (Index {3})" -f $position, $items.Count, $displayName, $index)
             Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exporting' -Current $position -Total $items.Count -Message $msg -OutputPath $outputFull -Hint $runningHint
 
@@ -229,8 +243,8 @@ function Build-CombinedInstallImage {
             $exported.Add([pscustomobject]@{
                 Path        = $path
                 Index       = $index
-                Name        = [string](Get-ImageSpecValue -Spec $spec -Names @('Name', 'ImageName'))
-                Description = [string](Get-ImageSpecValue -Spec $spec -Names @('Description', 'ImageDescription'))
+                Name        = [string]$item.Name
+                Description = [string]$item.Description
             }) | Out-Null
 
             Set-ImageCompositionProgress -ProgressPath $ProgressPath -Status 'Exported' -Current $position -Total $items.Count -Message ("Fertig: {0}" -f $displayName) -OutputPath $outputFull -Hint $runningHint
