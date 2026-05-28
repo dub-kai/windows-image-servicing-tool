@@ -286,6 +286,25 @@ $script:UiTranslations = @{
 $script:UiStaticTextTranslations = @'
 Key;de;en
 StaticMountStep;1. Mount wählen;1. Select mount
+StaticErrorTitle;Fehler;Error
+StaticInfoTitle;Hinweis;Note
+StaticNoValidMountDir;Kein gültiges MountDir ausgewählt.;No valid MountDir selected.
+StaticNoValidMountDirAscii;Kein gueltiges MountDir ausgewaehlt.;No valid MountDir selected.
+StaticSelectDriverFirst;Bitte zuerst einen oder mehrere Treiber auswählen.;Select one or more drivers first.
+StaticSelectIndexFirst;Bitte zuerst mindestens einen Index auswählen.;Select at least one index first.
+StaticNoMountedInstallMedia;Kein gemountetes Windows-Installmedium gefunden.;No mounted Windows installation media found.
+StaticSelectMountedImage;Bitte ein Mounted Image auswählen.;Select a mounted image first.
+StaticNoViewSelected;Keine Ansicht ausgewählt.;No view selected.
+StaticCommitNotPossible;Commit ist für diesen Mount nicht möglich.;Commit is not possible for this mount.
+StaticMountDirUnavailable;MountDir nicht ermittelbar.;Could not determine MountDir.
+StaticNoMountedImageAvailable;Es ist aktuell kein gemountetes Image verfuegbar.;No mounted image is currently available.
+StaticSelectCatalogFirstAscii;Bitte zuerst einen Catalog-Treffer auswaehlen.;Select a Catalog result first.
+StaticSelectCatalogFirst;Bitte zuerst einen Catalog-Treffer auswählen.;Select a Catalog result first.
+StaticNoUpdateIdDownloadAscii;Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht direkt heruntergeladen werden.;The selected entry has no UpdateId and cannot be downloaded directly.
+StaticNoUpdateIdIntegrateAscii;Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht integriert werden.;The selected entry has no UpdateId and cannot be integrated.
+StaticNoUpdateIdIntegrate;Der ausgewählte Eintrag hat keine UpdateId und kann nicht integriert werden.;The selected entry has no UpdateId and cannot be integrated.
+StaticNoValidMountSelectedAscii;Es ist aktuell kein gueltiger Mount ausgewaehlt.;No valid mount is currently selected.
+StaticMountReadOnlyAscii;Der ausgewaehlte Mount ist schreibgeschuetzt. Bitte ein Read/Write-Mount verwenden.;The selected mount is read-only. Use a read/write mount.
 StaticBuildIsoStep;1. Neue ISO bauen;1. Build new ISO
 StaticBuildInstallStep;2. Ein gemeinsames Install-Image bauen;2. Build one combined install image
 StaticFindUpdateStep;2. Update finden;2. Find update

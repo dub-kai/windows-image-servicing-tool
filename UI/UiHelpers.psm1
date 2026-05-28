@@ -56,12 +56,16 @@ function Show-UiError {
         Write-Log -Level ERROR -Message ("UI ERROR: {0}`nERRMSG: {1}`nSCRIPTSTACK:`n{2}`nCALLSTACK:`n{3}" -f $Message, $exmsg, $stack, $call) -ToConsole
     } catch {}
 
-    try { [System.Windows.MessageBox]::Show($Message,$Title,"OK","Error") | Out-Null } catch {}
+    $displayMessage = ConvertTo-UiHelperLocalizedText -Text $Message
+    $displayTitle = ConvertTo-UiHelperLocalizedText -Text $Title
+    try { [System.Windows.MessageBox]::Show($displayMessage,$displayTitle,"OK","Error") | Out-Null } catch {}
 }
 
 function Show-UiInfo {
     param([string]$Message,[string]$Title="Hinweis")
-    try { [System.Windows.MessageBox]::Show($Message,$Title,"OK","Information") | Out-Null } catch {}
+    $displayMessage = ConvertTo-UiHelperLocalizedText -Text $Message
+    $displayTitle = ConvertTo-UiHelperLocalizedText -Text $Title
+    try { [System.Windows.MessageBox]::Show($displayMessage,$displayTitle,"OK","Information") | Out-Null } catch {}
 }
 
 function Find-Ui {
