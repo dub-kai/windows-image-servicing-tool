@@ -324,6 +324,12 @@ StaticBatchMountsLoading;Batch: Mounts werden geladen.;Batch: loading mounts.
 StaticBatchUnmountPause;Batch-Unmount-Pause:;Batch unmount pause:
 StaticReady;Bereit;Ready
 StaticPleaseWait;Bitte warten...;Please wait...
+UiBusyDefaultMessage;Bitte warten...;Please wait...
+UiBusyElapsedFormat;Laufzeit: {0};Elapsed: {0}
+UiBusyDefaultDetail;Vorgang läuft. Bei großen Images kann DISM mehrere Minuten ohne sichtbare Dateigrößenänderung arbeiten.;Operation is running. With large images, DISM can work for several minutes without visible file size changes.
+UiBusyDefaultHint;Bitte nicht abbrechen, solange DISM CPU/Datenträger nutzt. Beim Abbruch kann ein Mount bereinigt werden müssen.;Do not cancel while DISM is using CPU or disk. After cancellation, a mount may need cleanup.
+UiBusyNoDismLog;Noch kein DISM-Logeintrag gelesen.;No DISM log entry read yet.
+UiBusyDismLine;DISM: {0};DISM: {0}
 StaticResetBoot;Boot zurücksetzen;Reset boot
 StaticChooseBootWim;boot.wim wählen;Choose boot.wim
 StaticBuildCancel;Build abbrechen;Cancel build
