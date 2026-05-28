@@ -286,6 +286,42 @@ $script:UiTranslations = @{
 $script:UiStaticTextTranslations = @'
 Key;de;en
 StaticMountStep;1. Mount wählen;1. Select mount
+UpdatesMountSelectionFormat;Mounts: {0} | Auswahl: {1};Mounts: {0} | selection: {1}
+UpdatesBatchNoMount;Batch: Kein Mount geladen. Bitte zuerst Images mounten oder aktualisieren.;Batch: no mount loaded. Mount or refresh images first.
+UpdatesBatchNoCatalog;kein Catalog-Treffer ausgewählt;no Catalog result selected
+UpdatesBatchCatalogSelected;Catalog-Treffer ausgewählt;Catalog result selected
+UpdatesBatchMoreTargets; + {0} weitere; + {0} more
+UpdatesBatchPlanFormat;Batch: {0}/{1} Mounts sind Read/Write. Update: {2}. Ziele: {3}{4};Batch: {0}/{1} mounts are read/write. Update: {2}. Targets: {3}{4}
+UpdatesCatalogResultFallback;Catalog-Treffer;Catalog result
+UpdatesNoMountsLoaded;Keine Mounts geladen;No mounts loaded
+UpdatesNoMountsDetail;Öffne Images, mounte ein Image oder klicke hier auf Refresh.;Open Images, mount an image, or click Refresh here.
+UpdatesNoSelection;keine Auswahl;no selection
+UpdatesMountStateFormat;{0} Mount(s), {1} Read/Write;{0} mount(s), {1} read/write
+UpdatesSelectionFormat;Auswahl: {0};Selection: {0}
+UpdatesMountNotSuitable;Dieser Mount ist nicht für Update-Integration geeignet.;This mount is not suitable for update integration.
+UpdatesStatusLoaded;Status geladen;Status loaded
+UpdatesCatalogOpen;Catalog noch offen;Catalog still open
+UpdatesCatalogVisibleFormat;{0} Treffer sichtbar;{0} results visible
+UpdatesCatalogSummaryFormat;Gesamt: {0} | empfohlen: {1};Total: {0} | recommended: {1}
+UpdatesCatalogSelectedFormat;Ausgewählt: {0};Selected: {0}
+UpdatesActionSelectUpdate;Update auswählen;Select update
+UpdatesActionBusy;Aktion läuft;Action running
+UpdatesActionBusyDetail;Bitte warten. Der Fortschritt steht im Busy-Bereich und im Log.;Please wait. Progress is shown in the busy area and in the log.
+UpdatesActionReady;Bereit zum Anwenden;Ready to apply
+UpdatesActionReadyDetail;{0} kann in {1} passende(n) Mount(s) integriert werden.;{0} can be integrated into {1} matching mount(s).
+UpdatesActionNoTarget;Kein Read/Write-Ziel;No read/write target
+UpdatesActionNoTargetDetail;Zum Integrieren brauchst du mindestens einen passenden Read/Write-Mount.;Integration needs at least one matching read/write mount.
+UpdatesActionSelectResult;Treffer auswählen;Select result
+UpdatesActionSelectResultDetail;Wähle einen Catalog-Treffer für Download, Preflight oder Integration.;Select a Catalog result for download, preflight, or integration.
+UpdatesBusyDetail;Updates oder Paketlisten werden verarbeitet. DISM kann bei großen Paketen mehrere Minuten benötigen.;Updates or package lists are being processed. DISM can take several minutes for large packages.
+UpdatesFooterLoadMountData;Mount-Daten laden. Danach kann die Catalog-Suche ausgefuehrt werden.;Loading mount data. Then the Catalog search can be run.
+UpdatesServiceNoMountContext;Eignung: Kein Mount-Kontext geladen.;Suitability: no mount context loaded.
+UpdatesMountReadyStatusFormat;Mount bereit | Produkt: {0} | Arch: {1} | Build: {2};Mount ready | product: {0} | arch: {1} | build: {2}
+UpdatesServiceStatusDefault;Eignung;Suitability
+UpdatesMountDataLoaded;Mount-Daten geladen.;Mount data loaded.
+UpdatesFooterCatalogReady;Mount-Daten geladen. Catalog-Suche kann gestartet werden.;Mount data loaded. Catalog search can be started.
+UpdatesBootWinPeReason;Boot-/WinPE-Image erkannt. Pakete werden angezeigt, aber die automatische Catalog-Suche ist deaktiviert.;Boot/WinPE image detected. Packages are shown, but automatic Catalog search is disabled.
+UpdatesServiceHintFormat;Eignung: {0} | {1};Suitability: {0} | {1}
 StaticErrorTitle;Fehler;Error
 StaticInfoTitle;Hinweis;Note
 StaticNoValidMountDir;Kein gültiges MountDir ausgewählt.;No valid MountDir selected.
