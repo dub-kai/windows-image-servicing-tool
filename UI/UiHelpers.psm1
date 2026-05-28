@@ -105,6 +105,21 @@ function Find-ContextMenuItem {
     return $null
 }
 
+function ConvertTo-UiHelperLocalizedText {
+    param([AllowNull()][string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+
+    try {
+        $cmd = Get-Command Get-LocalizedText -ErrorAction SilentlyContinue
+        if ($cmd) {
+            return (& $cmd -Text $Text)
+        }
+    } catch {}
+
+    return $Text
+}
+
 function Set-UiText {
     param(
         [Parameter(Mandatory)]$Root,
@@ -119,6 +134,7 @@ function Set-UiText {
     }
 
     $text = (Get-DisplayValue $Value)
+    $text = ConvertTo-UiHelperLocalizedText -Text $text
 
     if ($el.PSObject.Properties.Match("Text").Count -gt 0) { $el.Text = $text; return }
     if ($el.PSObject.Properties.Match("Content").Count -gt 0) { $el.Content = $text; return }
