@@ -36,6 +36,7 @@ $script:UiTranslations = @{
         SettingsMountReadOnly = "Neue Mounts standardmäßig als ReadOnly anlegen"
         SettingsNotifications = "Benachrichtigungen:"
         SettingsNotificationsEnabled = "Windows-Benachrichtigungen bei abgeschlossenen Jobs anzeigen"
+        SettingsTestNotification = "Test-Benachrichtigung"
         SettingsDebug = "Debug:"
         SettingsDebugEnabled = "Erweitertes Debug-Verhalten aktivieren"
         SettingsLangGerman = "Deutsch"
@@ -121,6 +122,10 @@ $script:UiTranslations = @{
         SettingsUpdatesDefaultsUpdated = "Settings: Updates-Standard aktualisiert"
         SettingsMountDefaultsUpdated = "Settings: Mount-Standard aktualisiert"
         SettingsNotificationsUpdated = "Settings: Benachrichtigungen aktualisiert"
+        SettingsTestNotificationSent = "Settings: Test-Benachrichtigung gesendet"
+        SettingsTestNotificationFailed = "Settings: Test-Benachrichtigung konnte nicht angezeigt werden"
+        NotificationTestTitle = "Windows Image Servicing Tool"
+        NotificationTestMessage = "Test-Benachrichtigung vom Windows Image Servicing Tool."
         SettingsDebugUpdated = "Settings: Debug-Standard aktualisiert"
         SettingsHealthAfterDebugChange = "Settings: Health nach Debug-Änderung aktualisiert"
         HealthAdminOk = "OK - App läuft mit Adminrechten"
@@ -173,6 +178,7 @@ $script:UiTranslations = @{
         SettingsMountReadOnly = "Create new mounts as read-only by default"
         SettingsNotifications = "Notifications:"
         SettingsNotificationsEnabled = "Show Windows notifications when jobs complete"
+        SettingsTestNotification = "Test notification"
         SettingsDebug = "Debug:"
         SettingsDebugEnabled = "Enable extended debug behavior"
         SettingsLangGerman = "German"
@@ -258,6 +264,10 @@ $script:UiTranslations = @{
         SettingsUpdatesDefaultsUpdated = "Settings: update default updated"
         SettingsMountDefaultsUpdated = "Settings: mount default updated"
         SettingsNotificationsUpdated = "Settings: notifications updated"
+        SettingsTestNotificationSent = "Settings: test notification sent"
+        SettingsTestNotificationFailed = "Settings: test notification could not be shown"
+        NotificationTestTitle = "Windows Image Servicing Tool"
+        NotificationTestMessage = "Test notification from Windows Image Servicing Tool."
         SettingsDebugUpdated = "Settings: debug default updated"
         SettingsHealthAfterDebugChange = "Settings: health refreshed after debug change"
         HealthAdminOk = "OK - app is running with admin rights"
@@ -867,6 +877,7 @@ function Apply-LocalizationToRoot {
         ChkSettingsImageMountReadOnlyDefault = @{ Content = 'SettingsMountReadOnly' }
         TxtSettingsNotificationsLabel = @{ Text = 'SettingsNotifications' }
         ChkSettingsNotificationsEnabled = @{ Content = 'SettingsNotificationsEnabled' }
+        BtnSettingsTestNotification = @{ Content = 'SettingsTestNotification' }
         TxtSettingsDebugLabel = @{ Text = 'SettingsDebug' }
         ChkSettingsAppDebug = @{ Content = 'SettingsDebugEnabled' }
         CmbItemStartPageDashboard = @{ Content = 'NavDashboard' }

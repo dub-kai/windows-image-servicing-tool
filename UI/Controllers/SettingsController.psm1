@@ -870,6 +870,7 @@ function Initialize-SettingsController {
         ChkSettingsUpdatesAutoCatalogDefault = $null
         ChkSettingsImageMountReadOnlyDefault = $null
         ChkSettingsNotificationsEnabled = $null
+        BtnSettingsTestNotification = $null
         ChkSettingsAppDebug = $null
 
         BtnSettingsDetectAdk = $null
@@ -938,6 +939,7 @@ function Initialize-SettingsController {
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
     $script:ctx.ChkSettingsNotificationsEnabled = Find-Ui -Root $p -Name 'ChkSettingsNotificationsEnabled'
+    $script:ctx.BtnSettingsTestNotification = Find-Ui -Root $p -Name 'BtnSettingsTestNotification'
     $script:ctx.ChkSettingsAppDebug = Find-Ui -Root $p -Name 'ChkSettingsAppDebug'
     $script:ctx.BtnSettingsDetectAdk = Find-Ui -Root $p -Name 'BtnSettingsDetectAdk'
     $script:ctx.BtnSettingsPickAdkRoot = Find-Ui -Root $p -Name 'BtnSettingsPickAdkRoot'
@@ -1166,6 +1168,27 @@ function Initialize-SettingsController {
             Save-SettingsValue -Key 'NotificationsEnabled' -Value $enabled -StatusMessage (Get-UiString -Key 'SettingsNotificationsUpdated')
             if ($enabled) {
                 try { Initialize-AppNotifications -ProjectRoot (Get-ProjectRoot) | Out-Null } catch {}
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsTestNotification) {
+        $script:ctx.BtnSettingsTestNotification.Add_Click({
+            try {
+                if ($script:ctx.ChkSettingsNotificationsEnabled -and $script:ctx.ChkSettingsNotificationsEnabled.IsChecked -ne $true) {
+                    $script:ctx.ChkSettingsNotificationsEnabled.IsChecked = $true
+                    Save-SettingsValue -Key 'NotificationsEnabled' -Value $true -StatusMessage (Get-UiString -Key 'SettingsNotificationsUpdated')
+                }
+
+                $shown = Show-AppToastNotification -Title (Get-UiString -Key 'NotificationTestTitle') -Message (Get-UiString -Key 'NotificationTestMessage') -Level Info
+                $statusKey = if ($shown) { 'SettingsTestNotificationSent' } else { 'SettingsTestNotificationFailed' }
+                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key $statusKey) } catch {} }
+
+                if (-not $shown) {
+                    Show-UiInfo -Title (Get-UiString -Key 'StaticInfoTitle') -Message (Get-UiString -Key 'SettingsTestNotificationFailed')
+                }
+            } catch {
+                Show-UiError -Message $_.Exception.Message
             }
         })
     }
