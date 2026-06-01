@@ -112,6 +112,8 @@ function Test-ConfigKeyPersistable {
         "UiLanguage",
         "AppDebug",
         "MountRoot",
+        "NotificationsEnabled",
+        "NotificationMinimumDurationSec",
         "DriverLoadAllDefault",
         "UpdatesAutoCatalogDefault",
         "ImageMountReadOnlyDefault",
@@ -149,6 +151,8 @@ function New-DefaultConfig {
         StartPage                 = "Dashboard"
         UiLanguage                = "de"
         AppDebug                  = $false
+        NotificationsEnabled      = $true
+        NotificationMinimumDurationSec = 20
         DriverLoadAllDefault      = $false
         UpdatesAutoCatalogDefault = $true
         ImageMountReadOnlyDefault = $true

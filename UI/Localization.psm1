@@ -34,6 +34,8 @@ $script:UiTranslations = @{
         SettingsAutoCatalog = "Catalog bei Mount-Wechsel automatisch laden"
         SettingsNewMounts = "Neue Mounts:"
         SettingsMountReadOnly = "Neue Mounts standardmäßig als ReadOnly anlegen"
+        SettingsNotifications = "Benachrichtigungen:"
+        SettingsNotificationsEnabled = "Windows-Benachrichtigungen bei abgeschlossenen Jobs anzeigen"
         SettingsDebug = "Debug:"
         SettingsDebugEnabled = "Erweitertes Debug-Verhalten aktivieren"
         SettingsLangGerman = "Deutsch"
@@ -118,6 +120,7 @@ $script:UiTranslations = @{
         SettingsDriverDefaultsUpdated = "Settings: Driver-Standard aktualisiert"
         SettingsUpdatesDefaultsUpdated = "Settings: Updates-Standard aktualisiert"
         SettingsMountDefaultsUpdated = "Settings: Mount-Standard aktualisiert"
+        SettingsNotificationsUpdated = "Settings: Benachrichtigungen aktualisiert"
         SettingsDebugUpdated = "Settings: Debug-Standard aktualisiert"
         SettingsHealthAfterDebugChange = "Settings: Health nach Debug-Änderung aktualisiert"
         HealthAdminOk = "OK - App läuft mit Adminrechten"
@@ -168,6 +171,8 @@ $script:UiTranslations = @{
         SettingsAutoCatalog = "Load Catalog automatically when mount changes"
         SettingsNewMounts = "New mounts:"
         SettingsMountReadOnly = "Create new mounts as read-only by default"
+        SettingsNotifications = "Notifications:"
+        SettingsNotificationsEnabled = "Show Windows notifications when jobs complete"
         SettingsDebug = "Debug:"
         SettingsDebugEnabled = "Enable extended debug behavior"
         SettingsLangGerman = "German"
@@ -252,6 +257,7 @@ $script:UiTranslations = @{
         SettingsDriverDefaultsUpdated = "Settings: driver default updated"
         SettingsUpdatesDefaultsUpdated = "Settings: update default updated"
         SettingsMountDefaultsUpdated = "Settings: mount default updated"
+        SettingsNotificationsUpdated = "Settings: notifications updated"
         SettingsDebugUpdated = "Settings: debug default updated"
         SettingsHealthAfterDebugChange = "Settings: health refreshed after debug change"
         HealthAdminOk = "OK - app is running with admin rights"
@@ -394,6 +400,10 @@ UpdatesPackagesExportEmpty;Aktuell sind keine sichtbaren Pakete zum Exportieren 
 UpdatesPackagesExportTitle;Pakete Export;Packages export
 UpdatesPackagesCsvFilter;CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*;CSV (*.csv)|*.csv|All files (*.*)|*.*
 UpdatesPackagesCsvExportedFormat;Pakete CSV exportiert: {0};Packages CSV exported: {0}
+NotificationJobCompletedTitle;Job abgeschlossen;Job complete
+NotificationJobCompletedMessageFormat;{0} abgeschlossen. Laufzeit: {1};{0} completed. Duration: {1}
+NotificationJobFailedTitle;Job fehlgeschlagen;Job failed
+NotificationJobFailedMessageFormat;{0} fehlgeschlagen. Laufzeit: {1}`n{2};{0} failed. Duration: {1}`n{2}
 StaticErrorTitle;Fehler;Error
 StaticInfoTitle;Hinweis;Note
 StaticNoValidMountDir;Kein gültiges MountDir ausgewählt.;No valid MountDir selected.
@@ -855,6 +865,8 @@ function Apply-LocalizationToRoot {
         ChkSettingsUpdatesAutoCatalogDefault = @{ Content = 'SettingsAutoCatalog' }
         TxtSettingsNewMountsLabel = @{ Text = 'SettingsNewMounts' }
         ChkSettingsImageMountReadOnlyDefault = @{ Content = 'SettingsMountReadOnly' }
+        TxtSettingsNotificationsLabel = @{ Text = 'SettingsNotifications' }
+        ChkSettingsNotificationsEnabled = @{ Content = 'SettingsNotificationsEnabled' }
         TxtSettingsDebugLabel = @{ Text = 'SettingsDebug' }
         ChkSettingsAppDebug = @{ Content = 'SettingsDebugEnabled' }
         CmbItemStartPageDashboard = @{ Content = 'NavDashboard' }

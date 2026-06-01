@@ -201,6 +201,7 @@ function Import-SmokeProjectModules {
         'UI\UiHelpers.psm1',
         'UI\UiAsync.psm1',
         'UI\Localization.psm1',
+        'UI\Notifications.psm1',
         'UI\Xaml.psm1',
         'UI\MainWindow.psm1'
     )

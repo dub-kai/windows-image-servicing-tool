@@ -8,6 +8,7 @@ if (-not $script:configModule) {
     $script:configModule = Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -DisableNameChecking -Global -PassThru
 }
 Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\Notifications.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking -Global
 
 $script:getConfigValueCommand = $null
@@ -834,6 +835,10 @@ function Refresh-SettingsUI {
             $script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked = Get-SettingsBoolValue -Key 'ImageMountReadOnlyDefault' -Default $true
         }
 
+        if ($script:ctx.ChkSettingsNotificationsEnabled) {
+            $script:ctx.ChkSettingsNotificationsEnabled.IsChecked = Get-SettingsBoolValue -Key 'NotificationsEnabled' -Default $true
+        }
+
         if ($script:ctx.ChkSettingsAppDebug) {
             $script:ctx.ChkSettingsAppDebug.IsChecked = Get-SettingsBoolValue -Key 'AppDebug' -Default $false
         }
@@ -864,6 +869,7 @@ function Initialize-SettingsController {
         ChkSettingsDriverLoadAllDefault = $null
         ChkSettingsUpdatesAutoCatalogDefault = $null
         ChkSettingsImageMountReadOnlyDefault = $null
+        ChkSettingsNotificationsEnabled = $null
         ChkSettingsAppDebug = $null
 
         BtnSettingsDetectAdk = $null
@@ -931,6 +937,7 @@ function Initialize-SettingsController {
     $script:ctx.ChkSettingsDriverLoadAllDefault = Find-Ui -Root $p -Name 'ChkSettingsDriverLoadAllDefault'
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
+    $script:ctx.ChkSettingsNotificationsEnabled = Find-Ui -Root $p -Name 'ChkSettingsNotificationsEnabled'
     $script:ctx.ChkSettingsAppDebug = Find-Ui -Root $p -Name 'ChkSettingsAppDebug'
     $script:ctx.BtnSettingsDetectAdk = Find-Ui -Root $p -Name 'BtnSettingsDetectAdk'
     $script:ctx.BtnSettingsPickAdkRoot = Find-Ui -Root $p -Name 'BtnSettingsPickAdkRoot'
@@ -1150,6 +1157,16 @@ function Initialize-SettingsController {
     if ($script:ctx.ChkSettingsImageMountReadOnlyDefault) {
         $script:ctx.ChkSettingsImageMountReadOnlyDefault.Add_Click({
             Save-SettingsValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsMountDefaultsUpdated')
+        })
+    }
+
+    if ($script:ctx.ChkSettingsNotificationsEnabled) {
+        $script:ctx.ChkSettingsNotificationsEnabled.Add_Click({
+            $enabled = [bool]$script:ctx.ChkSettingsNotificationsEnabled.IsChecked
+            Save-SettingsValue -Key 'NotificationsEnabled' -Value $enabled -StatusMessage (Get-UiString -Key 'SettingsNotificationsUpdated')
+            if ($enabled) {
+                try { Initialize-AppNotifications -ProjectRoot (Get-ProjectRoot) | Out-Null } catch {}
+            }
         })
     }
 

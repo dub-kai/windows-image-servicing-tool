@@ -279,6 +279,14 @@ function Add-MediaJobHistory {
             }
         }
         Add-JobHistoryEntry @params | Out-Null
+
+        if ($Status -in @('Completed','Failed') -and (Get-Command Show-UiTaskNotification -ErrorAction SilentlyContinue)) {
+            $notificationStatus = if ($Status -eq 'Completed') { 'Completed' } else { 'Failed' }
+            $durationMs = if ($params.ContainsKey('DurationMs')) { [int64]$params.DurationMs } else { $null }
+            try {
+                Show-UiTaskNotification -Label $Operation -Status $notificationStatus -DurationMs $durationMs -Detail $Detail -ErrorText $ErrorText | Out-Null
+            } catch {}
+        }
     } catch {}
 }
 
