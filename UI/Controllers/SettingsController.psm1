@@ -191,7 +191,7 @@ function Get-SettingsTextBoxInt {
     }
 
     if ($value -lt $Min -or $value -gt $Max) {
-        throw ("{0}: Wert muss zwischen {1} und {2} liegen." -f $Label, $Min, $Max)
+        throw (Get-UiString -Key 'SettingsIntRangeFormat' -Args @($Label, $Min, $Max))
     }
 
     return $value
@@ -211,13 +211,13 @@ function Refresh-SettingsDismBatchUI {
 
 function Save-SettingsDismBatchValues {
     $values = [ordered]@{
-        DismTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Label 'Standard-DISM-Timeout' -Min 60 -Max 86400
-        DismLockTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Label 'DISM-Lock-Timeout' -Min 30 -Max 86400
-        DismUnmountCommitTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Label 'Commit-Timeout' -Min 900 -Max 172800
-        DismUnmountCommitRetryCount = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Label 'Commit-Retry-Anzahl' -Min 1 -Max 20
-        DismUnmountCommitRetryDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Label 'Commit-Retry-Pause' -Min 1 -Max 600
-        MountedWimRefreshQuietPeriodSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Label 'Mount-Refresh-Wartezeit' -Min 0 -Max 600
-        BatchUnmountStepDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Label 'Batch-Unmount-Pause' -Min 0 -Max 600
+        DismTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Label (Get-UiString -Key 'SettingsDismTimeoutLabel') -Min 60 -Max 86400
+        DismLockTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Label (Get-UiString -Key 'SettingsDismLockTimeoutLabel') -Min 30 -Max 86400
+        DismUnmountCommitTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Label (Get-UiString -Key 'SettingsCommitTimeoutLabel') -Min 900 -Max 172800
+        DismUnmountCommitRetryCount = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Label (Get-UiString -Key 'SettingsCommitRetryCountLabel') -Min 1 -Max 20
+        DismUnmountCommitRetryDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Label (Get-UiString -Key 'SettingsCommitRetryDelayLabel') -Min 1 -Max 600
+        MountedWimRefreshQuietPeriodSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Label (Get-UiString -Key 'SettingsMountRefreshWaitLabel') -Min 0 -Max 600
+        BatchUnmountStepDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Label (Get-UiString -Key 'SettingsBatchUnmountPauseLabel') -Min 0 -Max 600
     }
 
     foreach ($key in $values.Keys) {
@@ -225,7 +225,7 @@ function Save-SettingsDismBatchValues {
     }
 
     Refresh-SettingsDismBatchUI
-    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Einstellungen gespeichert.' } catch {} }
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsDismBatchSaved') } catch {} }
 }
 
 function Reset-SettingsDismBatchValues {
@@ -243,7 +243,7 @@ function Reset-SettingsDismBatchValues {
     }
 
     Refresh-SettingsDismBatchUI
-    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Standardwerte wiederhergestellt.' } catch {} }
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsDismBatchDefaultsRestored') } catch {} }
 }
 
 function Get-CurrentAdkStatus {
@@ -431,7 +431,7 @@ function Show-SettingsHealthData {
 
 function Start-SettingsHealthRefresh {
     param(
-        [string]$StatusText = 'Health: Status aktualisiert'
+        [string]$StatusText = $(Get-UiString -Key 'HealthLoaded')
     )
 
     if (-not $script:ctx) { return }

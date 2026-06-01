@@ -725,6 +725,59 @@ ImagesFolderDialogDescription;Ordner mit WIM/ESD/SWM-Dateien auswählen;Select f
 ImagesIsoInstallUnavailable;ISO Install ist nicht verfügbar (ISO mounten).;ISO Install is not available (mount ISO).
 ImagesIsoBootUnavailable;ISO Boot ist nicht verfügbar (ISO mounten).;ISO Boot is not available (mount ISO).
 ImagesStandaloneNotSet;Standalone ist nicht gesetzt (WIM/ESD wählen).;Standalone is not set (choose WIM/ESD).
+DriverCountZero;Driver: Treiber=0;Driver: drivers=0
+DriverNoValidMountDir;Kein gültiges MountDir ausgewählt.;No valid MountDir selected.
+DriverFolderMissingFormat;Treiberordner nicht gefunden: {0};Driver folder not found: {0}
+DriverBusyAdding;Treiber werden hinzugefügt...;Adding drivers...
+DriverAddOkFormat;Driver: Add OK | Treiber={0};Driver: add OK | drivers={0}
+DriverBusyRemovingFormat;Treiber entfernen ({0})...;Removing drivers ({0})...
+DriverRemoveOkFormat;Driver: Remove OK | Treiber={0};Driver: remove OK | drivers={0}
+DriverNoRemovableSelectionFormat;Keine entfernbaren Treiber in der Auswahl (Inbox übersprungen: {0}).;No removable drivers in the selection (inbox skipped: {0}).
+DriverExportEmpty;Aktuell sind keine Treiber zum Exportieren geladen.;No drivers are currently loaded for export.
+DriverExportTitle;Driver Export;Driver export
+DriverCsvFilter;"CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*";"CSV (*.csv)|*.csv|All files (*.*)|*.*"
+DriverCsvExportedFormat;Driver CSV exportiert: {0};Driver CSV exported: {0}
+DriverBusyReading;Treiber werden gelesen...;Reading drivers...
+DriverLoadCountFormat;Driver: Treiber={0};Driver: drivers={0}
+DriverBusyDefault;Bitte warten...;Please wait...
+DriverBusyDetail;Treiber werden aus dem Offline-Image gelesen oder integriert. Je nach Treiberordner kann DISM länger arbeiten.;Drivers are read from or integrated into the offline image. DISM can take longer depending on the driver folder.
+ImagesMountedDiscardSelection;Auswahl Discard;Discard selection
+ImagesMountedCleanup;Mount bereinigen;Clean mount
+ImagesMountedCommitSelection;Auswahl Commit;Commit selection
+ImagesMountRepairTitle;Mount-Reparatur;Mount repair
+ImagesMountRepairNoProblems;Aktuell sehe ich keine problematischen Mounts. Wenn trotzdem etwas hängt, bitte erst die Mount-Liste aktualisieren.;No problematic mounts are currently visible. If something is still stuck, refresh the mount list first.
+ImagesMountRepairConfirmFormat;Es wurden problematische Mount-Einträge gefunden:`r`n`r`n{0}`r`n`r`nSoll DISM /Cleanup-Wim jetzt ausgeführt werden? Das bereinigt hängende Mount-Registry-Einträge, führt aber keinen Commit aus.;Problematic mount entries were found:`r`n`r`n{0}`r`n`r`nRun DISM /Cleanup-Wim now? This cleans stuck mount registry entries, but does not commit anything.
+ImagesMountRepairBusy;Mount-Reparatur läuft...;Mount repair running...
+ImagesMountRepairCompletedFormat;Mount-Reparatur fertig. Einträge danach: {0};Mount repair complete. Entries afterwards: {0}
+ImagesMountRepairResultFormat;DISM /Cleanup-Wim wurde ausgeführt.`r`nVerbleibende Mount-Einträge: {0};DISM /Cleanup-Wim was executed.`r`nRemaining mount entries: {0}
+SettingsDismBatchSaved;DISM/Batch-Einstellungen gespeichert.;DISM/batch settings saved.
+SettingsDismBatchDefaultsRestored;DISM/Batch-Standardwerte wiederhergestellt.;DISM/batch defaults restored.
+SettingsDismTimeoutLabel;Standard-DISM-Timeout;Default DISM timeout
+SettingsDismLockTimeoutLabel;DISM-Lock-Timeout;DISM lock timeout
+SettingsCommitTimeoutLabel;Commit-Timeout;Commit timeout
+SettingsCommitRetryCountLabel;Commit-Retry-Anzahl;Commit retry count
+SettingsCommitRetryDelayLabel;Commit-Retry-Pause;Commit retry pause
+SettingsMountRefreshWaitLabel;Mount-Refresh-Wartezeit;Mount refresh wait
+SettingsBatchUnmountPauseLabel;Batch-Unmount-Pause;Batch unmount pause
+SettingsIntRangeFormat;{0}: Wert muss zwischen {1} und {2} liegen.;{0}: value must be between {1} and {2}.
+MediaBusyDefault;Bitte warten...;Please wait...
+MediaBusyDetail;Media Builder arbeitet mit WIM/ESD/ISO-Dateien. Ausgabegrößen können während DISM-Vorgängen lange bei 0 B stehen.;Media Builder is working with WIM/ESD/ISO files. Output sizes can stay at 0 B for a long time during DISM operations.
+MediaComposeSummaryWimHint;empfohlen und deutlich schneller;recommended and much faster
+MediaComposeSummaryEsdHint;kleiner, aber sehr langsam bei großen Images;smaller, but very slow with large images
+MediaComposeSummaryFormat;{0} Eintrag/Einträge vorgemerkt. Ziel: {1} ({2}).;{0} item(s) queued. Target: {1} ({2}).
+MediaNoSourceFiles;Noch keine Quell-Dateien ausgewählt.;No source files selected yet.
+MediaBuildInstallWimButton;install.wim bauen;Build install.wim
+MediaBuildInstallEsdButton;install.esd bauen;Build install.esd
+MediaImageDialogFilter;"Windows Images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|Alle Dateien (*.*)|*.*";"Windows images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|All files (*.*)|*.*"
+MediaUsbSourceMissing;Quelle fehlt. Du kannst eine gemountete ISO oder einen vorbereiteten Build-Ordner wählen.;Source missing. You can choose a mounted ISO or a prepared build folder.
+MediaUsbTargetMissing;USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.;USB target missing. Nothing is formatted; files are only copied into the selected folder.
+MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.";"Ready to copy. Existing files may be overwritten; nothing is deleted."
+MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
+MediaPickInstallTitle;Install-Image auswählen;Choose install image
+MediaPickBootTitle;boot.wim auswählen;Choose boot.wim
+MediaPickUsbSourceDescription;Quelle für den USB-Stick wählen;Choose source for USB stick
+MediaPickUsbTargetDescription;USB-Zielordner wählen;Choose USB target folder
+MediaReady;Bereit;Ready
 '@ | ConvertFrom-Csv -Delimiter ';'
 
 foreach ($row in @($script:UiStaticTextTranslations)) {

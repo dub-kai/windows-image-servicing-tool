@@ -641,14 +641,14 @@ function Set-MediaBusy {
     $txtBusy = Get-MediaCtxValue -Obj $script:ctx -Key 'TxtBusyMessage'
     if ($txtBusy) {
         try {
-            $txtBusy.Text = if ($Busy -and $Reason) { $Reason } else { 'Bitte warten...' }
+            $txtBusy.Text = if ($Busy -and $Reason) { $Reason } else { Get-UiString -Key 'MediaBusyDefault' }
         } catch {}
     }
 
     try {
         $page = Get-MediaCtxValue -Obj $script:ctx -Key 'Page'
         if ($Busy) {
-            Start-UiBusyProgress -Root $page -Context $script:ctx -Message $(if ($Reason) { $Reason } else { 'Bitte warten...' }) -Detail 'Media Builder arbeitet mit WIM/ESD/ISO-Dateien. Ausgabegrößen können während DISM-Vorgängen lange bei 0 B stehen.' -ShowDismTail
+            Start-UiBusyProgress -Root $page -Context $script:ctx -Message $(if ($Reason) { $Reason } else { Get-UiString -Key 'MediaBusyDefault' }) -Detail (Get-UiString -Key 'MediaBusyDetail') -ShowDismTail
         } else {
             Stop-UiBusyProgress -Root $page -Context $script:ctx
         }
@@ -712,10 +712,10 @@ function Refresh-MediaBuilderComposeList {
             if ($items.Count -gt 0) {
                 $mode = Get-MediaInstallBuildMode
                 $target = if ($mode -eq 'Esd') { 'install.esd' } else { 'install.wim' }
-                $hint = if ($mode -eq 'Esd') { 'kleiner, aber sehr langsam bei großen Images' } else { 'empfohlen und deutlich schneller' }
-                $script:ctx.TxtMediaComposeSummary.Text = ("{0} Eintrag/Einträge vorgemerkt. Ziel: {1} ({2})." -f $items.Count, $target, $hint)
+                $hint = if ($mode -eq 'Esd') { Get-UiString -Key 'MediaComposeSummaryEsdHint' } else { Get-UiString -Key 'MediaComposeSummaryWimHint' }
+                $script:ctx.TxtMediaComposeSummary.Text = Get-UiString -Key 'MediaComposeSummaryFormat' -Args @($items.Count, $target, $hint)
             } else {
-                $script:ctx.TxtMediaComposeSummary.Text = "Noch keine Quell-Dateien ausgewählt."
+                $script:ctx.TxtMediaComposeSummary.Text = Get-UiString -Key 'MediaNoSourceFiles'
             }
         }
     } catch {}
@@ -756,7 +756,7 @@ function Refresh-MediaBuilderUI {
     try {
         if ($script:ctx.BtnMediaBuildInstallEsd) {
             $mode = Get-MediaInstallBuildMode
-            $target = if ($mode -eq 'Esd') { 'install.esd bauen' } else { 'install.wim bauen' }
+            $target = if ($mode -eq 'Esd') { Get-UiString -Key 'MediaBuildInstallEsdButton' } else { Get-UiString -Key 'MediaBuildInstallWimButton' }
             $script:ctx.BtnMediaBuildInstallEsd.Content = $target
             $script:ctx.BtnMediaBuildInstallEsd.IsEnabled = ((-not $script:mediaBusy) -and ($script:composeItems.Count -gt 0))
         }
@@ -784,8 +784,8 @@ function Pick-MediaImageFile {
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object Microsoft.Win32.OpenFileDialog
-    $dlg.Title = $Title
-    $dlg.Filter = 'Windows Images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.wim|ESD (*.esd)|*.esd|Alle Dateien (*.*)|*.*'
+    $dlg.Title = Get-LocalizedText -Text $Title
+    $dlg.Filter = Get-UiString -Key 'MediaImageDialogFilter'
     $dlg.Multiselect = $false
     if ($dlg.ShowDialog() -ne $true) { return $null }
     return [string]$dlg.FileName
@@ -796,7 +796,7 @@ function Pick-MediaFolder {
 
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dlg.Description = $Description
+    $dlg.Description = Get-LocalizedText -Text $Description
     $dlg.ShowNewFolderButton = $true
     if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
     return [string]$dlg.SelectedPath
@@ -830,11 +830,11 @@ function Refresh-MediaUsbUI {
     try {
         if ($script:ctx.TxtMediaUsbSummary) {
             if ([string]::IsNullOrWhiteSpace([string]$source)) {
-                $script:ctx.TxtMediaUsbSummary.Text = 'Quelle fehlt. Du kannst eine gemountete ISO oder einen vorbereiteten Build-Ordner wählen.'
+                $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbSourceMissing'
             } elseif ([string]::IsNullOrWhiteSpace([string]$target)) {
-                $script:ctx.TxtMediaUsbSummary.Text = 'USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.'
+                $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbTargetMissing'
             } else {
-                $script:ctx.TxtMediaUsbSummary.Text = 'Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.'
+                $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReady'
             }
         }
     } catch {}
@@ -1058,7 +1058,7 @@ Build-WindowsIso @params
 
 function Add-MediaComposeSourceImage {
     try {
-        $path = Pick-MediaImageFile -Title 'Quell-WIM/ESD für install.esd wählen'
+        $path = Pick-MediaImageFile -Title (Get-UiString -Key 'MediaPickComposeSourceTitle')
         if ([string]::IsNullOrWhiteSpace([string]$path)) { return }
 
         $items = @(Get-WimImageList -ImagePath $path)
@@ -1315,7 +1315,7 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaPickInstallImage) {
         $script:ctx.BtnMediaPickInstallImage.Add_Click({
-            $path = Pick-MediaImageFile -Title 'Install-Image auswählen'
+            $path = Pick-MediaImageFile -Title (Get-UiString -Key 'MediaPickInstallTitle')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedInstallImagePath = $path
                 Refresh-MediaBuilderUI
@@ -1332,7 +1332,7 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaPickBootImage) {
         $script:ctx.BtnMediaPickBootImage.Add_Click({
-            $path = Pick-MediaImageFile -Title 'boot.wim auswählen'
+            $path = Pick-MediaImageFile -Title (Get-UiString -Key 'MediaPickBootTitle')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedBootImagePath = $path
                 Refresh-MediaBuilderUI
@@ -1365,7 +1365,7 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaPickUsbSource) {
         $script:ctx.BtnMediaPickUsbSource.Add_Click({
-            $path = Pick-MediaFolder -Description 'Quelle für den USB-Stick wählen'
+            $path = Pick-MediaFolder -Description (Get-UiString -Key 'MediaPickUsbSourceDescription')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbSourcePath = $path
                 Refresh-MediaBuilderUI
@@ -1375,7 +1375,7 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaPickUsbTarget) {
         $script:ctx.BtnMediaPickUsbTarget.Add_Click({
-            $path = Pick-MediaFolder -Description 'USB-Zielordner wählen'
+            $path = Pick-MediaFolder -Description (Get-UiString -Key 'MediaPickUsbTargetDescription')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbTargetPath = $path
                 Refresh-MediaBuilderUI
@@ -1412,7 +1412,7 @@ function Initialize-MediaBuilderController {
     }
 
     Refresh-MediaBuilderUI
-    Set-MediaBuildStatus -Message 'Bereit' -Detail 'Noch kein Build gestartet.' -SizeBytes 0
+    Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaReady') -Detail (Get-UiString -Key 'StaticNoBuildStarted') -SizeBytes 0
 }
 
 Export-ModuleMember -Function Initialize-MediaBuilderController, Refresh-MediaBuilderUI

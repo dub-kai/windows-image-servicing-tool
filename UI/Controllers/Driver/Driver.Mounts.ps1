@@ -151,7 +151,7 @@ Get-MountedWimList
 
             if ($mountDirs.Count -lt 1) {
                 try {
-                    & $fnClear -Context $ctxLocal -StatusText "Driver: Treiber=0"
+                    & $fnClear -Context $ctxLocal -StatusText (Get-UiString -Key 'DriverCountZero')
                 } catch {}
             }
             else {
