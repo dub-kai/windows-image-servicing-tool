@@ -141,10 +141,10 @@ function Start-MountAsync {
 
     try {
         $mode = Get-ImagesViewMode
-        if (-not $mode) { throw "Keine Ansicht ausgewählt." }
+        if (-not $mode) { throw (Get-UiString -Key 'ImagesNoViewSelected') }
 
         $selectedItems = @(Get-SelectedWimItems)
-        if ($selectedItems.Count -lt 1) { throw "Bitte zuerst mindestens einen Index auswählen." }
+        if ($selectedItems.Count -lt 1) { throw (Get-UiString -Key 'ImagesSelectIndexFirst') }
 
         $mountRequests = New-Object System.Collections.Generic.List[object]
         foreach ($item in $selectedItems) {
@@ -164,10 +164,10 @@ function Start-MountAsync {
             }
 
             if ([string]::IsNullOrWhiteSpace([string]$itemPath)) {
-                throw "ImageFile für Index $itemIndex nicht ermittelbar."
+                throw (Get-UiString -Key 'ImagesImageFileForIndexMissingFormat' -Args @($itemIndex))
             }
             if (-not (Test-Path -LiteralPath $itemPath -PathType Leaf)) {
-                throw "ImageFile nicht gefunden: $itemPath"
+                throw (Get-UiString -Key 'ImagesImageFileMissingFormat' -Args @($itemPath))
             }
 
             $fileName = $null
@@ -187,7 +187,7 @@ function Start-MountAsync {
 
         $mountRequestArray = @($mountRequests.ToArray())
         if ($mountRequestArray.Count -lt 1) {
-            throw "Die Auswahl enthält keine mountbaren Indexe."
+            throw (Get-UiString -Key 'ImagesNoMountableIndexes')
         }
 
         try {
@@ -214,8 +214,8 @@ function Start-MountAsync {
                 try { Update-ImagesMountAssistantUi -Items @($selectedItems) } catch {}
 
                 $preview = @($blockedSources | Select-Object -First 5) -join ', '
-                $more = if ($blockedSources.Count -gt 5) { " + {0} weitere" -f ($blockedSources.Count - 5) } else { "" }
-                Show-UiInfo -Title 'Mount-Assistent' -Message ("Read/Write-Mount ist für schreibgeschützte Quellen nicht möglich.`r`n`r`nBetroffen: {0}{1}`r`n`r`nAktiviere ReadOnly zum Prüfen oder erstelle eine beschreibbare WIM-Kopie." -f $preview, $more)
+                $more = if ($blockedSources.Count -gt 5) { Get-UiString -Key 'ImagesMoreFormat' -Args @(($blockedSources.Count - 5)) } else { "" }
+                Show-UiInfo -Title (Get-UiString -Key 'ImagesMountAssistantTitle') -Message (Get-UiString -Key 'ImagesReadWriteBlockedMessageFormat' -Args @($preview, $more))
                 return
             }
         }
@@ -231,7 +231,7 @@ function Start-MountAsync {
         $fnSyncDriver     = (Get-Item function:Sync-DriverControllerAfterMountChange   -ErrorAction Stop).ScriptBlock
         $fnShowUiError    = (Get-Item function:Show-UiError                            -ErrorAction Stop).ScriptBlock
 
-        $busyReason = if ($mountRequestArray.Count -gt 1) { "Mount läuft ({0} Indexe nacheinander)..." -f $mountRequestArray.Count } else { "Mount läuft..." }
+        $busyReason = if ($mountRequestArray.Count -gt 1) { Get-UiString -Key 'ImagesBusyMountMultipleFormat' -Args @($mountRequestArray.Count) } else { Get-UiString -Key 'ImagesBusyMountSingle' }
         & $fnSetBusy -Busy $true -Reason $busyReason -Context $ctxLocal
         & $fnSetSvcBusy -Busy $true
 

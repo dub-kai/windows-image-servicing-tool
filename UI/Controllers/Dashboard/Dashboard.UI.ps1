@@ -60,49 +60,49 @@ function Refresh-DashboardWorkOverview {
     $hasInstall = -not [string]::IsNullOrWhiteSpace([string]$installPath)
     $hasStandalone = -not [string]::IsNullOrWhiteSpace([string]$standalone)
 
-    $sourceState = "Keine Quelle"
-    $sourceDetail = "Wähle eine ISO oder eine einzelne WIM/ESD."
-    $primary = "Noch keine Arbeitsquelle gewählt"
-    $next = "Starte mit ISO wählen, AutoDetect oder WIM/ESD wählen."
-    $step1 = "1. Quelle wählen"
-    $step2 = "ISO auswählen oder Standalone-WIM/ESD laden."
-    $step3 = "Danach in Images die gewünschten Editionen mounten."
+    $sourceState = Get-UiString -Key 'DashboardNoSource'
+    $sourceDetail = Get-UiString -Key 'DashboardNoSourceDetail'
+    $primary = Get-UiString -Key 'DashboardNoWorkSource'
+    $next = Get-UiString -Key 'DashboardNoWorkSourceNext'
+    $step1 = Get-UiString -Key 'DashboardStepChooseSource'
+    $step2 = Get-UiString -Key 'DashboardStepChooseIsoOrStandalone'
+    $step3 = Get-UiString -Key 'DashboardStepMountEdition'
 
     if ($mountCount -gt 0) {
-        $sourceState = if ($hasInstall -or $hasStandalone) { "Quelle + Mounts" } else { "Mounts aktiv" }
-        $sourceDetail = ("{0} Mount(s) aktiv. Updates, Treiber oder Unmount sind jetzt sinnvoll." -f $mountCount)
-        $primary = ("{0} Mount(s) bereit" -f $mountCount)
-        $next = "Weiter mit Updates, Driver oder Images zum Commit/Discard."
-        $step1 = "1. Updates oder Treiber integrieren"
-        $step2 = "Nutze Updates für MSU/CAB/Catalog oder Driver für Treiberpakete."
-        $step3 = "Zum Abschluss in Images sauber Commit oder Discard ausführen."
+        $sourceState = if ($hasInstall -or $hasStandalone) { Get-UiString -Key 'DashboardSourceWithMounts' } else { Get-UiString -Key 'DashboardMountsActive' }
+        $sourceDetail = Get-UiString -Key 'DashboardActiveMountsDetailFormat' -Args @($mountCount)
+        $primary = Get-UiString -Key 'DashboardMountsReadyFormat' -Args @($mountCount)
+        $next = Get-UiString -Key 'DashboardNextMounted'
+        $step1 = Get-UiString -Key 'DashboardStepIntegrate'
+        $step2 = Get-UiString -Key 'DashboardStepUseUpdatesDriver'
+        $step3 = Get-UiString -Key 'DashboardStepCommitDiscard'
     }
     elseif ($hasInstall -or $hasStandalone) {
-        $sourceState = if ($hasStandalone) { "Standalone bereit" } else { "ISO bereit" }
+        $sourceState = if ($hasStandalone) { Get-UiString -Key 'DashboardStandaloneReady' } else { Get-UiString -Key 'DashboardIsoReady' }
         $sourceDetail = if ($hasStandalone) { [string]$standalone } else { [string]$installPath }
-        $primary = "Quelle bereit, noch nicht gemountet"
-        $next = "Gehe zu Images und mounte eine oder mehrere Editionen."
-        $step1 = "1. Images öffnen"
-        $step2 = "Editionen auswählen und nacheinander oder gesammelt mounten."
-        $step3 = "Danach Updates, Treiber oder ISO bauen verwenden."
+        $primary = Get-UiString -Key 'DashboardSourceReadyNotMounted'
+        $next = Get-UiString -Key 'DashboardNextOpenImages'
+        $step1 = Get-UiString -Key 'DashboardStepOpenImages'
+        $step2 = Get-UiString -Key 'DashboardStepSelectEditions'
+        $step3 = Get-UiString -Key 'DashboardStepUseAfterMount'
     }
     elseif ($hasIso -and -not $hasIsoRoot) {
-        $sourceState = "ISO gewählt"
+        $sourceState = Get-UiString -Key 'DashboardIsoSelected'
         $sourceDetail = [string]$isoPath
-        $primary = "ISO gewählt, aber noch nicht gemountet"
-        $next = "ISO mounten, damit boot.wim und install.wim/esd erkannt werden."
-        $step1 = "1. ISO mounten"
-        $step2 = "Das Dashboard erkennt danach boot.wim und install.wim/esd automatisch."
-        $step3 = "Dann in Images die gewünschte Edition mounten."
+        $primary = Get-UiString -Key 'DashboardIsoSelectedNotMounted'
+        $next = Get-UiString -Key 'DashboardNextMountIso'
+        $step1 = Get-UiString -Key 'DashboardStepMountIso'
+        $step2 = Get-UiString -Key 'DashboardStepIsoDetectsImages'
+        $step3 = Get-UiString -Key 'DashboardStepMountEditionShort'
     }
     elseif ($hasIsoRoot) {
-        $sourceState = if ($hasBoot) { "ISO gemountet" } else { "ISO Root aktiv" }
+        $sourceState = if ($hasBoot) { Get-UiString -Key 'DashboardIsoMounted' } else { Get-UiString -Key 'DashboardIsoRootActive' }
         $sourceDetail = [string]$isoRoot
-        $primary = "ISO gemountet, Install-Image fehlt noch"
-        $next = "Prüfe die ISO-Struktur oder wähle die WIM/ESD direkt."
-        $step1 = "1. Quelle prüfen"
-        $step2 = "Wenn install.wim/esd nicht erkannt wurde, nutze WIM/ESD wählen."
-        $step3 = "Danach Images öffnen."
+        $primary = Get-UiString -Key 'DashboardIsoMountedInstallMissing'
+        $next = Get-UiString -Key 'DashboardNextCheckIsoStructure'
+        $step1 = Get-UiString -Key 'DashboardStepCheckSource'
+        $step2 = Get-UiString -Key 'DashboardStepChooseWimIfMissing'
+        $step3 = Get-UiString -Key 'DashboardStepOpenImagesShort'
     }
 
     Set-UiText -Root $Root -Name "TxtDashSourceState" -Value $sourceState

@@ -162,7 +162,7 @@ function Set-StandaloneImageSelection {
 
     try {
         if ($script:ctx -and $script:ctx.SetStatus) {
-            & $script:ctx.SetStatus ("{0}: {1} Datei(en)" -f $StatusPrefix, $resolvedPaths.Count)
+            & $script:ctx.SetStatus (Get-UiString -Key 'ImagesStandaloneStatusFormat' -Args @($StatusPrefix, $resolvedPaths.Count))
         }
     } catch {}
 }
@@ -171,7 +171,7 @@ function Pick-StandaloneImageFolder {
     Add-Type -AssemblyName System.Windows.Forms
 
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dlg.Description = 'Ordner mit WIM/ESD/SWM-Dateien auswählen'
+    $dlg.Description = Get-UiString -Key 'ImagesFolderDialogDescription'
     $dlg.ShowNewFolderButton = $false
 
     $lastDir = Get-ImagesAppStateValueSafe -Key 'StandaloneLastDir' -Default $null

@@ -57,18 +57,18 @@ function Convert-DashboardJobView {
 function Format-DashboardJobDetails {
     param($JobView)
 
-    if (-not $JobView) { return 'Job auswählen, um Details zu sehen.' }
+    if (-not $JobView) { return (Get-UiString -Key 'DashboardSelectJobDetails') }
 
     $parts = New-Object System.Collections.Generic.List[string]
-    [void]$parts.Add(("Aktion: {0}" -f [string]$JobView.Operation))
-    [void]$parts.Add(("Status: {0}" -f [string]$JobView.Status))
-    [void]$parts.Add(("Zeit: {0} | Dauer: {1}" -f [string]$JobView.Time, [string]$JobView.Duration))
+    [void]$parts.Add((Get-UiString -Key 'DashboardJobActionFormat' -Args @([string]$JobView.Operation)))
+    [void]$parts.Add((Get-UiString -Key 'DashboardJobStatusFormat' -Args @([string]$JobView.Status)))
+    [void]$parts.Add((Get-UiString -Key 'DashboardJobTimeDurationFormat' -Args @([string]$JobView.Time, [string]$JobView.Duration)))
 
     if (-not [string]::IsNullOrWhiteSpace([string]$JobView.Message)) {
-        [void]$parts.Add(("Meldung: {0}" -f [string]$JobView.Message))
+        [void]$parts.Add((Get-UiString -Key 'DashboardJobMessageFormat' -Args @([string]$JobView.Message)))
     }
     if (-not [string]::IsNullOrWhiteSpace([string]$JobView.Detail)) {
-        [void]$parts.Add(("Details: {0}" -f [string]$JobView.Detail))
+        [void]$parts.Add((Get-UiString -Key 'DashboardJobDetailsFormat' -Args @([string]$JobView.Detail)))
     }
 
     return ($parts -join "`n")
@@ -113,7 +113,7 @@ function Get-DashboardSelectedJobText {
         try { $errorText = [string]$job.Error } catch {}
     }
     if (-not [string]::IsNullOrWhiteSpace($errorText)) {
-        $text = $text + "`n`nFehler:`n" + $errorText
+        $text = $text + "`n`n" + (Get-UiString -Key 'DashboardJobErrorHeader') + "`n" + $errorText
     }
 
     return $text
@@ -124,7 +124,7 @@ function Copy-DashboardSelectedJobDetails {
 
     $text = Get-DashboardSelectedJobText -Root $Root
     if ([string]::IsNullOrWhiteSpace($text)) {
-        Show-UiInfo -Message "Keine Jobdetails zum Kopieren vorhanden." -Title "Dashboard"
+        Show-UiInfo -Message (Get-UiString -Key 'DashboardNoJobDetailsToCopy') -Title "Dashboard"
         return
     }
 
@@ -136,10 +136,10 @@ function Open-DashboardPath {
     param([string]$Path)
 
     if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw "Pfad ist leer."
+        throw (Get-UiString -Key 'DashboardPathEmpty')
     }
     if (-not (Test-Path -LiteralPath $Path)) {
-        throw "Pfad nicht gefunden: $Path"
+        throw (Get-UiString -Key 'DashboardPathMissingFormat' -Args @($Path))
     }
 
     Start-Process -FilePath $Path | Out-Null
@@ -147,7 +147,7 @@ function Open-DashboardPath {
 
 function Open-DashboardJobHistoryFile {
     if (-not (Get-Command Get-JobHistoryFilePath -ErrorAction SilentlyContinue)) {
-        throw "JobHistory-Modul ist nicht geladen."
+        throw (Get-UiString -Key 'DashboardJobHistoryModuleMissing')
     }
 
     Open-DashboardPath -Path (Get-JobHistoryFilePath)
@@ -165,7 +165,7 @@ function Refresh-DashboardJobOverview {
 
     try {
         if (-not (Get-Command Get-JobHistory -ErrorAction SilentlyContinue)) {
-            Set-UiText -Root $Root -Name "TxtDashLastJob" -Value "Job-Verlauf nicht geladen"
+            Set-UiText -Root $Root -Name "TxtDashLastJob" -Value (Get-UiString -Key 'DashboardJobsNotLoaded')
             Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value "-"
             Set-UiText -Root $Root -Name "TxtDashLastError" -Value "-"
             Set-UiText -Root $Root -Name "TxtDashLastErrorDetail" -Value "-"
@@ -180,8 +180,8 @@ function Refresh-DashboardJobOverview {
             Set-UiText -Root $Root -Name "TxtDashLastJob" -Value ("{0}: {1}" -f [string]$last.Status, [string]$last.Operation)
             Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value ("{0} | {1}" -f (Format-DashboardDate $last.CreatedAt), (Format-DashboardDuration $last.DurationMs))
         } else {
-            Set-UiText -Root $Root -Name "TxtDashLastJob" -Value "Noch keine Jobs"
-            Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value "Sobald eine lange Aktion läuft, erscheint sie hier."
+            Set-UiText -Root $Root -Name "TxtDashLastJob" -Value (Get-UiString -Key 'DashboardNoJobs')
+            Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value (Get-UiString -Key 'DashboardNoJobsDetail')
         }
 
         if ($lastError) {
@@ -190,7 +190,7 @@ function Refresh-DashboardJobOverview {
             if ($errText.Length -gt 160) { $errText = $errText.Substring(0, 160) + '...' }
             Set-UiText -Root $Root -Name "TxtDashLastErrorDetail" -Value $errText
         } else {
-            Set-UiText -Root $Root -Name "TxtDashLastError" -Value "Keine Fehler im Verlauf"
+            Set-UiText -Root $Root -Name "TxtDashLastError" -Value (Get-UiString -Key 'DashboardNoErrors')
             Set-UiText -Root $Root -Name "TxtDashLastErrorDetail" -Value "-"
         }
 
@@ -217,7 +217,7 @@ function Refresh-DashboardJobOverview {
             }
         }
     } catch {
-        Set-UiText -Root $Root -Name "TxtDashLastJob" -Value "Job-Verlauf konnte nicht geladen werden"
+        Set-UiText -Root $Root -Name "TxtDashLastJob" -Value (Get-UiString -Key 'DashboardJobsLoadFailed')
         Set-UiText -Root $Root -Name "TxtDashLastJobDetail" -Value $_.Exception.Message
         try { Update-DashboardJobDetails -Root $Root } catch {}
     }
@@ -233,10 +233,10 @@ function Refresh-DashboardHealthOverview {
         if (Test-Path -LiteralPath $dismExe -PathType Leaf) {
             Set-UiText -Root $Root -Name "TxtDashDismStatus" -Value "DISM: OK"
         } else {
-            Set-UiText -Root $Root -Name "TxtDashDismStatus" -Value "DISM: nicht gefunden"
+            Set-UiText -Root $Root -Name "TxtDashDismStatus" -Value (Get-UiString -Key 'DashboardDismMissing')
         }
     } catch {
-        Set-UiText -Root $Root -Name "TxtDashDismStatus" -Value "DISM: unbekannt"
+        Set-UiText -Root $Root -Name "TxtDashDismStatus" -Value (Get-UiString -Key 'DashboardDismUnknown')
     }
 
     try {
@@ -246,19 +246,19 @@ function Refresh-DashboardHealthOverview {
             if ($adk.HasAdkRoot) { [void]$parts.Add('ADK') }
             if ($adk.HasWinPe) { [void]$parts.Add('WinPE') }
             if ($adk.HasOscdimg) { [void]$parts.Add('oscdimg') }
-            $text = if ($parts.Count -gt 0) { 'ADK: ' + ($parts -join ', ') } else { 'ADK: nicht eingerichtet' }
+            $text = if ($parts.Count -gt 0) { 'ADK: ' + ($parts -join ', ') } else { Get-UiString -Key 'DashboardAdkNotConfigured' }
             Set-UiText -Root $Root -Name "TxtDashAdkStatus" -Value $text
         } else {
-            Set-UiText -Root $Root -Name "TxtDashAdkStatus" -Value "ADK: nicht geprüft"
+            Set-UiText -Root $Root -Name "TxtDashAdkStatus" -Value (Get-UiString -Key 'DashboardAdkNotChecked')
         }
     } catch {
-        Set-UiText -Root $Root -Name "TxtDashAdkStatus" -Value "ADK: Fehler beim Prüfen"
+        Set-UiText -Root $Root -Name "TxtDashAdkStatus" -Value (Get-UiString -Key 'DashboardAdkCheckFailed')
     }
 
     try {
         if (-not (Get-Command Get-MountedWimList -ErrorAction SilentlyContinue)) {
             Set-UiText -Root $Root -Name "TxtDashActiveMounts" -Value "-"
-            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value "Mount-Service nicht geladen"
+            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value (Get-UiString -Key 'DashboardMountServiceMissing')
             return
         }
 
@@ -278,12 +278,12 @@ function Refresh-DashboardHealthOverview {
 
         Set-UiText -Root $Root -Name "TxtDashActiveMounts" -Value $active.Count
         if ($problem.Count -gt 0) {
-            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value ("{0} Hinweis(e): Reparatur im Images-Bereich prüfen" -f $problem.Count)
+            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value (Get-UiString -Key 'DashboardMountProblemsFormat' -Args @($problem.Count))
         } else {
-            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value "Mount-Zustand OK"
+            Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value (Get-UiString -Key 'DashboardMountHealthy')
         }
     } catch {
         Set-UiText -Root $Root -Name "TxtDashActiveMounts" -Value "?"
-        Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value ("Mounts konnten nicht gelesen werden: {0}" -f $_.Exception.Message)
+        Set-UiText -Root $Root -Name "TxtDashMountHealth" -Value (Get-UiString -Key 'DashboardMountReadFailedFormat' -Args @($_.Exception.Message))
     }
 }

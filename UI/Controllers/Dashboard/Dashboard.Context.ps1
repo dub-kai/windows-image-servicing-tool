@@ -48,7 +48,7 @@
     if ($script:ctx.BtnSelectIso) {
         $script:ctx.BtnSelectIso.Add_Click({
             try {
-                Invoke-SetStatusSafe "ISO auswählen..."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardStatusSelectIso')
                 $iso = Select-IsoFile
                 if ($iso) {
                     Set-AppStateValue -Key "IsoPath" -Value $iso
@@ -63,9 +63,9 @@
         $script:ctx.BtnMountIso.Add_Click({
             try {
                 $isoPath = Get-AppStateValue -Key "IsoPath" -Default $null
-                if (-not $isoPath) { throw "Bitte zuerst eine ISO auswählen." }
+                if (-not $isoPath) { throw (Get-UiString -Key 'DashboardSelectIsoFirst') }
 
-                Invoke-SetStatusSafe "ISO mounten & scannen..."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardStatusMountIso')
                 $info = Mount-IsoFile -IsoPath $isoPath
 
                 Set-AppStateValue -Key "IsoRoot"             -Value $info.IsoRoot
@@ -91,9 +91,9 @@
         $script:ctx.BtnDismountIso.Add_Click({
             try {
                 $isoPath = Get-AppStateValue -Key "IsoPath" -Default $null
-                if (-not $isoPath) { throw "Keine ISO im State gesetzt (IsoPath)." }
+                if (-not $isoPath) { throw (Get-UiString -Key 'DashboardNoIsoState') }
 
-                Invoke-SetStatusSafe "ISO aushängen..."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardStatusDismountIso')
                 Dismount-IsoFile -IsoPath $isoPath
 
                 Set-AppStateValue -Key "IsoRoot"             -Value $null
@@ -108,7 +108,7 @@
     if ($script:ctx.BtnSelectImage) {
         $script:ctx.BtnSelectImage.Add_Click({
             try {
-                Invoke-SetStatusSafe "Standalone wählen..."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardStatusSelectStandalone')
                 $img = Select-ImageFile
                 if (-not $img) { return }
 
@@ -145,7 +145,7 @@
         $script:ctx.BtnRefreshJobs.Add_Click({
             try {
                 Refresh-DashboardJobOverview -Root $script:ctx.DashboardPage
-                Invoke-SetStatusSafe "Job-Verlauf aktualisiert."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardJobsUpdated')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -164,7 +164,7 @@
         $script:ctx.BtnCopyJobDetails.Add_Click({
             try {
                 Copy-DashboardSelectedJobDetails -Root $script:ctx.DashboardPage
-                Invoke-SetStatusSafe "Jobdetails kopiert."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardJobDetailsCopied')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -175,7 +175,7 @@
         $script:ctx.BtnOpenHistory.Add_Click({
             try {
                 Open-DashboardJobHistoryFile
-                Invoke-SetStatusSafe "Job-History geöffnet."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardHistoryOpened')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }
@@ -186,7 +186,7 @@
         $script:ctx.BtnOpenDismLog.Add_Click({
             try {
                 Open-DashboardDismLog
-                Invoke-SetStatusSafe "DISM-Log geöffnet."
+                Invoke-SetStatusSafe (Get-UiString -Key 'DashboardDismLogOpened')
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }

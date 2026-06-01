@@ -122,14 +122,14 @@ function Get-SelectedWimImagePaths {
 function Copy-SelectedWimImagePaths {
     $paths = @(Get-SelectedWimImagePaths)
     if ($paths.Count -lt 1) {
-        Show-UiInfo -Title 'Images' -Message 'Bitte zuerst mindestens einen Index auswählen.'
+        Show-UiInfo -Title 'Images' -Message (Get-UiString -Key 'ImagesSelectIndexFirst')
         return
     }
 
     [System.Windows.Clipboard]::SetText(($paths -join [Environment]::NewLine))
 
     if ($script:ctx -and $script:ctx.SetStatus) {
-        $msg = if ($paths.Count -eq 1) { 'Image-Pfad kopiert.' } else { ("{0} Image-Pfade kopiert." -f $paths.Count) }
+        $msg = if ($paths.Count -eq 1) { Get-UiString -Key 'ImagesImagePathCopied' } else { Get-UiString -Key 'ImagesImagePathsCopiedFormat' -Args @($paths.Count) }
         & $script:ctx.SetStatus $msg
     }
 }
@@ -163,7 +163,7 @@ function Get-ImagesSelectedBatchPlanText {
 
     $items = @($Items | Where-Object { $null -ne $_ })
     if ($items.Count -lt 1) {
-        return "Auswahl: Noch kein Index ausgewählt."
+        return (Get-UiString -Key 'ImagesNoIndexSelected')
     }
 
     $fileNames = New-Object System.Collections.Generic.List[string]
@@ -188,11 +188,11 @@ function Get-ImagesSelectedBatchPlanText {
     }
 
     if ($items.Count -eq 1) {
-        return ("Auswahl: {0}. Aktion läuft als Einzel-Mount." -f [string]$preview[0])
+        return (Get-UiString -Key 'ImagesSingleMountPlanFormat' -Args @([string]$preview[0]))
     }
 
-    $more = if ($items.Count -gt $preview.Count) { " + {0} weitere" -f ($items.Count - $preview.Count) } else { "" }
-    return ("Batch-Auswahl: {0} Indexe aus {1} Datei(en). Ablauf nacheinander: {2}{3}" -f $items.Count, $fileNames.Count, ($preview -join '; '), $more)
+    $more = if ($items.Count -gt $preview.Count) { Get-UiString -Key 'ImagesMoreFormat' -Args @(($items.Count - $preview.Count)) } else { "" }
+    return (Get-UiString -Key 'ImagesBatchSelectionFormat' -Args @($items.Count, $fileNames.Count, ($preview -join '; '), $more))
 }
 
 function Test-ImagesPathReadOnly {
@@ -226,7 +226,7 @@ function Get-ImagesSelectedMountAssistantText {
 
     $items = @($Items | Where-Object { $null -ne $_ })
     if ($items.Count -lt 1) {
-        return "Mount-Assistent: Wähle einen oder mehrere Indexe. ReadOnly ist sicher zum Prüfen; Read/Write brauchst du für Updates, Treiber und Commit."
+        return (Get-UiString -Key 'ImagesMountAssistantNoSelection')
     }
 
     $readOnly = $true
@@ -267,27 +267,27 @@ function Get-ImagesSelectedMountAssistantText {
     }
 
     $scope = if ($items.Count -eq 1) {
-        "1 Index"
+        Get-UiString -Key 'ImagesMountScopeSingle'
     } else {
-        "{0} Indexe aus {1} Datei(en), nacheinander" -f $items.Count, ([Math]::Max(1, $paths.Count))
+        Get-UiString -Key 'ImagesMountScopeBatchFormat' -Args @($items.Count, ([Math]::Max(1, $paths.Count)))
     }
 
     if ($readOnly) {
-        return ("Mount-Assistent: Plan ReadOnly für {0}. Sicher zum Prüfen und Exportieren; Updates, Treiber und Commit bleiben gesperrt." -f $scope)
+        return (Get-UiString -Key 'ImagesMountAssistantReadOnlyFormat' -Args @($scope))
     }
 
     if ($readonlyFiles.Count -gt 0) {
         $preview = @($readonlyFiles | Select-Object -First 3) -join ', '
-        $more = if ($readonlyFiles.Count -gt 3) { " + {0} weitere" -f ($readonlyFiles.Count - 3) } else { "" }
-        return ("Mount-Assistent: Achtung, Read/Write wird so scheitern. Schreibgeschützte Quelle: {0}{1}. Aktiviere ReadOnly oder mache eine beschreibbare WIM-Kopie." -f $preview, $more)
+        $more = if ($readonlyFiles.Count -gt 3) { Get-UiString -Key 'ImagesMoreFormat' -Args @(($readonlyFiles.Count - 3)) } else { "" }
+        return (Get-UiString -Key 'ImagesMountAssistantReadWriteBlockedFormat' -Args @($preview, $more))
     }
 
     if ($bootLike.Count -gt 0) {
         $preview = @($bootLike | Select-Object -First 3) -join ', '
-        return ("Mount-Assistent: Boot/WinPE erkannt ({0}). Read/Write nur für gezielte WinPE-/Treiber-Arbeiten nutzen; normale Windows-Updates gehören ins Install-Image." -f $preview)
+        return (Get-UiString -Key 'ImagesMountAssistantBootWinPeFormat' -Args @($preview))
     }
 
-    return ("Mount-Assistent: Plan Read/Write für {0}. Updates, Treiber und Commit sind möglich. Danach sauber committen oder verwerfen." -f $scope)
+    return (Get-UiString -Key 'ImagesMountAssistantReadWriteFormat' -Args @($scope))
 }
 
 function Update-ImagesMountAssistantUi {
@@ -316,7 +316,7 @@ function Get-WimSourceSummary {
     if ($items.Count -eq 0) { return '-' }
     if ($items.Count -eq 1) { return [string]$items[0] }
 
-    return ("{0} Dateien | {1} Indexe" -f $items.Count, $ItemCount)
+    return (Get-UiString -Key 'ImagesSourceSummaryFormat' -Args @($items.Count, $ItemCount))
 }
 
 function Set-WimSourceUsedText {
@@ -362,7 +362,7 @@ function Update-SelectedIndexUi {
         try {
             $text = "-"
             if ($selectedItems.Count -gt 1) {
-                $text = ("{0} Indexe ausgewählt" -f $selectedItems.Count)
+                $text = (Get-UiString -Key 'ImagesSelectedIndexesFormat' -Args @($selectedItems.Count))
             }
             elseif ($null -ne $idx) {
                 $text = [string]$idx
@@ -423,7 +423,7 @@ function Show-ImagesIndexes {
         $mode = Get-ImagesViewMode
         if (-not $mode) {
             Clear-IndexListUi
-            if ($script:ctx.SetStatus) { & $script:ctx.SetStatus "Keine Quelle gesetzt." }
+            if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'ImagesNoSourceSet') }
             return
         }
 
@@ -438,7 +438,7 @@ function Show-ImagesIndexes {
 
         if ($paths.Count -eq 0) {
             Clear-IndexListUi
-            if ($script:ctx.SetStatus) { & $script:ctx.SetStatus "Keine Quelle gesetzt." }
+            if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'ImagesNoSourceSet') }
             return
         }
 

@@ -99,7 +99,7 @@ function Pick-StandaloneImage {
         return
     }
 
-    Set-StandaloneImageSelection -Paths @($dlg.FileNames) -StatusPrefix 'Images gewählt'
+    Set-StandaloneImageSelection -Paths @($dlg.FileNames) -StatusPrefix (Get-UiString -Key 'ImagesChooseFilesStatusPrefix')
 }
 
 function Clear-StandaloneImage {
@@ -127,7 +127,7 @@ function Clear-StandaloneImage {
 
     try {
         if ($script:ctx -and $script:ctx.SetStatus) {
-            & $script:ctx.SetStatus 'Standalone WIM/ESD entfernt.'
+            & $script:ctx.SetStatus (Get-UiString -Key 'ImagesStandaloneRemoved')
         }
     } catch {}
 }
@@ -648,7 +648,7 @@ function Initialize-ImagesController {
                 $dir = Get-SelectedMountedDir
                 if ([string]::IsNullOrWhiteSpace([string]$dir)) { return }
                 [System.Windows.Clipboard]::SetText([string]$dir)
-                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus "MountDir kopiert." }
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'ImagesMountDirCopied') }
             } catch {
                 Show-UiError -Message $_.Exception.Message
             }

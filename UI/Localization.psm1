@@ -622,6 +622,109 @@ StaticMountIso;ISO mounten;Mount ISO
 StaticChooseIso;ISO wählen;Choose ISO
 StaticMountedImageDrivers;Treiber im Image;Drivers in image
 StaticLocalMsuCab;MSU/CAB;MSU/CAB
+DashboardStatusSelectIso;ISO auswählen...;Selecting ISO...
+DashboardStatusMountIso;ISO mounten & scannen...;Mounting and scanning ISO...
+DashboardSelectIsoFirst;Bitte zuerst eine ISO auswählen.;Select an ISO first.
+DashboardStatusDismountIso;ISO aushängen...;Dismounting ISO...
+DashboardNoIsoState;Keine ISO im State gesetzt (IsoPath).;No ISO set in state (IsoPath).
+DashboardStatusSelectStandalone;Standalone wählen...;Selecting standalone image...
+DashboardJobsUpdated;Job-Verlauf aktualisiert.;Job history refreshed.
+DashboardJobDetailsCopied;Jobdetails kopiert.;Job details copied.
+DashboardHistoryOpened;Job-History geöffnet.;Job history opened.
+DashboardDismLogOpened;DISM-Log geöffnet.;DISM log opened.
+DashboardNoJobDetailsToCopy;Keine Jobdetails zum Kopieren vorhanden.;No job details available to copy.
+DashboardPathEmpty;Pfad ist leer.;Path is empty.
+DashboardPathMissingFormat;Pfad nicht gefunden: {0};Path not found: {0}
+DashboardJobHistoryModuleMissing;JobHistory-Modul ist nicht geladen.;JobHistory module is not loaded.
+DashboardSelectJobDetails;Job auswählen, um Details zu sehen.;Select a job to see details.
+DashboardJobActionFormat;Aktion: {0};Action: {0}
+DashboardJobStatusFormat;Status: {0};Status: {0}
+DashboardJobTimeDurationFormat;Zeit: {0} | Dauer: {1};Time: {0} | duration: {1}
+DashboardJobMessageFormat;Meldung: {0};Message: {0}
+DashboardJobDetailsFormat;Details: {0};Details: {0}
+DashboardJobErrorHeader;Fehler:;Error:
+DashboardJobsNotLoaded;Job-Verlauf nicht geladen;Job history not loaded
+DashboardNoJobs;Noch keine Jobs;No jobs yet
+DashboardNoJobsDetail;Sobald eine lange Aktion läuft, erscheint sie hier.;Long-running actions will appear here.
+DashboardNoErrors;Keine Fehler im Verlauf;No errors in history
+DashboardJobsLoadFailed;Job-Verlauf konnte nicht geladen werden;Job history could not be loaded
+DashboardDismMissing;DISM: nicht gefunden;DISM: not found
+DashboardDismUnknown;DISM: unbekannt;DISM: unknown
+DashboardAdkNotConfigured;ADK: nicht eingerichtet;ADK: not configured
+DashboardAdkNotChecked;ADK: nicht geprüft;ADK: not checked
+DashboardAdkCheckFailed;ADK: Fehler beim Prüfen;ADK: check failed
+DashboardMountServiceMissing;Mount-Service nicht geladen;Mount service not loaded
+DashboardMountProblemsFormat;{0} Hinweis(e): Reparatur im Images-Bereich prüfen;{0} issue(s): check repair in Images
+DashboardMountHealthy;Mount-Zustand OK;Mount state OK
+DashboardMountReadFailedFormat;Mounts konnten nicht gelesen werden: {0};Could not read mounts: {0}
+DashboardNoSource;Keine Quelle;No source
+DashboardNoSourceDetail;Wähle eine ISO oder eine einzelne WIM/ESD.;Choose an ISO or a single WIM/ESD.
+DashboardNoWorkSource;Noch keine Arbeitsquelle gewählt;No working source selected yet
+DashboardNoWorkSourceNext;Starte mit ISO wählen, AutoDetect oder WIM/ESD wählen.;Start with Choose ISO, AutoDetect, or Choose WIM/ESD.
+DashboardStepChooseSource;1. Quelle wählen;1. Choose source
+DashboardStepChooseIsoOrStandalone;ISO auswählen oder Standalone-WIM/ESD laden.;Select an ISO or load a standalone WIM/ESD.
+DashboardStepMountEdition;Danach in Images die gewünschten Editionen mounten.;Then mount the desired editions in Images.
+DashboardSourceWithMounts;Quelle + Mounts;Source + mounts
+DashboardMountsActive;Mounts aktiv;Mounts active
+DashboardActiveMountsDetailFormat;{0} Mount(s) aktiv. Updates, Treiber oder Unmount sind jetzt sinnvoll.;{0} mount(s) active. Updates, drivers, or unmount are useful now.
+DashboardMountsReadyFormat;{0} Mount(s) bereit;{0} mount(s) ready
+DashboardNextMounted;Weiter mit Updates, Driver oder Images zum Commit/Discard.;Continue with Updates, Driver, or Images for commit/discard.
+DashboardStepIntegrate;1. Updates oder Treiber integrieren;1. Integrate updates or drivers
+DashboardStepUseUpdatesDriver;Nutze Updates für MSU/CAB/Catalog oder Driver für Treiberpakete.;Use Updates for MSU/CAB/Catalog or Driver for driver packages.
+DashboardStepCommitDiscard;Zum Abschluss in Images sauber Commit oder Discard ausführen.;Finish in Images with a clean commit or discard.
+DashboardStandaloneReady;Standalone bereit;Standalone ready
+DashboardIsoReady;ISO bereit;ISO ready
+DashboardSourceReadyNotMounted;Quelle bereit, noch nicht gemountet;Source ready, not mounted yet
+DashboardNextOpenImages;Gehe zu Images und mounte eine oder mehrere Editionen.;Go to Images and mount one or more editions.
+DashboardStepOpenImages;1. Images öffnen;1. Open Images
+DashboardStepSelectEditions;Editionen auswählen und nacheinander oder gesammelt mounten.;Select editions and mount them sequentially or as a batch.
+DashboardStepUseAfterMount;Danach Updates, Treiber oder ISO bauen verwenden.;Then use Updates, Driver, or Build ISO.
+DashboardIsoSelected;ISO gewählt;ISO selected
+DashboardIsoSelectedNotMounted;ISO gewählt, aber noch nicht gemountet;ISO selected, but not mounted yet
+DashboardNextMountIso;ISO mounten, damit boot.wim und install.wim/esd erkannt werden.;Mount the ISO so boot.wim and install.wim/esd can be detected.
+DashboardStepMountIso;1. ISO mounten;1. Mount ISO
+DashboardStepIsoDetectsImages;Das Dashboard erkennt danach boot.wim und install.wim/esd automatisch.;The dashboard then detects boot.wim and install.wim/esd automatically.
+DashboardStepMountEditionShort;Dann in Images die gewünschte Edition mounten.;Then mount the desired edition in Images.
+DashboardIsoMounted;ISO gemountet;ISO mounted
+DashboardIsoRootActive;ISO Root aktiv;ISO root active
+DashboardIsoMountedInstallMissing;ISO gemountet, Install-Image fehlt noch;ISO mounted, install image still missing
+DashboardNextCheckIsoStructure;Prüfe die ISO-Struktur oder wähle die WIM/ESD direkt.;Check the ISO structure or select the WIM/ESD directly.
+DashboardStepCheckSource;1. Quelle prüfen;1. Check source
+DashboardStepChooseWimIfMissing;Wenn install.wim/esd nicht erkannt wurde, nutze WIM/ESD wählen.;If install.wim/esd was not detected, use Choose WIM/ESD.
+DashboardStepOpenImagesShort;Danach Images öffnen.;Then open Images.
+ImagesChooseFilesStatusPrefix;Images gewählt;Images selected
+ImagesStandaloneRemoved;Standalone WIM/ESD entfernt.;Standalone WIM/ESD removed.
+ImagesSelectIndexFirst;Bitte zuerst mindestens einen Index auswählen.;Select at least one index first.
+ImagesImagePathCopied;Image-Pfad kopiert.;Image path copied.
+ImagesImagePathsCopiedFormat;{0} Image-Pfade kopiert.;{0} image paths copied.
+ImagesNoIndexSelected;Auswahl: Noch kein Index ausgewählt.;Selection: no index selected yet.
+ImagesSingleMountPlanFormat;Auswahl: {0}. Aktion läuft als Einzel-Mount.;Selection: {0}. Action runs as a single mount.
+ImagesMoreFormat; + {0} weitere; + {0} more
+ImagesBatchSelectionFormat;Batch-Auswahl: {0} Indexe aus {1} Datei(en). Ablauf nacheinander: {2}{3};Batch selection: {0} indexes from {1} file(s). Runs sequentially: {2}{3}
+ImagesMountAssistantNoSelection;"Mount-Assistent: Wähle einen oder mehrere Indexe. ReadOnly ist sicher zum Prüfen; Read/Write brauchst du für Updates, Treiber und Commit.";"Mount assistant: select one or more indexes. Read-only is safe for checks; read/write is needed for updates, drivers, and commit."
+ImagesMountScopeSingle;1 Index;1 index
+ImagesMountScopeBatchFormat;{0} Indexe aus {1} Datei(en), nacheinander;{0} indexes from {1} file(s), sequentially
+ImagesMountAssistantReadOnlyFormat;"Mount-Assistent: Plan ReadOnly für {0}. Sicher zum Prüfen und Exportieren; Updates, Treiber und Commit bleiben gesperrt.";"Mount assistant: read-only plan for {0}. Safe for checks and export; updates, drivers, and commit stay locked."
+ImagesMountAssistantReadWriteBlockedFormat;Mount-Assistent: Achtung, Read/Write wird so scheitern. Schreibgeschützte Quelle: {0}{1}. Aktiviere ReadOnly oder mache eine beschreibbare WIM-Kopie.;Mount assistant: warning, read/write will fail this way. Read-only source: {0}{1}. Enable read-only or make a writable WIM copy.
+ImagesMountAssistantBootWinPeFormat;"Mount-Assistent: Boot/WinPE erkannt ({0}). Read/Write nur für gezielte WinPE-/Treiber-Arbeiten nutzen; normale Windows-Updates gehören ins Install-Image.";"Mount assistant: Boot/WinPE detected ({0}). Use read/write only for targeted WinPE/driver work; normal Windows updates belong in the install image."
+ImagesMountAssistantReadWriteFormat;Mount-Assistent: Plan Read/Write für {0}. Updates, Treiber und Commit sind möglich. Danach sauber committen oder verwerfen.;Mount assistant: read/write plan for {0}. Updates, drivers, and commit are possible. Commit or discard cleanly afterwards.
+ImagesSourceSummaryFormat;{0} Dateien | {1} Indexe;{0} files | {1} indexes
+ImagesSelectedIndexesFormat;{0} Indexe ausgewählt;{0} indexes selected
+ImagesNoSourceSet;Keine Quelle gesetzt.;No source set.
+ImagesMountDirCopied;MountDir kopiert.;MountDir copied.
+ImagesNoViewSelected;Keine Ansicht ausgewählt.;No view selected.
+ImagesImageFileForIndexMissingFormat;ImageFile für Index {0} nicht ermittelbar.;Could not determine ImageFile for index {0}.
+ImagesImageFileMissingFormat;ImageFile nicht gefunden: {0};ImageFile not found: {0}
+ImagesNoMountableIndexes;Die Auswahl enthält keine mountbaren Indexe.;The selection contains no mountable indexes.
+ImagesMountAssistantTitle;Mount-Assistent;Mount assistant
+ImagesReadWriteBlockedMessageFormat;Read/Write-Mount ist für schreibgeschützte Quellen nicht möglich.`r`n`r`nBetroffen: {0}{1}`r`n`r`nAktiviere ReadOnly zum Prüfen oder erstelle eine beschreibbare WIM-Kopie.;Read/write mount is not possible for read-only sources.`r`n`r`nAffected: {0}{1}`r`n`r`nEnable read-only for checks or create a writable WIM copy.
+ImagesBusyMountMultipleFormat;Mount läuft ({0} Indexe nacheinander)...;Mount running ({0} indexes sequentially)...
+ImagesBusyMountSingle;Mount läuft...;Mount running...
+ImagesStandaloneStatusFormat;{0}: {1} Datei(en);{0}: {1} file(s)
+ImagesFolderDialogDescription;Ordner mit WIM/ESD/SWM-Dateien auswählen;Select folder with WIM/ESD/SWM files
+ImagesIsoInstallUnavailable;ISO Install ist nicht verfügbar (ISO mounten).;ISO Install is not available (mount ISO).
+ImagesIsoBootUnavailable;ISO Boot ist nicht verfügbar (ISO mounten).;ISO Boot is not available (mount ISO).
+ImagesStandaloneNotSet;Standalone ist nicht gesetzt (WIM/ESD wählen).;Standalone is not set (choose WIM/ESD).
 '@ | ConvertFrom-Csv -Delimiter ';'
 
 foreach ($row in @($script:UiStaticTextTranslations)) {
