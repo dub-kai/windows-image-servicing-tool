@@ -29,6 +29,13 @@
     return $name
 }
 
+function Convert-UpdatesUiEscapedText {
+    param([AllowNull()][string]$Text)
+
+    if ($null -eq $Text) { return $Text }
+    return ([string]$Text).Replace('`r', "`r").Replace('`n', "`n")
+}
+
 function Get-UpdatesUiString {
     param(
         [Parameter(Mandatory)][string]$Key,
@@ -38,15 +45,15 @@ function Get-UpdatesUiString {
 
     try {
         if (Get-Command Get-UiString -ErrorAction SilentlyContinue) {
-            return (Get-UiString -Key $Key -Args $Args)
+            return (Convert-UpdatesUiEscapedText -Text (Get-UiString -Key $Key -Args $Args))
         }
     } catch {}
 
     if (@($Args).Count -gt 0) {
-        try { return ($Default -f $Args) } catch {}
+        try { return (Convert-UpdatesUiEscapedText -Text ($Default -f $Args)) } catch {}
     }
 
-    return $Default
+    return (Convert-UpdatesUiEscapedText -Text $Default)
 }
 
 function Update-MountSelectorUi {

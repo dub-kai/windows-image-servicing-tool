@@ -91,12 +91,12 @@ function Apply-PackagesView {
     }
 
     $modeText = switch ($mode) {
-        'KBOnly' { 'Nur KB-Pakete' }
-        'All'    { 'Alle' }
-        default  { 'Wichtige' }
+        'KBOnly' { Get-UpdatesUiString -Key 'UpdatesPackagesModeKbOnly' -Default 'Nur KB-Pakete' }
+        'All'    { Get-UpdatesUiString -Key 'UpdatesPackagesModeAll' -Default 'Alle' }
+        default  { Get-UpdatesUiString -Key 'UpdatesPackagesModeImportant' -Default 'Wichtige' }
     }
 
-    Set-UiText -Root $page -Name 'TxtUpdatesPackagesCount' -Value ('Pakete: {0} / {1} | Modus: {2}' -f $visible.Count, @($script:allPackages).Count, $modeText)
+    Set-UiText -Root $page -Name 'TxtUpdatesPackagesCount' -Value (Get-UpdatesUiString -Key 'UpdatesPackagesCountFormat' -Default 'Pakete: {0} / {1} | Modus: {2}' -Args @($visible.Count, @($script:allPackages).Count, $modeText))
 
     try {
         Write-Log -Level INFO -Message ('Packages View: Mode={0}; Visible={1}; Total={2}' -f $modeText, $visible.Count, @($script:allPackages).Count)
@@ -109,13 +109,13 @@ function Export-UpdatesPackagesCsv {
 
     $items = @($script:visiblePackages)
     if ($items.Count -le 0) {
-        Show-UiInfo -Message 'Aktuell sind keine sichtbaren Pakete zum Exportieren vorhanden.' -Title 'Pakete Export'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesPackagesExportEmpty' -Default 'Aktuell sind keine sichtbaren Pakete zum Exportieren vorhanden.') -Title (Get-UpdatesUiString -Key 'UpdatesPackagesExportTitle' -Default 'Pakete Export')
         return
     }
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object Microsoft.Win32.SaveFileDialog
-    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.Filter = Get-UpdatesUiString -Key 'UpdatesPackagesCsvFilter' -Default 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
     $dlg.FileName = ('packages_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
     $dlg.OverwritePrompt = $true
 
@@ -148,8 +148,8 @@ function Export-UpdatesPackagesCsv {
         }
 
         $rows | Export-Csv -LiteralPath $dest -Delimiter ';' -NoTypeInformation -Encoding UTF8
-        Set-UpdatesStatusText -Message ('Pakete CSV exportiert: {0}' -f $dest)
+        Set-UpdatesStatusText -Message (Get-UpdatesUiString -Key 'UpdatesPackagesCsvExportedFormat' -Default 'Pakete CSV exportiert: {0}' -Args @($dest))
     } catch {
-        Show-UiError -Message $_.Exception.Message -Title 'Pakete Export'
+        Show-UiError -Message $_.Exception.Message -Title (Get-UpdatesUiString -Key 'UpdatesPackagesExportTitle' -Default 'Pakete Export')
     }
 }

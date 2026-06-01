@@ -143,7 +143,7 @@ function Start-UpdatesMountRefresh {
         $page = $script:ctx.Page
     }
 
-    Set-UpdatesBusy -Busy $true -Message 'Mounts werden gelesen...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyReadingMounts' -Default 'Mounts werden gelesen...')
 
     $preamble = Get-UpdatesWorkerPreamble
     $preferredPs = ConvertTo-UpdatesPsLiteral -Value $preferredMountDir
@@ -242,10 +242,10 @@ if ([string]::IsNullOrWhiteSpace(`$selectedMountDir) -and @(`$mounted).Count -gt
                     & $cmdClearUi
                 }
                 if ($cmdSetStatus) {
-                    & $cmdSetStatus -Message 'Kein gemountetes Image gefunden.'
+                    & $cmdSetStatus -Message (Get-UpdatesUiString -Key 'UpdatesNoMountedImageFound' -Default 'Kein gemountetes Image gefunden.')
                 }
                 if ($page -and $cmdSetUiText) {
-                    & $cmdSetUiText -Root $page -Name 'TxtUpdatesFooterHint' -Value 'Aktuell ist kein Mount aktiv. Bitte zuerst ein Image mounten.'
+                    & $cmdSetUiText -Root $page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesFooterNoActiveMount' -Default 'Aktuell ist kein Mount aktiv. Bitte zuerst ein Image mounten.')
                 }
                 return
             }
@@ -255,10 +255,10 @@ if ([string]::IsNullOrWhiteSpace(`$selectedMountDir) -and @(`$mounted).Count -gt
                     & $cmdClearUi
                 }
                 if ($cmdSetStatus) {
-                    & $cmdSetStatus -Message 'Es konnte kein Mount ausgewaehlt werden.'
+                    & $cmdSetStatus -Message (Get-UpdatesUiString -Key 'UpdatesMountSelectionFailed' -Default 'Es konnte kein Mount ausgewaehlt werden.')
                 }
                 if ($page -and $cmdSetUiText) {
-                    & $cmdSetUiText -Root $page -Name 'TxtUpdatesFooterHint' -Value 'Mounts wurden gefunden, aber es konnte keine Auswahl bestimmt werden.'
+                    & $cmdSetUiText -Root $page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesFooterMountSelectionFailed' -Default 'Mounts wurden gefunden, aber es konnte keine Auswahl bestimmt werden.')
                 }
                 return
             }
@@ -285,7 +285,7 @@ if ([string]::IsNullOrWhiteSpace(`$selectedMountDir) -and @(`$mounted).Count -gt
                 & $cmdClearUi
             }
             if ($cmdSetStatus) {
-                & $cmdSetStatus -Message 'Fehler beim Lesen der Mount-Liste.'
+                & $cmdSetStatus -Message (Get-UpdatesUiString -Key 'UpdatesReadMountListFailed' -Default 'Fehler beim Lesen der Mount-Liste.')
             }
 
             Show-UiError -Message $ex.Message -Title 'Updates'
@@ -323,7 +323,7 @@ function Start-SelectedMountContextLoad {
         Set-AppStateValue -Key "IsImageServicingBusy" -Value $true
     } catch {}
 
-    Set-UpdatesBusy -Busy $true -Message 'Mount-Kontext wird geladen...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyLoadingMountContext' -Default 'Mount-Kontext wird geladen...')
 
     $preamble = Get-UpdatesWorkerPreamble
     $mountPs = ConvertTo-UpdatesPsLiteral -Value $MountDir
@@ -365,7 +365,7 @@ if ([string]::IsNullOrWhiteSpace(`$mountDir)) {
                     & $cmdClearUi
                 }
                 if ($cmdSetStatus) {
-                    & $cmdSetStatus -Message 'Der Mount-Kontext konnte nicht geladen werden.'
+                    & $cmdSetStatus -Message (Get-UpdatesUiString -Key 'UpdatesMountContextLoadFailed' -Default 'Der Mount-Kontext konnte nicht geladen werden.')
                 }
                 if ($cmdDriverReload) {
                     try { & $cmdDriverReload -Reason "UpdatesContextEmpty" } catch {}
@@ -403,7 +403,7 @@ if ([string]::IsNullOrWhiteSpace(`$mountDir)) {
                 & $cmdClearUi
             }
             if ($cmdSetStatus) {
-                & $cmdSetStatus -Message 'Fehler beim Lesen des Mount-Kontexts.'
+                & $cmdSetStatus -Message (Get-UpdatesUiString -Key 'UpdatesReadMountContextFailed' -Default 'Fehler beim Lesen des Mount-Kontexts.')
             }
 
             if ($cmdDriverReload) {
@@ -425,7 +425,7 @@ function Invoke-CatalogSearchUi {
     if ($script:isBusy) { return }
 
     if ($null -eq $script:updateContext) {
-        Show-UiInfo -Message 'Es ist aktuell kein gemountetes Image verfuegbar.' -Title 'Updates'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticNoMountedImageAvailable' -Default 'Es ist aktuell kein gemountetes Image verfuegbar.') -Title (Get-UpdatesUiString -Key 'NavUpdates' -Default 'Updates')
         return
     }
 
@@ -437,13 +437,13 @@ function Invoke-CatalogSearchUi {
     } catch { $catalogSupported = $true }
 
     if (-not $catalogSupported) {
-        $reason = 'Dieses Image ist fuer die automatische Catalog-Suche nicht geeignet.'
+        $reason = Get-UpdatesUiString -Key 'UpdatesCatalogUnsupported' -Default 'Dieses Image ist fuer die automatische Catalog-Suche nicht geeignet.'
         try {
             if ($script:updateContext.PSObject.Properties.Match('CatalogSkipReason').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$script:updateContext.CatalogSkipReason)) {
                 $reason = [string]$script:updateContext.CatalogSkipReason
             }
         } catch {}
-        Show-UiInfo -Message $reason -Title 'Updates'
+        Show-UiInfo -Message $reason -Title (Get-UpdatesUiString -Key 'NavUpdates' -Default 'Updates')
         return
     }
 
@@ -464,7 +464,7 @@ function Invoke-CatalogSearchUi {
 
     $queryArray = @($queries.ToArray())
     if ($queryArray.Count -eq 0) {
-        Show-UiInfo -Message 'Fuer das aktuelle Image konnten keine Catalog-Queries gebildet werden.' -Title 'Updates'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesCatalogNoQueries' -Default 'Fuer das aktuelle Image konnten keine Catalog-Queries gebildet werden.') -Title (Get-UpdatesUiString -Key 'NavUpdates' -Default 'Updates')
         return
     }
 
@@ -495,7 +495,7 @@ function Invoke-CatalogSearchUi {
         }
     } catch {}
 
-    Set-UpdatesBusy -Busy $true -Message 'Microsoft Update Catalog wird durchsucht...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyCatalogSearch' -Default 'Microsoft Update Catalog wird durchsucht...')
 
     $queriesB64        = ConvertTo-UpdatesBase64Json -Value @($queryArray)
     $installedB64      = ConvertTo-UpdatesBase64Json -Value @($installedKBs)
@@ -565,7 +565,7 @@ if (@(`$queries).Count -le 0) {
             if ($null -eq $item) {
                 Reset-CatalogState
                 Apply-CatalogView
-                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Catalog-Suche abgeschlossen, aber ohne Treffer. Bei Insider-/Release-Preview-Updates kannst du die .msu/.cab manuell laden und über "MSU/CAB wählen" hinzufügen.'
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesCatalogSearchNoResultFooter' -Default 'Catalog-Suche abgeschlossen, aber ohne Treffer. Bei Insider-/Release-Preview-Updates kannst du die .msu/.cab manuell laden und ueber MSU/CAB waehlen hinzufuegen.')
                 return
             }
 
@@ -582,9 +582,9 @@ if (@(`$queries).Count -le 0) {
             Apply-CatalogView
 
             $footer = if (@($script:catalogAllResults).Count -gt 0) {
-                'Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden. Tipp: "Alle Treffer" zeigt auch Preview- und nicht empfohlene Pakete.'
+                Get-UpdatesUiString -Key 'UpdatesCatalogSearchCompleteFooter' -Default 'Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden. Tipp: Alle Treffer zeigt auch Preview- und nicht empfohlene Pakete.'
             } else {
-                'Catalog-Suche abgeschlossen, aber ohne passende Treffer. Nutze "Alle Treffer" fuer Diagnose oder fuege eine heruntergeladene .msu/.cab ueber "MSU/CAB wählen" hinzu.'
+                Get-UpdatesUiString -Key 'UpdatesCatalogSearchEmptyFooter' -Default 'Catalog-Suche abgeschlossen, aber ohne passende Treffer. Nutze Alle Treffer fuer Diagnose oder fuege eine heruntergeladene .msu/.cab ueber MSU/CAB waehlen hinzu.'
             }
 
             Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value $footer
@@ -595,14 +595,14 @@ if (@(`$queries).Count -le 0) {
             Set-UpdatesBusy -Busy $false
             Reset-CatalogState
             Apply-CatalogView
-            Show-UiError -Message $ex.Message -Title 'Catalog-Suche'
+            Show-UiError -Message $ex.Message -Title (Get-UpdatesUiString -Key 'UpdatesCatalogSearchTitle' -Default 'Catalog-Suche')
         }
 }
 
 function Invoke-CatalogDownloadUi {
     $item = Get-SelectedCatalogItem
     if (-not $item) {
-        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswaehlen.' -Title 'Catalog'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticSelectCatalogFirstAscii' -Default 'Bitte zuerst einen Catalog-Treffer auswaehlen.') -Title 'Catalog'
         return
     }
 
@@ -611,11 +611,11 @@ function Invoke-CatalogDownloadUi {
     $kb       = [string]$item.KB
 
     if ([string]::IsNullOrWhiteSpace($updateId)) {
-        Show-UiInfo -Message 'Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht direkt heruntergeladen werden.' -Title 'Download'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticNoUpdateIdDownloadAscii' -Default 'Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht direkt heruntergeladen werden.') -Title 'Download'
         return
     }
 
-    Set-UpdatesBusy -Busy $true -Message 'Catalog-Update wird heruntergeladen...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyCatalogDownload' -Default 'Catalog-Update wird heruntergeladen...')
 
     $preamble   = Get-UpdatesWorkerPreamble
     $updateIdPs = ConvertTo-UpdatesPsLiteral -Value $updateId
@@ -640,15 +640,16 @@ $preamble
 
             $downloadResult = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
             if ($null -eq $downloadResult) {
-                Show-UiInfo -Message 'Der Download lieferte kein Ergebnisobjekt zurueck.' -Title 'Download'
+                Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesDownloadNoResult' -Default 'Der Download lieferte kein Ergebnisobjekt zurueck.') -Title 'Download'
                 return
             }
 
-            $message = "Download abgeschlossen.`n`nDateien: {0}`nNeu: {1}`nBereits vorhanden: {2}`nOrdner: {3}" -f `
+            $message = Get-UpdatesUiString -Key 'UpdatesDownloadCompleteMessageFormat' -Default "Download abgeschlossen.`n`nDateien: {0}`nNeu: {1}`nBereits vorhanden: {2}`nOrdner: {3}" -Args @(
                 [int]$downloadResult.FileCount,
                 [int]$downloadResult.DownloadedCount,
                 [int]$downloadResult.SkippedCount,
                 [string]$downloadResult.DownloadDirectory
+            )
 
             try {
                 Write-Log -Level INFO -Message ("Updates: Download UI abgeschlossen | Dateien={0} | Neu={1} | Vorhanden={2} | Ordner={3}" -f `
@@ -673,7 +674,7 @@ function Invoke-CatalogIntegrateUi {
 
     $item = Get-SelectedCatalogItem
     if (-not $item) {
-        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswaehlen.' -Title 'Catalog'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticSelectCatalogFirstAscii' -Default 'Bitte zuerst einen Catalog-Treffer auswaehlen.') -Title 'Catalog'
         return
     }
 
@@ -683,7 +684,7 @@ function Invoke-CatalogIntegrateUi {
     }
 
     if ([string]::IsNullOrWhiteSpace($mountDir)) {
-        Show-UiInfo -Message 'Es ist aktuell kein gueltiger Mount ausgewaehlt.' -Title 'Integration'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticNoValidMountSelectedAscii' -Default 'Es ist aktuell kein gueltiger Mount ausgewaehlt.') -Title 'Integration'
         return
     }
 
@@ -693,14 +694,14 @@ function Invoke-CatalogIntegrateUi {
     }
 
     if ($mountMode -match 'ReadOnly' -and $mountMode -notmatch 'No|False|0') {
-        Show-UiInfo -Message 'Der ausgewaehlte Mount ist schreibgeschuetzt. Bitte ein Read/Write-Mount verwenden.' -Title 'Integration'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticMountReadOnlyAscii' -Default 'Der ausgewaehlte Mount ist schreibgeschuetzt. Bitte ein Read/Write-Mount verwenden.') -Title 'Integration'
         return
     }
 
     if ($script:updateContext -and $script:updateContext.PSObject.Properties.Match('CanIntegrateUpdates').Count -gt 0) {
         try {
             if (-not [bool]$script:updateContext.CanIntegrateUpdates) {
-                $hint = 'Dieser Mount ist für normale Update-Integration nicht freigegeben.'
+                $hint = Get-UpdatesUiString -Key 'UpdatesIntegrationNotAllowed' -Default 'Dieser Mount ist für normale Update-Integration nicht freigegeben.'
                 if ($script:updateContext.PSObject.Properties.Match('UpdateServiceHint').Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$script:updateContext.UpdateServiceHint)) {
                     $hint = [string]$script:updateContext.UpdateServiceHint
                 }
@@ -715,17 +716,18 @@ function Invoke-CatalogIntegrateUi {
     $kb       = [string]$item.KB
 
     if ([string]::IsNullOrWhiteSpace($updateId)) {
-        Show-UiInfo -Message 'Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht integriert werden.' -Title 'Integration'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticNoUpdateIdIntegrateAscii' -Default 'Der ausgewaehlte Eintrag hat keine UpdateId und kann nicht integriert werden.') -Title 'Integration'
         return
     }
 
-    Set-UpdatesBusy -Busy $true -Message 'Update wird heruntergeladen und in den Mount integriert...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusySingleIntegration' -Default 'Update wird heruntergeladen und in den Mount integriert...')
 
     $preamble   = Get-UpdatesWorkerPreamble
     $mountPs    = ConvertTo-UpdatesPsLiteral -Value $mountDir
     $updateIdPs = ConvertTo-UpdatesPsLiteral -Value $updateId
     $titlePs    = ConvertTo-UpdatesPsLiteral -Value $title
     $kbPs       = ConvertTo-UpdatesPsLiteral -Value $kb
+    $integrationSkippedFormatPs = ConvertTo-UpdatesPsLiteral -Value (Get-UpdatesUiString -Key 'UpdatesIntegrationSkippedFormat' -Default 'Integration uebersprungen: {0}')
 
     $workCode = @"
 $preamble
@@ -734,6 +736,7 @@ $preamble
 `$updateId = $updateIdPs
 `$title    = $titlePs
 `$kb       = $kbPs
+`$integrationSkippedFormat = $integrationSkippedFormatPs
 
 if ([string]::IsNullOrWhiteSpace(`$mountDir)) {
     throw 'Integration: MountDir ist leer.'
@@ -763,7 +766,7 @@ if (`$mountResult -and [string]`$mountResult.Status -eq 'Failed') {
     throw [string]`$mountResult.Message
 }
 if (`$mountResult -and [string]`$mountResult.Status -eq 'Skipped') {
-    throw ("Integration uebersprungen: {0}" -f [string]`$mountResult.Message)
+    throw (`$integrationSkippedFormat -f [string]`$mountResult.Message)
 }
 
 `$integratedFiles = if (`$mountResult) { @(`$mountResult.IntegratedFiles) } else { @() }
@@ -795,7 +798,7 @@ if (`$mountResult -and [string]`$mountResult.Status -eq 'Skipped') {
 
             $integrationResult = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
             if ($null -eq $integrationResult) {
-                Show-UiInfo -Message 'Die Integration lieferte kein Ergebnisobjekt zurueck.' -Title 'Integration'
+                Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesIntegrationNoResult' -Default 'Die Integration lieferte kein Ergebnisobjekt zurueck.') -Title 'Integration'
                 return
             }
 
@@ -823,17 +826,18 @@ if (`$mountResult -and [string]`$mountResult.Status -eq 'Skipped') {
                 '-'
             }
 
-            $message = "Integration abgeschlossen.`n`nMount: {0}`nIntegrierte Dateien: {1}`nDownload-Ordner: {2}`n`nDateien:`n{3}" -f `
+            $message = Get-UpdatesUiString -Key 'UpdatesIntegrationCompleteMessageFormat' -Default "Integration abgeschlossen.`n`nMount: {0}`nIntegrierte Dateien: {1}`nDownload-Ordner: {2}`n`nDateien:`n{3}" -Args @(
                 [string]$integrationResult.MountDir,
                 [int]$integrationResult.IntegratedCount,
                 [string]$integrationResult.DownloadDirectory,
                 $details
+            )
 
             Reset-CatalogState
             Apply-CatalogView
-            Set-UpdatesStatusText -Message 'Integration abgeschlossen. Mount-Kontext wird neu geladen...'
+            Set-UpdatesStatusText -Message (Get-UpdatesUiString -Key 'UpdatesIntegrationReloadStatus' -Default 'Integration abgeschlossen. Mount-Kontext wird neu geladen...')
             if ($script:ctx -and $script:ctx.Page) {
-                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...'
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesIntegrationReloadFooter' -Default 'Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...')
             }
 
             Show-UiInfo -Message $message -Title 'Integration'
@@ -880,13 +884,13 @@ function Format-IntegrationBatchResultLine {
 
     switch ($status) {
         'Integrated' {
-            return ("OK: {0} ({1} Datei(en))" -f $display, [int]$Result.IntegratedCount)
+            return (Get-UpdatesUiString -Key 'UpdatesBatchLineIntegratedFormat' -Default 'OK: {0} ({1} Datei(en))' -Args @($display, [int]$Result.IntegratedCount))
         }
         'Skipped' {
-            return ("Übersprungen: {0} ({1})" -f $display, [string]$Result.Message)
+            return (Get-UpdatesUiString -Key 'UpdatesBatchLineSkippedFormat' -Default 'Übersprungen: {0} ({1})' -Args @($display, [string]$Result.Message))
         }
         'Failed' {
-            return ("Fehler: {0} ({1})" -f $display, [string]$Result.Message)
+            return (Get-UpdatesUiString -Key 'UpdatesBatchLineFailedFormat' -Default 'Fehler: {0} ({1})' -Args @($display, [string]$Result.Message))
         }
         default {
             return ("{0}: {1}" -f $status, $display)
@@ -907,7 +911,7 @@ function Format-IntegrationPreflightResultLine {
         return ("OK: {0} | {1} | {2}" -f $display, [string]$Result.ReadWrite, [string]$Result.Health)
     }
 
-    return ("Übersprungen: {0} | {1}" -f $display, [string]$Result.SkipReason)
+    return (Get-UpdatesUiString -Key 'UpdatesBatchLineSkippedFormat' -Default 'Übersprungen: {0} ({1})' -Args @($display, [string]$Result.SkipReason))
 }
 
 function Show-IntegrationPreflightResult {
@@ -927,29 +931,37 @@ function Show-IntegrationPreflightResult {
     $dismText = if ($dismLines.Count -gt 0) {
         $dismLines -join "`n"
     } else {
-        'Keine laufenden DISM-Prozesse gefunden.'
+        Get-UpdatesUiString -Key 'UpdatesPreflightNoDism' -Default 'Keine laufenden DISM-Prozesse gefunden.'
     }
 
-    $message = "Batch-Prüfung abgeschlossen.`n`nUpdate: {0}`nMounts: {1}`nBereit: {2}`nÜbersprungen: {3}`nDISM aktiv: {4}`n`nZiele:`n{5}`n`nDISM-Prozesse:`n{6}" -f `
+    $dismActiveText = if ([bool]$PreflightResult.HasDismProcesses) {
+        Get-UpdatesUiString -Key 'UpdatesPreflightYes' -Default 'Ja'
+    } else {
+        Get-UpdatesUiString -Key 'UpdatesPreflightNo' -Default 'Nein'
+    }
+
+    $message = Get-UpdatesUiString -Key 'UpdatesPreflightCompleteMessageFormat' -Default "Batch-Prüfung abgeschlossen.`n`nUpdate: {0}`nMounts: {1}`nBereit: {2}`nÜbersprungen: {3}`nDISM aktiv: {4}`n`nZiele:`n{5}`n`nDISM-Prozesse:`n{6}" -Args @(
         [string]$PreflightResult.UpdateText,
         [int]$PreflightResult.MountCount,
         [int]$PreflightResult.ReadyCount,
         [int]$PreflightResult.SkippedCount,
-        $(if ([bool]$PreflightResult.HasDismProcesses) { 'Ja' } else { 'Nein' }),
+        $dismActiveText,
         ($lines -join "`n"),
         $dismText
+    )
 
     if ($script:ctx -and $script:ctx.Page) {
-        $plan = "Batch-Prüfung: {0}/{1} Mounts bereit, {2} übersprungen. Update: {3}" -f `
+        $plan = Get-UpdatesUiString -Key 'UpdatesPreflightPlanFormat' -Default 'Batch-Prüfung: {0}/{1} Mounts bereit, {2} übersprungen. Update: {3}' -Args @(
             [int]$PreflightResult.ReadyCount,
             [int]$PreflightResult.MountCount,
             [int]$PreflightResult.SkippedCount,
             [string]$PreflightResult.UpdateText
+        )
         Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value $plan
         Set-UpdatesStatusText -Message $plan
     }
 
-    $title = if ($FromBatchRun) { 'Batch Preflight' } else { 'Batch prüfen' }
+    $title = if ($FromBatchRun) { Get-UpdatesUiString -Key 'StaticBatchPreflight' -Default 'Batch vorher prüfen' } else { Get-UpdatesUiString -Key 'StaticBatchCheck' -Default 'Batch prüfen' }
     Show-UiInfo -Message $message -Title $title
 }
 
@@ -958,13 +970,13 @@ function Invoke-CatalogPreflightUi {
 
     $item = Get-SelectedCatalogItem
     if (-not $item) {
-        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswählen.' -Title 'Catalog'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticSelectCatalogFirst' -Default 'Bitte zuerst einen Catalog-Treffer auswählen.') -Title 'Catalog'
         return
     }
 
     $mountDirs = @(Get-UpdateBatchMountDirs)
     if ($mountDirs.Count -lt 1) {
-        Show-UiInfo -Message 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.' -Title 'Batch prüfen'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesNoMountsInList' -Default 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.') -Title (Get-UpdatesUiString -Key 'StaticBatchCheck' -Default 'Batch prüfen')
         return
     }
 
@@ -972,7 +984,7 @@ function Invoke-CatalogPreflightUi {
     $title = [string]$item.Title
     $kb = [string]$item.KB
 
-    Set-UpdatesBusy -Busy $true -Message 'Batch-Prüfung läuft...'
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyPreflight' -Default 'Batch-Prüfung läuft...')
 
     $preamble = Get-UpdatesWorkerPreamble
     $mountDirsB64 = ConvertTo-UpdatesBase64Json -Value @($mountDirs)
@@ -1008,7 +1020,7 @@ Test-CatalogUpdateIntegrationTargets -MountDirs `$mountDirs -UpdateId $updateIdP
             Set-UpdatesBusy -Busy $false
             $preflight = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
             if ($null -eq $preflight) {
-                Show-UiInfo -Message 'Die Batch-Prüfung lieferte kein Ergebnisobjekt zurück.' -Title 'Batch prüfen'
+                Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesPreflightNoResult' -Default 'Die Batch-Prüfung lieferte kein Ergebnisobjekt zurück.') -Title (Get-UpdatesUiString -Key 'StaticBatchCheck' -Default 'Batch prüfen')
                 return
             }
 
@@ -1018,7 +1030,7 @@ Test-CatalogUpdateIntegrationTargets -MountDirs `$mountDirs -UpdateId $updateIdP
             param($ex)
 
             Set-UpdatesBusy -Busy $false
-            Show-UiError -Message $ex.Message -Title 'Batch prüfen'
+            Show-UiError -Message $ex.Message -Title (Get-UpdatesUiString -Key 'StaticBatchCheck' -Default 'Batch prüfen')
         }
 }
 
@@ -1027,13 +1039,13 @@ function Invoke-CatalogIntegrateAllUi {
 
     $item = Get-SelectedCatalogItem
     if (-not $item) {
-        Show-UiInfo -Message 'Bitte zuerst einen Catalog-Treffer auswählen.' -Title 'Catalog'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticSelectCatalogFirst' -Default 'Bitte zuerst einen Catalog-Treffer auswählen.') -Title 'Catalog'
         return
     }
 
     $mountDirs = @(Get-UpdateBatchMountDirs)
     if ($mountDirs.Count -lt 1) {
-        Show-UiInfo -Message 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.' -Title 'Integration'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesNoMountsInList' -Default 'Es sind aktuell keine Mounts in der Updates-Liste vorhanden.') -Title 'Integration'
         return
     }
 
@@ -1042,15 +1054,15 @@ function Invoke-CatalogIntegrateAllUi {
     $kb       = [string]$item.KB
 
     if ([string]::IsNullOrWhiteSpace($updateId)) {
-        Show-UiInfo -Message 'Der ausgewählte Eintrag hat keine UpdateId und kann nicht integriert werden.' -Title 'Integration'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'StaticNoUpdateIdIntegrate' -Default 'Der ausgewählte Eintrag hat keine UpdateId und kann nicht integriert werden.') -Title 'Integration'
         return
     }
 
     try {
-        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value ("Batch läuft: Update wird auf {0} Mount(s) nacheinander angewendet. Ungeeignete Mounts werden übersprungen." -f $mountDirs.Count)
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value (Get-UpdatesUiString -Key 'UpdatesBatchRunPlanFormat' -Default 'Batch läuft: Update wird auf {0} Mount(s) nacheinander angewendet. Ungeeignete Mounts werden übersprungen.' -Args @($mountDirs.Count))
     } catch {}
 
-    Set-UpdatesBusy -Busy $true -Message ("Update wird in {0} Mount(s) integriert..." -f $mountDirs.Count)
+    Set-UpdatesBusy -Busy $true -Message (Get-UpdatesUiString -Key 'UpdatesBusyBatchIntegrationFormat' -Default 'Update wird in {0} Mount(s) integriert...' -Args @($mountDirs.Count))
 
     $preamble = Get-UpdatesWorkerPreamble
     $mountDirsB64 = ConvertTo-UpdatesBase64Json -Value @($mountDirs)
@@ -1088,20 +1100,21 @@ function ConvertFrom-WorkerBase64Json {
 
             $integrationResult = if (@($result).Count -gt 0) { @($result)[0] } else { $null }
             if ($null -eq $integrationResult) {
-                Show-UiInfo -Message 'Die Batch-Integration lieferte kein Ergebnisobjekt zurück.' -Title 'Integration'
+                Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesBatchIntegrationNoResult' -Default 'Die Batch-Integration lieferte kein Ergebnisobjekt zurück.') -Title 'Integration'
                 return
             }
 
             $mountResults = @($integrationResult.MountResults)
             $lines = @($mountResults | ForEach-Object { Format-IntegrationBatchResultLine -Result $_ })
 
-            $message = "Batch-Integration abgeschlossen.`n`nMounts: {0}`nOK: {1}`nÜbersprungen: {2}`nFehler: {3}`nDownload-Ordner: {4}`n`nDetails:`n{5}" -f `
+            $message = Get-UpdatesUiString -Key 'UpdatesBatchIntegrationCompleteMessageFormat' -Default "Batch-Integration abgeschlossen.`n`nMounts: {0}`nOK: {1}`nÜbersprungen: {2}`nFehler: {3}`nDownload-Ordner: {4}`n`nDetails:`n{5}" -Args @(
                 [int]$integrationResult.MountCount,
                 [int]$integrationResult.IntegratedCount,
                 [int]$integrationResult.SkippedMountCount,
                 [int]$integrationResult.FailedCount,
                 [string]$integrationResult.DownloadDirectory,
                 ($lines -join "`n")
+            )
 
             try {
                 Write-Log -Level INFO -Message ("Updates: Batch-Integration abgeschlossen | Mounts={0} | OK={1} | Skip={2} | Fehler={3}" -f `
@@ -1113,10 +1126,10 @@ function ConvertFrom-WorkerBase64Json {
 
             Reset-CatalogState
             Apply-CatalogView
-            Set-UpdatesStatusText -Message 'Batch-Integration abgeschlossen. Mount-Kontext wird neu geladen...'
+            Set-UpdatesStatusText -Message (Get-UpdatesUiString -Key 'UpdatesBatchIntegrationReloadStatus' -Default 'Batch-Integration abgeschlossen. Mount-Kontext wird neu geladen...')
             if ($script:ctx -and $script:ctx.Page) {
-                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value 'Batch-Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...'
-                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value ("Letzter Batch: {0} OK, {1} übersprungen, {2} Fehler." -f [int]$integrationResult.IntegratedCount, [int]$integrationResult.SkippedMountCount, [int]$integrationResult.FailedCount)
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesBatchIntegrationReloadFooter' -Default 'Batch-Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...')
+                Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesBatchPlan' -Value (Get-UpdatesUiString -Key 'UpdatesLastBatchFormat' -Default 'Letzter Batch: {0} OK, {1} übersprungen, {2} Fehler.' -Args @([int]$integrationResult.IntegratedCount, [int]$integrationResult.SkippedMountCount, [int]$integrationResult.FailedCount))
             }
 
             Show-UiInfo -Message $message -Title 'Integration'

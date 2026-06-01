@@ -322,6 +322,78 @@ UpdatesMountDataLoaded;Mount-Daten geladen.;Mount data loaded.
 UpdatesFooterCatalogReady;Mount-Daten geladen. Catalog-Suche kann gestartet werden.;Mount data loaded. Catalog search can be started.
 UpdatesBootWinPeReason;Boot-/WinPE-Image erkannt. Pakete werden angezeigt, aber die automatische Catalog-Suche ist deaktiviert.;Boot/WinPE image detected. Packages are shown, but automatic Catalog search is disabled.
 UpdatesServiceHintFormat;Eignung: {0} | {1};Suitability: {0} | {1}
+UpdatesBusyReadingMounts;Mounts werden gelesen...;Reading mounts...
+UpdatesNoMountedImageFound;Kein gemountetes Image gefunden.;No mounted image found.
+UpdatesFooterNoActiveMount;Aktuell ist kein Mount aktiv. Bitte zuerst ein Image mounten.;No mount is active. Mount an image first.
+UpdatesMountSelectionFailed;Es konnte kein Mount ausgewaehlt werden.;No mount could be selected.
+UpdatesFooterMountSelectionFailed;Mounts wurden gefunden, aber es konnte keine Auswahl bestimmt werden.;Mounts were found, but no selection could be determined.
+UpdatesReadMountListFailed;Fehler beim Lesen der Mount-Liste.;Failed to read mount list.
+UpdatesBusyLoadingMountContext;Mount-Kontext wird geladen...;Loading mount context...
+UpdatesMountContextLoadFailed;Der Mount-Kontext konnte nicht geladen werden.;The mount context could not be loaded.
+UpdatesReadMountContextFailed;Fehler beim Lesen des Mount-Kontexts.;Failed to read mount context.
+UpdatesCatalogUnsupported;Dieses Image ist fuer die automatische Catalog-Suche nicht geeignet.;This image is not suitable for automatic Catalog search.
+UpdatesCatalogNoQueries;Fuer das aktuelle Image konnten keine Catalog-Queries gebildet werden.;No Catalog queries could be built for the current image.
+UpdatesBusyCatalogSearch;Microsoft Update Catalog wird durchsucht...;Searching Microsoft Update Catalog...
+UpdatesCatalogSearchNoResultFooter;Catalog-Suche abgeschlossen, aber ohne Treffer. Bei Insider-/Release-Preview-Updates kannst du die .msu/.cab manuell laden und ueber MSU/CAB waehlen hinzufuegen.;Catalog search completed, but no results were found. For Insider/Release Preview updates, download the .msu/.cab manually and add it with Choose MSU/CAB.
+UpdatesCatalogSearchCompleteFooter;Catalog-Suche abgeschlossen. Treffer koennen jetzt gefiltert und ausgewaehlt werden. Tipp: Alle Treffer zeigt auch Preview- und nicht empfohlene Pakete.;Catalog search completed. Results can now be filtered and selected. Tip: All results also shows preview and not recommended packages.
+UpdatesCatalogSearchEmptyFooter;Catalog-Suche abgeschlossen, aber ohne passende Treffer. Nutze Alle Treffer fuer Diagnose oder fuege eine heruntergeladene .msu/.cab ueber MSU/CAB waehlen hinzu.;Catalog search completed, but no matching results were found. Use All results for diagnostics or add a downloaded .msu/.cab with Choose MSU/CAB.
+UpdatesCatalogSearchTitle;Catalog-Suche;Catalog search
+UpdatesBusyCatalogDownload;Catalog-Update wird heruntergeladen...;Downloading Catalog update...
+UpdatesDownloadNoResult;Der Download lieferte kein Ergebnisobjekt zurueck.;The download did not return a result object.
+UpdatesDownloadCompleteMessageFormat;Download abgeschlossen.`n`nDateien: {0}`nNeu: {1}`nBereits vorhanden: {2}`nOrdner: {3};Download complete.`n`nFiles: {0}`nNew: {1}`nAlready present: {2}`nFolder: {3}
+UpdatesIntegrationNotAllowed;Dieser Mount ist für normale Update-Integration nicht freigegeben.;This mount is not approved for normal update integration.
+UpdatesBusySingleIntegration;Update wird heruntergeladen und in den Mount integriert...;Downloading update and integrating it into the mount...
+UpdatesIntegrationSkippedFormat;Integration uebersprungen: {0};Integration skipped: {0}
+UpdatesIntegrationNoResult;Die Integration lieferte kein Ergebnisobjekt zurueck.;The integration did not return a result object.
+UpdatesIntegrationCompleteMessageFormat;Integration abgeschlossen.`n`nMount: {0}`nIntegrierte Dateien: {1}`nDownload-Ordner: {2}`n`nDateien:`n{3};Integration complete.`n`nMount: {0}`nIntegrated files: {1}`nDownload folder: {2}`n`nFiles:`n{3}
+UpdatesIntegrationReloadStatus;Integration abgeschlossen. Mount-Kontext wird neu geladen...;Integration complete. Reloading mount context...
+UpdatesIntegrationReloadFooter;Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...;Integration complete. Mount and Catalog data are being refreshed...
+UpdatesBatchLineIntegratedFormat;OK: {0} ({1} Datei(en));OK: {0} ({1} file(s))
+UpdatesBatchLineSkippedFormat;Übersprungen: {0} ({1});Skipped: {0} ({1})
+UpdatesBatchLineFailedFormat;Fehler: {0} ({1});Failed: {0} ({1})
+UpdatesPreflightNoDism;Keine laufenden DISM-Prozesse gefunden.;No running DISM processes found.
+UpdatesPreflightYes;Ja;Yes
+UpdatesPreflightNo;Nein;No
+UpdatesPreflightCompleteMessageFormat;Batch-Prüfung abgeschlossen.`n`nUpdate: {0}`nMounts: {1}`nBereit: {2}`nÜbersprungen: {3}`nDISM aktiv: {4}`n`nZiele:`n{5}`n`nDISM-Prozesse:`n{6};Batch check complete.`n`nUpdate: {0}`nMounts: {1}`nReady: {2}`nSkipped: {3}`nDISM active: {4}`n`nTargets:`n{5}`n`nDISM processes:`n{6}
+UpdatesPreflightPlanFormat;Batch-Prüfung: {0}/{1} Mounts bereit, {2} übersprungen. Update: {3};Batch check: {0}/{1} mounts ready, {2} skipped. Update: {3}
+UpdatesNoMountsInList;Es sind aktuell keine Mounts in der Updates-Liste vorhanden.;There are currently no mounts in the Updates list.
+UpdatesBusyPreflight;Batch-Prüfung läuft...;Batch check running...
+UpdatesPreflightNoResult;Die Batch-Prüfung lieferte kein Ergebnisobjekt zurück.;The batch check did not return a result object.
+UpdatesBatchRunPlanFormat;Batch läuft: Update wird auf {0} Mount(s) nacheinander angewendet. Ungeeignete Mounts werden übersprungen.;Batch running: update is being applied to {0} mount(s) one after another. Unsuitable mounts are skipped.
+UpdatesBusyBatchIntegrationFormat;Update wird in {0} Mount(s) integriert...;Integrating update into {0} mount(s)...
+UpdatesBatchIntegrationNoResult;Die Batch-Integration lieferte kein Ergebnisobjekt zurück.;The batch integration did not return a result object.
+UpdatesBatchIntegrationCompleteMessageFormat;Batch-Integration abgeschlossen.`n`nMounts: {0}`nOK: {1}`nÜbersprungen: {2}`nFehler: {3}`nDownload-Ordner: {4}`n`nDetails:`n{5};Batch integration complete.`n`nMounts: {0}`nOK: {1}`nSkipped: {2}`nFailed: {3}`nDownload folder: {4}`n`nDetails:`n{5}
+UpdatesBatchIntegrationReloadStatus;Batch-Integration abgeschlossen. Mount-Kontext wird neu geladen...;Batch integration complete. Reloading mount context...
+UpdatesBatchIntegrationReloadFooter;Batch-Integration abgeschlossen. Mount- und Catalog-Daten werden aktualisiert...;Batch integration complete. Mount and Catalog data are being refreshed...
+UpdatesLastBatchFormat;Letzter Batch: {0} OK, {1} übersprungen, {2} Fehler.;Last batch: {0} OK, {1} skipped, {2} failed.
+UpdatesCatalogNoSelection;Noch kein Catalog-Treffer ausgewaehlt.;No Catalog result selected yet.
+UpdatesLocalFileProduct;Lokale Datei;Local file
+UpdatesLocalManualClassification;Manuell hinzugefügt;Added manually
+UpdatesLocalFileState;Lokale Datei;Local file
+UpdatesLocalDialogTitle;Lokales Update auswählen;Select local update
+UpdatesLocalDialogFilter;"Windows Update Pakete (*.msu;*.cab)|*.msu;*.cab|Alle Dateien (*.*)|*.*";"Windows update packages (*.msu;*.cab)|*.msu;*.cab|All files (*.*)|*.*"
+UpdatesLocalInvalidPackage;Es wurde keine gültige .msu- oder .cab-Datei ausgewählt.;No valid .msu or .cab file was selected.
+UpdatesLocalTitle;Lokales Update;Local update
+UpdatesLocalAddedStatusFormat;Lokales Update hinzugefügt: {0};Local update added: {0}
+UpdatesLocalReadyFooter;Lokale Update-Datei bereit. Du kannst sie jetzt in den ausgewählten Mount oder in alle Mounts integrieren.;Local update file ready. You can now integrate it into the selected mount or all mounts.
+UpdatesRecommendationNoSearch;Noch keine Catalog-Suche ausgefuehrt.;No Catalog search has run yet.
+UpdatesRecommendationSummaryFormat;Gesamt: {0} | LCU: {1} | SSU: {2} | .NET: {3} | Preview: {4};Total: {0} | LCU: {1} | SSU: {2} | .NET: {3} | preview: {4}
+UpdatesCatalogModeRecommended;Empfohlen;Recommended
+UpdatesCatalogModeAll;Alle Treffer;All results
+UpdatesCatalogModePackages;Pakete;Packages
+UpdatesCatalogResultsCountFormat;Treffer: {0} | Gesamt: {1} | Empfohlen: {2} | Lokal: {3};Results: {0} | total: {1} | recommended: {2} | local: {3}
+UpdatesCatalogFilterHintFormat;Ansicht: {0} | Pakete: {1} | Sichtbar: {2} | Gesamt: {3};View: {0} | packages: {1} | visible: {2} | total: {3}
+UpdatesCatalogExportEmpty;Aktuell sind keine sichtbaren Catalog-Treffer zum Exportieren vorhanden.;There are currently no visible Catalog results to export.
+UpdatesCatalogExportTitle;Catalog Export;Catalog export
+UpdatesCatalogCsvExportedFormat;Catalog CSV exportiert: {0};Catalog CSV exported: {0}
+UpdatesPackagesModeKbOnly;Nur KB-Pakete;KB packages only
+UpdatesPackagesModeAll;Alle;All
+UpdatesPackagesModeImportant;Wichtige;Important
+UpdatesPackagesCountFormat;Pakete: {0} / {1} | Modus: {2};Packages: {0} / {1} | mode: {2}
+UpdatesPackagesExportEmpty;Aktuell sind keine sichtbaren Pakete zum Exportieren vorhanden.;There are currently no visible packages to export.
+UpdatesPackagesExportTitle;Pakete Export;Packages export
+UpdatesPackagesCsvFilter;CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*;CSV (*.csv)|*.csv|All files (*.*)|*.*
+UpdatesPackagesCsvExportedFormat;Pakete CSV exportiert: {0};Packages CSV exported: {0}
 StaticErrorTitle;Fehler;Error
 StaticInfoTitle;Hinweis;Note
 StaticNoValidMountDir;Kein gültiges MountDir ausgewählt.;No valid MountDir selected.
