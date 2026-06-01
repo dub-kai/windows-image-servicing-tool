@@ -778,6 +778,29 @@ MediaPickBootTitle;boot.wim auswählen;Choose boot.wim
 MediaPickUsbSourceDescription;Quelle für den USB-Stick wählen;Choose source for USB stick
 MediaPickUsbTargetDescription;USB-Zielordner wählen;Choose USB target folder
 MediaReady;Bereit;Ready
+MediaUsbCheck;USB prüfen;Check USB
+MediaUsbSourceMissingPathFormat;USB-Quelle nicht gefunden oder kein Ordner: {0};USB source not found or not a folder: {0}
+MediaUsbTargetMissingPathFormat;USB-Ziel nicht gefunden oder kein Ordner: {0};USB target not found or not a folder: {0}
+MediaUsbSamePath;Quelle und USB-Ziel dürfen nicht identisch sein.;Source and USB target must not be identical.
+MediaUsbTargetInsideSource;Das USB-Ziel darf nicht innerhalb der Quelle liegen.;The USB target must not be inside the source.
+MediaUsbMissingSourcesWarning;USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.;USB check: the source is missing the sources folder. Copying works, but bootability is questionable.
+MediaUsbMissingBootWarning;USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.;USB check: no typical boot files found. Check the source.
+MediaUsbInsufficientSpaceFormat;Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}.;Not enough free space on {0}. Free: {1}, required: {2}.
+MediaUsbFat32LargeFileFormat;Das Ziel ist FAT32, aber {0} ist {1} groß. FAT32 kann keine Dateien über 4 GB speichern. Nutze eine Quelle mit geteilter install.swm oder ein anderes Dateisystem.;The target is FAT32, but {0} is {1}. FAT32 cannot store files larger than 4 GB. Use a source with split install.swm files or another file system.
+MediaUsbCheckOkTitle;USB-Prüfung;USB check
+MediaUsbCheckOkMessageFormat;USB-Prüfung OK.`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nDateisystem: {2}`r`nQuellgröße: {3}`r`nFrei am Ziel: {4};USB check OK.`r`n`r`nSource: {0}`r`nTarget: {1}`r`nFile system: {2}`r`nSource size: {3}`r`nFree on target: {4}
+MediaUsbCheckStatusFormat;USB-Prüfung OK: {0} Quelle, {1} frei auf {2};USB check OK: {0} source, {1} free on {2}
+MediaUsbCopyConfirmFormat;Dateien auf USB-Ziel kopieren?`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nQuellgröße: {2}`r`nFrei am Ziel: {3}`r`nDateisystem: {4}`r`n`r`nEs wird nicht formatiert und nichts gelöscht. Vorhandene Dateien können überschrieben werden.;Copy files to USB target?`r`n`r`nSource: {0}`r`nTarget: {1}`r`nSource size: {2}`r`nFree on target: {3}`r`nFile system: {4}`r`n`r`nNothing is formatted or deleted. Existing files may be overwritten.
+MediaUsbCopyTitle;USB kopieren;Copy USB
+MediaUsbCopyBusy;USB-Kopie läuft...;USB copy running...
+MediaUsbCopyDetail;Dateien werden mit robocopy kopiert. Das kann je nach Stick dauern.;Files are copied with robocopy. This can take a while depending on the USB stick.
+MediaUsbCopySizeText;kopiert...;copying...
+MediaUsbCopyStartLogFormat;USB-Kopie startet: {0} -> {1};USB copy starting: {0} -> {1}
+MediaUsbCopyDoneLogFormat;USB-Kopie fertig: ExitCode {0};USB copy complete: exit code {0}
+MediaUsbCopyDone;USB-Kopie fertig.;USB copy complete.
+MediaUsbCopyDoneStatus;USB-Kopie fertig;USB copy complete
+MediaUsbCopyErrorLogFormat;USB-Kopie Fehler: {0};USB copy error: {0}
+MediaUsbRobocopyFailedFormat;Robocopy fehlgeschlagen (ExitCode={0}).`n`n{1};Robocopy failed (exit code={0}).`n`n{1}
 '@ | ConvertFrom-Csv -Delimiter ';'
 
 foreach ($row in @($script:UiStaticTextTranslations)) {

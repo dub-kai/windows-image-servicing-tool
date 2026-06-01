@@ -614,6 +614,7 @@ function Set-MediaBusy {
         $script:ctx.BtnMediaBuildInstallEsd,
         $script:ctx.BtnMediaPickUsbSource,
         $script:ctx.BtnMediaPickUsbTarget,
+        $script:ctx.BtnMediaCheckUsb,
         $script:ctx.BtnMediaCopyToUsb,
         $script:ctx.RbMediaBuildWim,
         $script:ctx.RbMediaBuildEsd,
@@ -808,6 +809,29 @@ function Get-MediaUsbSource {
     return [string](Get-MediaIsoRoot)
 }
 
+function Get-MediaDirectorySizeInfo {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $totalBytes = [int64]0
+    $largestFile = $null
+    $fileCount = 0
+
+    foreach ($file in @(Get-ChildItem -LiteralPath $Path -File -Recurse -ErrorAction SilentlyContinue)) {
+        $fileCount++
+        $length = [int64]$file.Length
+        $totalBytes += $length
+        if (-not $largestFile -or $length -gt [int64]$largestFile.Length) {
+            $largestFile = $file
+        }
+    }
+
+    return [pscustomobject]@{
+        TotalBytes  = $totalBytes
+        FileCount   = $fileCount
+        LargestFile = $largestFile
+    }
+}
+
 function Refresh-MediaUsbUI {
     if (-not $script:ctx) { return }
 
@@ -820,6 +844,13 @@ function Refresh-MediaUsbUI {
     try {
         if ($script:ctx.BtnMediaCopyToUsb) {
             $script:ctx.BtnMediaCopyToUsb.IsEnabled = (
+                (-not $script:mediaBusy) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$source)) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$target))
+            )
+        }
+        if ($script:ctx.BtnMediaCheckUsb) {
+            $script:ctx.BtnMediaCheckUsb.IsEnabled = (
                 (-not $script:mediaBusy) -and
                 (-not [string]::IsNullOrWhiteSpace([string]$source)) -and
                 (-not [string]::IsNullOrWhiteSpace([string]$target))
@@ -847,48 +878,86 @@ function Test-MediaUsbCopyPrerequisites {
     )
 
     if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
-        throw "USB-Quelle nicht gefunden oder kein Ordner: $SourcePath"
+        throw (Get-UiString -Key 'MediaUsbSourceMissingPathFormat' -Args @($SourcePath))
     }
     if (-not (Test-Path -LiteralPath $TargetPath -PathType Container)) {
-        throw "USB-Ziel nicht gefunden oder kein Ordner: $TargetPath"
+        throw (Get-UiString -Key 'MediaUsbTargetMissingPathFormat' -Args @($TargetPath))
     }
 
     $sourceFull = [System.IO.Path]::GetFullPath($SourcePath).TrimEnd('\')
     $targetFull = [System.IO.Path]::GetFullPath($TargetPath).TrimEnd('\')
     if ($sourceFull.Equals($targetFull, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Quelle und USB-Ziel dürfen nicht identisch sein."
+        throw (Get-UiString -Key 'MediaUsbSamePath')
     }
     if ($targetFull.StartsWith($sourceFull + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Das USB-Ziel darf nicht innerhalb der Quelle liegen."
+        throw (Get-UiString -Key 'MediaUsbTargetInsideSource')
     }
 
     $bootFile = Join-Path $sourceFull 'bootmgr'
     $efiBoot = Join-Path $sourceFull 'efi\boot\bootx64.efi'
     $sourcesDir = Join-Path $sourceFull 'sources'
+    $hasSources = Test-Path -LiteralPath $sourcesDir -PathType Container
+    $hasBootFiles = (Test-Path -LiteralPath $bootFile -PathType Leaf) -or (Test-Path -LiteralPath $efiBoot -PathType Leaf)
+
     if (-not (Test-Path -LiteralPath $sourcesDir -PathType Container)) {
-        Add-MediaBuildLog 'USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.'
+        Add-MediaBuildLog (Get-UiString -Key 'MediaUsbMissingSourcesWarning')
     }
-    if (-not (Test-Path -LiteralPath $bootFile -PathType Leaf) -and -not (Test-Path -LiteralPath $efiBoot -PathType Leaf)) {
-        Add-MediaBuildLog 'USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.'
+    if (-not $hasBootFiles) {
+        Add-MediaBuildLog (Get-UiString -Key 'MediaUsbMissingBootWarning')
     }
 
+    $sizeInfo = Get-MediaDirectorySizeInfo -Path $sourceFull
     $drive = Get-MediaDriveInfo -Path $targetFull
+    $fileSystem = ''
+    $availableFreeSpace = [int64]0
     if ($drive -and $drive.IsReady) {
-        $sourceBytes = [int64]0
-        try {
-            foreach ($file in @(Get-ChildItem -LiteralPath $sourceFull -File -Recurse -ErrorAction SilentlyContinue)) {
-                $sourceBytes += [int64]$file.Length
-            }
-        } catch {}
+        try { $fileSystem = [string]$drive.DriveFormat } catch { $fileSystem = '' }
+        try { $availableFreeSpace = [int64]$drive.AvailableFreeSpace } catch { $availableFreeSpace = 0 }
 
-        if ($sourceBytes -gt 0 -and [int64]$drive.AvailableFreeSpace -lt $sourceBytes) {
-            throw ("Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}." -f $drive.Name, (Format-MediaBytes $drive.AvailableFreeSpace), (Format-MediaBytes $sourceBytes))
+        if ([int64]$sizeInfo.TotalBytes -gt 0 -and $availableFreeSpace -lt [int64]$sizeInfo.TotalBytes) {
+            throw (Get-UiString -Key 'MediaUsbInsufficientSpaceFormat' -Args @($drive.Name, (Format-MediaBytes $availableFreeSpace), (Format-MediaBytes $sizeInfo.TotalBytes)))
+        }
+
+        $largestFile = $sizeInfo.LargestFile
+        if ($largestFile -and $fileSystem -eq 'FAT32' -and [int64]$largestFile.Length -ge 4GB) {
+            throw (Get-UiString -Key 'MediaUsbFat32LargeFileFormat' -Args @([string]$largestFile.FullName, (Format-MediaBytes ([int64]$largestFile.Length))))
         }
     }
 
     return [pscustomobject]@{
-        Source = $sourceFull
-        Target = $targetFull
+        Source             = $sourceFull
+        Target             = $targetFull
+        SourceBytes        = [int64]$sizeInfo.TotalBytes
+        SourceText         = Format-MediaBytes ([int64]$sizeInfo.TotalBytes)
+        FileCount          = [int]$sizeInfo.FileCount
+        TargetFreeBytes    = $availableFreeSpace
+        TargetFreeText     = $(if ($availableFreeSpace -gt 0) { Format-MediaBytes $availableFreeSpace } else { '-' })
+        TargetDriveName    = $(if ($drive) { [string]$drive.Name } else { '-' })
+        TargetFileSystem   = $(if ([string]::IsNullOrWhiteSpace($fileSystem)) { '-' } else { $fileSystem })
+        HasSources         = $hasSources
+        HasBootFiles       = $hasBootFiles
+    }
+}
+
+function Start-MediaUsbCheck {
+    if ($script:mediaBusy) { return }
+
+    try {
+        $check = Test-MediaUsbCopyPrerequisites -SourcePath (Get-MediaUsbSource) -TargetPath $script:ctx.SelectedUsbTargetPath
+        $message = Get-UiString -Key 'MediaUsbCheckOkMessageFormat' -Args @(
+            [string]$check.Source,
+            [string]$check.Target,
+            [string]$check.TargetFileSystem,
+            [string]$check.SourceText,
+            [string]$check.TargetFreeText
+        )
+        Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCheckStatusFormat' -Args @([string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetDriveName))
+        Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCheckOkTitle') -Detail $message -SizeBytes ([int64]$check.SourceBytes) -SizeText ([string]$check.SourceText)
+        if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCheckStatusFormat' -Args @([string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetDriveName)) }
+        Show-UiInfo -Title (Get-UiString -Key 'MediaUsbCheckOkTitle') -Message $message
+        Refresh-MediaBuilderUI
+    } catch {
+        Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'MediaUsbCheckOkTitle')
     }
 }
 
@@ -902,16 +971,16 @@ function Start-MediaUsbCopyAsync {
 
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
         $answer = [System.Windows.MessageBox]::Show(
-            "Dateien auf USB-Ziel kopieren?`r`n`r`nQuelle: $($check.Source)`r`nZiel: $($check.Target)`r`n`r`nEs wird nicht formatiert und nichts gelöscht. Vorhandene Dateien können überschrieben werden.",
-            "USB kopieren",
+            (Get-UiString -Key 'MediaUsbCopyConfirmFormat' -Args @([string]$check.Source, [string]$check.Target, [string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetFileSystem)),
+            (Get-UiString -Key 'MediaUsbCopyTitle'),
             [System.Windows.MessageBoxButton]::YesNo,
             [System.Windows.MessageBoxImage]::Information
         )
         if ($answer -ne [System.Windows.MessageBoxResult]::Yes) { return }
 
-        Set-MediaBusy -Busy $true -Reason 'USB-Kopie läuft...'
-        Set-MediaBuildStatus -Message 'USB-Kopie läuft...' -Detail 'Dateien werden mit robocopy kopiert. Das kann je nach Stick dauern.' -SizeBytes 0 -SizeText 'kopiert...'
-        Add-MediaBuildLog ("USB-Kopie startet: {0} -> {1}" -f $check.Source, $check.Target)
+        Set-MediaBusy -Busy $true -Reason (Get-UiString -Key 'MediaUsbCopyBusy')
+        Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCopyBusy') -Detail (Get-UiString -Key 'MediaUsbCopyDetail') -SizeBytes ([int64]$check.SourceBytes) -SizeText (Get-UiString -Key 'MediaUsbCopySizeText')
+        Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyStartLogFormat' -Args @([string]$check.Source, [string]$check.Target))
 
         $safeSource = ([string]$check.Source).Replace("'", "''")
         $safeTarget = ([string]$check.Target).Replace("'", "''")
@@ -923,7 +992,7 @@ function Start-MediaUsbCopyAsync {
 `$output = & robocopy.exe @args 2>&1 | Out-String
 `$exitCode = `$LASTEXITCODE
 if (`$exitCode -gt 7) {
-    throw "Robocopy fehlgeschlagen (ExitCode=`$exitCode).`n`n`$output"
+    throw "__ROBOCOPY_FAILED__" -f `$exitCode, `$output
 }
 [pscustomobject]@{
     Source = `$source
@@ -932,14 +1001,15 @@ if (`$exitCode -gt 7) {
     Output = `$output
 }
 "@
+        $code = $code.Replace('__ROBOCOPY_FAILED__', (Get-UiString -Key 'MediaUsbRobocopyFailedFormat').Replace("'", "''"))
 
         Start-UiTask -Label 'MediaBuilder:UsbCopy' -Work ([scriptblock]::Create($code)) -OnCompleted {
             param($result)
             try {
                 $item = @($result) | Select-Object -First 1
-                Add-MediaBuildLog ("USB-Kopie fertig: ExitCode {0}" -f [int]$item.ExitCode)
-                Set-MediaBuildStatus -Message 'USB-Kopie fertig.' -Detail ([string]$item.Target) -SizeBytes 0 -SizeText 'fertig'
-                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus 'USB-Kopie fertig' }
+                Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyDoneLogFormat' -Args @([int]$item.ExitCode))
+                Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCopyDone') -Detail ([string]$item.Target) -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbCopyDone')
+                if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCopyDoneStatus') }
             } finally {
                 Set-MediaBusy -Busy $false
                 Refresh-MediaBuilderUI
@@ -947,8 +1017,8 @@ if (`$exitCode -gt 7) {
         } -OnError {
             param($ex)
             try {
-                Add-MediaBuildLog ("USB-Kopie Fehler: {0}" -f $ex.Message)
-                Show-UiError -Message $ex.Message -Title 'USB kopieren'
+                Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyErrorLogFormat' -Args @($ex.Message))
+                Show-UiError -Message $ex.Message -Title (Get-UiString -Key 'MediaUsbCopyTitle')
             } finally {
                 Set-MediaBusy -Busy $false
                 Refresh-MediaBuilderUI
@@ -956,7 +1026,7 @@ if (`$exitCode -gt 7) {
             }
         }
     } catch {
-        Show-UiError -Message $_.Exception.Message -Title 'USB kopieren'
+        Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'MediaUsbCopyTitle')
     }
 }
 
@@ -1301,6 +1371,7 @@ function Initialize-MediaBuilderController {
         TxtMediaUsbSummary          = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSummary'
         BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'
         BtnMediaPickUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbTarget'
+        BtnMediaCheckUsb            = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCheckUsb'
         BtnMediaCopyToUsb           = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCopyToUsb'
         RbMediaBuildWim             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildWim'
         RbMediaBuildEsd             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildEsd'
@@ -1381,6 +1452,10 @@ function Initialize-MediaBuilderController {
                 Refresh-MediaBuilderUI
             }
         })
+    }
+
+    if ($script:ctx.BtnMediaCheckUsb) {
+        $script:ctx.BtnMediaCheckUsb.Add_Click({ Start-MediaUsbCheck })
     }
 
     if ($script:ctx.BtnMediaCopyToUsb) {
