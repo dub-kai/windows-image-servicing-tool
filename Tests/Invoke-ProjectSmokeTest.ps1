@@ -201,6 +201,7 @@ function Import-SmokeProjectModules {
         'UI\UiHelpers.psm1',
         'UI\UiAsync.psm1',
         'UI\Localization.psm1',
+        'UI\Notifications.psm1',
         'UI\Xaml.psm1',
         'UI\MainWindow.psm1'
     )
@@ -361,6 +362,133 @@ function Invoke-SmokeIsoCycle {
         DuringRoots = $duringRoots
         Media       = $media
         After       = $after
+    }
+}
+
+function Add-SmokeLocalizationChild {
+    param(
+        [Parameter(Mandatory)][System.Collections.Queue]$Queue,
+        [AllowNull()]$Child
+    )
+
+    if ($null -ne $Child -and ($Child -isnot [string])) {
+        try { $Queue.Enqueue($Child) } catch {}
+    }
+}
+
+function Get-SmokeLocalizationTexts {
+    param(
+        [Parameter(Mandatory)]$Root,
+        [Parameter(Mandatory)][string]$PageName
+    )
+
+    $queue = New-Object System.Collections.Queue
+    $seen = New-Object 'System.Collections.Generic.HashSet[int]'
+    Add-SmokeLocalizationChild -Queue $queue -Child $Root
+
+    while ($queue.Count -gt 0) {
+        $element = $queue.Dequeue()
+        if ($null -eq $element) { continue }
+
+        $hash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($element)
+        if (-not $seen.Add($hash)) { continue }
+
+        foreach ($propertyName in @('Title', 'Text', 'Content', 'Header', 'ToolTip')) {
+            try {
+                $value = $element.$propertyName
+                if ($value -is [string] -and -not [string]::IsNullOrWhiteSpace($value)) {
+                    [pscustomobject]@{
+                        Page = $PageName
+                        Prop = $propertyName
+                        Text = [string]$value
+                    }
+                }
+            } catch {}
+        }
+
+        try { Add-SmokeLocalizationChild -Queue $queue -Child $element.ContextMenu } catch {}
+        try { Add-SmokeLocalizationChild -Queue $queue -Child $element.ToolTip } catch {}
+        try { Add-SmokeLocalizationChild -Queue $queue -Child $element.Content } catch {}
+        try { Add-SmokeLocalizationChild -Queue $queue -Child $element.Header } catch {}
+        try { Add-SmokeLocalizationChild -Queue $queue -Child $element.View } catch {}
+
+        try {
+            foreach ($column in @($element.Columns)) {
+                Add-SmokeLocalizationChild -Queue $queue -Child $column
+            }
+        } catch {}
+
+        try {
+            foreach ($column in @($element.View.Columns)) {
+                Add-SmokeLocalizationChild -Queue $queue -Child $column
+            }
+        } catch {}
+
+        try {
+            foreach ($item in @($element.Items)) {
+                Add-SmokeLocalizationChild -Queue $queue -Child $item
+            }
+        } catch {}
+
+        try {
+            foreach ($child in [System.Windows.LogicalTreeHelper]::GetChildren($element)) {
+                Add-SmokeLocalizationChild -Queue $queue -Child $child
+            }
+        } catch {}
+
+        try {
+            if ($element -is [System.Windows.DependencyObject]) {
+                $count = [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($element)
+                for ($i = 0; $i -lt $count; $i++) {
+                    Add-SmokeLocalizationChild -Queue $queue -Child ([System.Windows.Media.VisualTreeHelper]::GetChild($element, $i))
+                }
+            }
+        } catch {}
+    }
+}
+
+function Invoke-SmokeLocalizationSwitch {
+    $pages = @('Dashboard', 'Images', 'MediaBuilder', 'Driver', 'Updates', 'Settings')
+    $germanPattern = '[äöüÄÖÜß]|\b(Auswahl|Treiber|Mounts werden|Mounts:|Pakete|Quelle|Wähle|Noch|Aktualisiere|gewählten|alle passenden|hinzufügen|wählen|geladen|prüfen|bereit|kopieren|anzeigen|Ordner|Dateien|Indexe|Gemountete|Laufzeit|Bitte|Deutsch|Englisch|Sprache|Startseite|Standard|Änderungen|Sekunden|Wiederholungen|gesperrter|zwischen|mehreren|Leere|Alte|aktuelles|löscht|bleiben|erkannt|nicht|kein|keine)\b'
+
+    $remaining = New-Object System.Collections.Generic.List[object]
+    foreach ($pageName in $pages) {
+        $page = Import-XamlFile -RelativePath ("UI\Pages\{0}.xaml" -f $pageName)
+        Apply-LocalizationToRoot -Root $page -Language en
+
+        foreach ($item in @(Get-SmokeLocalizationTexts -Root $page -PageName $pageName)) {
+            if ([string]$item.Text -match $germanPattern) {
+                $remaining.Add($item) | Out-Null
+            }
+        }
+    }
+
+    if ($remaining.Count -gt 0) {
+        $sample = @($remaining.ToArray() | Select-Object -First 12 | ForEach-Object { '{0}.{1}="{2}"' -f $_.Page, $_.Prop, $_.Text }) -join '; '
+        throw "English localization left German static UI text: $sample"
+    }
+
+    $settings = Import-XamlFile -RelativePath 'UI\Pages\Settings.xaml'
+    Apply-LocalizationToRoot -Root $settings -Language en
+    if ([string]$settings.FindName('TxtSettingsLanguageLabel').Text -ne 'Language:') {
+        throw 'Settings language label was not localized to English.'
+    }
+    if ([string]$settings.FindName('GrpSettingsDismBatch').Header -ne 'DISM & batch behavior') {
+        throw 'Settings DISM batch group was not localized to English.'
+    }
+
+    Apply-LocalizationToRoot -Root $settings -Language de
+    if ([string]$settings.FindName('TxtSettingsLanguageLabel').Text -ne 'Sprache:') {
+        throw 'Settings language label was not localized back to German.'
+    }
+    if ([string]$settings.FindName('GrpSettingsDismBatch').Header -ne 'DISM & Batch-Verhalten') {
+        throw 'Settings DISM batch group was not localized back to German.'
+    }
+
+    return [pscustomobject]@{
+        PagesChecked = $pages.Count
+        EnglishStaticLeftovers = 0
+        RoundTripSettings = $true
     }
 }
 
@@ -636,6 +764,10 @@ try {
             $obj = Import-XamlFile -RelativePath $xaml
             [pscustomobject]@{ Xaml = $xaml; Type = $obj.GetType().FullName }
         }
+    }
+
+    Invoke-SmokeStep 'Localization static UI switch' {
+        Invoke-SmokeLocalizationSwitch
     }
 
     Invoke-SmokeStep 'DISM mounted image inventory command' {

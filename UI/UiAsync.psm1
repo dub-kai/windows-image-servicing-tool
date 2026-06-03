@@ -168,6 +168,42 @@ function Resolve-UiBusyProgressControl {
     return $null
 }
 
+function Get-UiAsyncLocalizedString {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][string]$Default,
+        [object[]]$Args = @()
+    )
+
+    try {
+        $cmd = Get-Command Get-UiString -ErrorAction SilentlyContinue
+        if ($cmd) {
+            return (& $cmd -Key $Key -Args $Args)
+        }
+    } catch {}
+
+    if (@($Args).Count -gt 0) {
+        try { return ($Default -f $Args) } catch {}
+    }
+
+    return $Default
+}
+
+function ConvertTo-UiAsyncLocalizedText {
+    param([AllowNull()][string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+
+    try {
+        $cmd = Get-Command Get-LocalizedText -ErrorAction SilentlyContinue
+        if ($cmd) {
+            return (& $cmd -Text $Text)
+        }
+    } catch {}
+
+    return $Text
+}
+
 function Set-UiBusyProgressText {
     param($Root, $Context, [Parameter(Mandatory)][string]$Name, [string]$Text)
 
@@ -232,29 +268,35 @@ function Update-UiBusyProgress {
     )
 
     $rootLocal = Resolve-UiBusyProgressRoot -Root $Root -Context $Context
-    if ($Message) { Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyMessage' -Text $Message }
+    if ($Message) {
+        Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyMessage' -Text (ConvertTo-UiAsyncLocalizedText -Text $Message)
+    }
 
     $elapsed = [DateTime]::Now - $StartedAt
-    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text ('Laufzeit: {0}' -f (Format-UiBusyElapsed -Elapsed $elapsed))
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text (Get-UiAsyncLocalizedString -Key 'UiBusyElapsedFormat' -Default 'Laufzeit: {0}' -Args @((Format-UiBusyElapsed -Elapsed $elapsed)))
 
     $detailText = $Detail
     if ([string]::IsNullOrWhiteSpace($detailText)) {
-        $detailText = 'Vorgang läuft. Bei großen Images kann DISM mehrere Minuten ohne sichtbare Dateigrößenänderung arbeiten.'
+        $detailText = Get-UiAsyncLocalizedString -Key 'UiBusyDefaultDetail' -Default 'Vorgang läuft. Bei großen Images kann DISM mehrere Minuten ohne sichtbare Dateigrößenänderung arbeiten.'
+    } else {
+        $detailText = ConvertTo-UiAsyncLocalizedText -Text $detailText
     }
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDetail' -Text $detailText
 
     $hintText = $Hint
     if ([string]::IsNullOrWhiteSpace($hintText)) {
-        $hintText = 'Bitte nicht abbrechen, solange DISM CPU/Datenträger nutzt. Beim Abbruch kann ein Mount bereinigt werden müssen.'
+        $hintText = Get-UiAsyncLocalizedString -Key 'UiBusyDefaultHint' -Default 'Bitte nicht abbrechen, solange DISM CPU/Datenträger nutzt. Beim Abbruch kann ein Mount bereinigt werden müssen.'
+    } else {
+        $hintText = ConvertTo-UiAsyncLocalizedText -Text $hintText
     }
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyHint' -Text $hintText
 
     if ($ShowDismTail) {
         $lastLine = Get-UiDismLogLastLine
         if ([string]::IsNullOrWhiteSpace($lastLine)) {
-            $lastLine = 'Noch kein DISM-Logeintrag gelesen.'
+            $lastLine = Get-UiAsyncLocalizedString -Key 'UiBusyNoDismLog' -Default 'Noch kein DISM-Logeintrag gelesen.'
         }
-        Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text ('DISM: {0}' -f $lastLine)
+        Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text (Get-UiAsyncLocalizedString -Key 'UiBusyDismLine' -Default 'DISM: {0}' -Args @($lastLine))
     }
 }
 
@@ -263,7 +305,7 @@ function Start-UiBusyProgress {
     param(
         $Root,
         $Context,
-        [string]$Message = 'Bitte warten...',
+        [string]$Message = $(Get-UiAsyncLocalizedString -Key 'UiBusyDefaultMessage' -Default 'Bitte warten...'),
         [string]$Detail = $null,
         [string]$Hint = $null,
         [switch]$ShowDismTail
@@ -319,7 +361,7 @@ function Stop-UiBusyProgress {
         try { $script:UiBusyProgressTimers.Remove($key) } catch {}
     }
 
-    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text 'Laufzeit: 00:00'
+    Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyElapsed' -Text (Get-UiAsyncLocalizedString -Key 'UiBusyElapsedFormat' -Default 'Laufzeit: {0}' -Args @('00:00'))
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDetail' -Text ''
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyHint' -Text ''
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text ''
@@ -340,6 +382,8 @@ function Start-UiTask {
     $fnLog       = (Get-Item function:Write-UiAsyncLog     -ErrorAction Stop).ScriptBlock
     $fnInvokeUi  = (Get-Item function:Invoke-Ui            -ErrorAction Stop).ScriptBlock
     $fnHistory   = (Get-Item function:Write-UiTaskHistory  -ErrorAction Stop).ScriptBlock
+    $fnNotify    = $null
+    try { $fnNotify = (Get-Item function:Show-UiTaskNotification -ErrorAction SilentlyContinue).ScriptBlock } catch { $fnNotify = $null }
 
     $ps = [PowerShell]::Create()
     $rs = [RunspaceFactory]::CreateRunspace()
@@ -398,6 +442,9 @@ function Start-UiTask {
                     $msg = "UI Task timeout: '$labelLocal' after {0:N0}s" -f $elapsed.TotalSeconds
                     & $fnLog -Level ERROR -Message $msg -ToConsole
                     & $fnHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed.TotalMilliseconds) -Message ("Timeout: {0}" -f $labelLocal) -ErrorText $msg
+                    if ($fnNotify) {
+                        try { & $fnNotify -Label $labelLocal -Status Timeout -DurationMs ([int64]$elapsed.TotalMilliseconds) -ErrorText $msg | Out-Null } catch {}
+                    }
                     $tex = New-Object System.TimeoutException($msg)
                     & $fnInvokeUi { & $errLocal $tex }
                     return
@@ -421,6 +468,9 @@ function Start-UiTask {
             $elapsed2 = (Get-Date) - $startLocal
             & $fnLog -Level INFO -Message ("UiAsync: '{0}' completed in {1:N0}ms (items={2})." -f $labelLocal, $elapsed2.TotalMilliseconds, @($resArr).Count) -ToConsole
             & $fnHistory -Label $labelLocal -Status Completed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsed2.TotalMilliseconds) -Message ("Fertig: {0}" -f $labelLocal) -Detail ("items={0}" -f @($resArr).Count)
+            if ($fnNotify) {
+                try { & $fnNotify -Label $labelLocal -Status Completed -DurationMs ([int64]$elapsed2.TotalMilliseconds) -Detail ("items={0}" -f @($resArr).Count) | Out-Null } catch {}
+            }
 
             & $fnInvokeUi { & $doneLocal $resArr }
         } catch {
@@ -436,6 +486,9 @@ function Start-UiTask {
             & $fnLog -Level ERROR -Message $msg -ToConsole
             $elapsedErr = (Get-Date) - $startLocal
             & $fnHistory -Label $labelLocal -Status Failed -StartedAt $startLocal -EndedAt (Get-Date) -DurationMs ([int64]$elapsedErr.TotalMilliseconds) -Message ("Fehler: {0}" -f $labelLocal) -ErrorText $msg
+            if ($fnNotify) {
+                try { & $fnNotify -Label $labelLocal -Status Failed -DurationMs ([int64]$elapsedErr.TotalMilliseconds) -ErrorText $msg | Out-Null } catch {}
+            }
 
             try { $psLocal.Dispose() } catch {}
             try { $rsLocal.Dispose() } catch {}

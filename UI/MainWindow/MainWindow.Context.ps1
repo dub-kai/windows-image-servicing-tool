@@ -6,6 +6,7 @@
     Set-MainWindowWorkAreaLayout -Window $window
 
     Initialize-UiAsync -Window $window
+    try { Initialize-AppNotifications -ProjectRoot (Get-ProjectRoot) | Out-Null } catch {}
 
     try {
         $window.Dispatcher.add_UnhandledException({

@@ -56,12 +56,16 @@ function Show-UiError {
         Write-Log -Level ERROR -Message ("UI ERROR: {0}`nERRMSG: {1}`nSCRIPTSTACK:`n{2}`nCALLSTACK:`n{3}" -f $Message, $exmsg, $stack, $call) -ToConsole
     } catch {}
 
-    try { [System.Windows.MessageBox]::Show($Message,$Title,"OK","Error") | Out-Null } catch {}
+    $displayMessage = ConvertTo-UiHelperLocalizedText -Text $Message
+    $displayTitle = ConvertTo-UiHelperLocalizedText -Text $Title
+    try { [System.Windows.MessageBox]::Show($displayMessage,$displayTitle,"OK","Error") | Out-Null } catch {}
 }
 
 function Show-UiInfo {
     param([string]$Message,[string]$Title="Hinweis")
-    try { [System.Windows.MessageBox]::Show($Message,$Title,"OK","Information") | Out-Null } catch {}
+    $displayMessage = ConvertTo-UiHelperLocalizedText -Text $Message
+    $displayTitle = ConvertTo-UiHelperLocalizedText -Text $Title
+    try { [System.Windows.MessageBox]::Show($displayMessage,$displayTitle,"OK","Information") | Out-Null } catch {}
 }
 
 function Find-Ui {
@@ -105,6 +109,21 @@ function Find-ContextMenuItem {
     return $null
 }
 
+function ConvertTo-UiHelperLocalizedText {
+    param([AllowNull()][string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+
+    try {
+        $cmd = Get-Command Get-LocalizedText -ErrorAction SilentlyContinue
+        if ($cmd) {
+            return (& $cmd -Text $Text)
+        }
+    } catch {}
+
+    return $Text
+}
+
 function Set-UiText {
     param(
         [Parameter(Mandatory)]$Root,
@@ -119,6 +138,7 @@ function Set-UiText {
     }
 
     $text = (Get-DisplayValue $Value)
+    $text = ConvertTo-UiHelperLocalizedText -Text $text
 
     if ($el.PSObject.Properties.Match("Text").Count -gt 0) { $el.Text = $text; return }
     if ($el.PSObject.Properties.Match("Content").Count -gt 0) { $el.Content = $text; return }

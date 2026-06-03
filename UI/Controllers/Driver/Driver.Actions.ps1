@@ -4,7 +4,7 @@
 
     $mountDir = Resolve-DriverMountDir
     if (-not (Test-DriverMountUsable -MountDir $mountDir)) {
-        Show-UiError -Message "Kein gültiges MountDir ausgewählt."
+        Show-UiError -Message (Get-UiString -Key 'DriverNoValidMountDir')
         return
     }
 
@@ -22,7 +22,7 @@
     }
 
     if (-not (Test-Path -LiteralPath $folder -PathType Container)) {
-        Show-UiError -Message ("Treiberordner nicht gefunden: {0}" -f $folder)
+        Show-UiError -Message (Get-UiString -Key 'DriverFolderMissingFormat' -Args @($folder))
         return
     }
 
@@ -44,7 +44,7 @@
         if ($chk) { $all = [bool]$chk.IsChecked }
     } catch { $all = $true }
 
-    & $fnBusy -Busy $true -Reason "Treiber werden hinzugefügt..." -Context $ctxLocal
+    & $fnBusy -Busy $true -Reason (Get-UiString -Key 'DriverBusyAdding') -Context $ctxLocal
 
     $dismModPath   = (Resolve-ProjectPath "Services\DismService.psm1" -MustExist).Replace("'", "''")
     $parserModPath = (Resolve-ProjectPath "Services\DismDriversParser.psm1" -MustExist).Replace("'", "''")
@@ -111,7 +111,7 @@ $drivers = ConvertFrom-DismDriversOutput -Text $resList.StdOut
         param($resArr)
         try {
             $drivers = @($resArr)
-            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText ("Driver: Add OK | Treiber={0}" -f $drivers.Count)
+            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText (Get-UiString -Key 'DriverAddOkFormat' -Args @($drivers.Count))
         } finally {
             & $fnBusy -Busy $false -Context $ctxLocal
         }
@@ -135,7 +135,7 @@ function Remove-SelectedDriverAsync {
 
     $mountDir = Resolve-DriverMountDir
     if (-not (Test-DriverMountUsable -MountDir $mountDir)) {
-        Show-UiError -Message "Kein gültiges MountDir ausgewählt."
+        Show-UiError -Message (Get-UiString -Key 'DriverNoValidMountDir')
         return
     }
 
@@ -144,7 +144,7 @@ function Remove-SelectedDriverAsync {
 
     $selItems = @(Get-SelectedDriverItems)
     if ($selItems.Count -lt 1) {
-        Show-UiError -Message "Bitte zuerst einen oder mehrere Treiber auswählen."
+        Show-UiError -Message (Get-UiString -Key 'StaticSelectDriverFirst')
         return
     }
 
@@ -179,7 +179,7 @@ function Remove-SelectedDriverAsync {
     }
 
     if ($toRemove.Count -lt 1) {
-        Show-UiError -Message ("Keine entfernbaren Treiber in der Auswahl (Inbox übersprungen: {0})." -f $skippedInbox)
+        Show-UiError -Message (Get-UiString -Key 'DriverNoRemovableSelectionFormat' -Args @($skippedInbox))
         return
     }
 
@@ -205,7 +205,7 @@ function Remove-SelectedDriverAsync {
         if ($chk) { $all = [bool]$chk.IsChecked }
     } catch { $all = $true }
 
-    & $fnBusy -Busy $true -Reason ("Treiber entfernen ({0})..." -f $toRemove.Count) -Context $ctxLocal
+    & $fnBusy -Busy $true -Reason (Get-UiString -Key 'DriverBusyRemovingFormat' -Args @($toRemove.Count)) -Context $ctxLocal
 
     $dismModPath   = (Resolve-ProjectPath "Services\DismService.psm1" -MustExist).Replace("'", "''")
     $parserModPath = (Resolve-ProjectPath "Services\DismDriversParser.psm1" -MustExist).Replace("'", "''")
@@ -273,7 +273,7 @@ $drivers = ConvertFrom-DismDriversOutput -Text $resList.StdOut
         param($resArr)
         try {
             $drivers = @($resArr)
-            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText ("Driver: Remove OK | Treiber={0}" -f $drivers.Count)
+            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText (Get-UiString -Key 'DriverRemoveOkFormat' -Args @($drivers.Count))
         } finally {
             & $fnBusy -Busy $false -Context $ctxLocal
         }

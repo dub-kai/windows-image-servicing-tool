@@ -34,6 +34,7 @@
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Name="TxtSettingsStartPageLabel" Grid.Row="0" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Startseite:"/>
@@ -61,8 +62,14 @@
             <TextBlock Name="TxtSettingsNewMountsLabel" Grid.Row="4" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Neue Mounts:"/>
             <CheckBox Grid.Row="4" Grid.Column="1" Name="ChkSettingsImageMountReadOnlyDefault" Margin="0,0,0,12" Content="Neue Mounts standardmäßig als ReadOnly anlegen"/>
 
-            <TextBlock Name="TxtSettingsDebugLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center" Text="Debug:"/>
-            <CheckBox Grid.Row="5" Grid.Column="1" Name="ChkSettingsAppDebug" Content="Erweitertes Debug-Verhalten aktivieren"/>
+            <TextBlock Name="TxtSettingsNotificationsLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,12,12" FontWeight="SemiBold" VerticalAlignment="Center" Text="Benachrichtigungen:"/>
+            <WrapPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,12">
+              <CheckBox Name="ChkSettingsNotificationsEnabled" VerticalAlignment="Center" Margin="0,0,12,0" Content="Windows-Benachrichtigungen bei abgeschlossenen Jobs anzeigen"/>
+              <Button Name="BtnSettingsTestNotification" MinWidth="170" Height="28" Content="Test-Benachrichtigung"/>
+            </WrapPanel>
+
+            <TextBlock Name="TxtSettingsDebugLabel" Grid.Row="6" Grid.Column="0" Margin="0,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center" Text="Debug:"/>
+            <CheckBox Grid.Row="6" Grid.Column="1" Name="ChkSettingsAppDebug" Content="Erweitertes Debug-Verhalten aktivieren"/>
           </Grid>
         </GroupBox>
 

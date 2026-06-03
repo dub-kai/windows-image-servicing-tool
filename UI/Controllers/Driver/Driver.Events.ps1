@@ -131,7 +131,7 @@ function Register-DriverEventHandlers {
                 if (Test-DriverMountUsable -MountDir $sel) {
                     Load-DriversAsync
                 } else {
-                    Clear-DriversList -Context $script:ctx -StatusText "Driver: Treiber=0"
+                    Clear-DriversList -Context $script:ctx -StatusText (Get-UiString -Key 'DriverCountZero')
                 }
             } catch {}
         })

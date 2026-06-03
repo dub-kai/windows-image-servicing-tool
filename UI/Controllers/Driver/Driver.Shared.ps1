@@ -167,9 +167,9 @@ function Set-DriverBusy {
     if ($msg) {
         try {
             if ($Busy) {
-                $msg.Text = if ($Reason) { $Reason } else { "Bitte warten..." }
+                $msg.Text = if ($Reason) { $Reason } else { Get-UiString -Key 'DriverBusyDefault' }
             } else {
-                $msg.Text = "Bitte warten..."
+                $msg.Text = Get-UiString -Key 'DriverBusyDefault'
             }
         } catch {}
     }
@@ -177,7 +177,7 @@ function Set-DriverBusy {
     try {
         $page = Get-Ctx "DriverPage"
         if ($Busy) {
-            Start-UiBusyProgress -Root $page -Context $ctxLocal -Message $(if ($Reason) { $Reason } else { "Bitte warten..." }) -Detail "Treiber werden aus dem Offline-Image gelesen oder integriert. Je nach Treiberordner kann DISM länger arbeiten." -ShowDismTail
+            Start-UiBusyProgress -Root $page -Context $ctxLocal -Message $(if ($Reason) { $Reason } else { Get-UiString -Key 'DriverBusyDefault' }) -Detail (Get-UiString -Key 'DriverBusyDetail') -ShowDismTail
         } else {
             Stop-UiBusyProgress -Root $page -Context $ctxLocal
         }

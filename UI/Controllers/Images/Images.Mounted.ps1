@@ -235,9 +235,9 @@ function Update-MountedButtons {
                 $recommendedAction = [string]$selected.RecommendedAction
             }
             if ($selectedItems.Count -gt 1) {
-                $script:ctx.BtnUnmountMountedDiscard.Content = 'Auswahl Discard'
+                $script:ctx.BtnUnmountMountedDiscard.Content = Get-UiString -Key 'ImagesMountedDiscardSelection'
             } elseif ($recommendedAction -match 'bereinig|Ohne Commit') {
-                $script:ctx.BtnUnmountMountedDiscard.Content = 'Mount bereinigen'
+                $script:ctx.BtnUnmountMountedDiscard.Content = Get-UiString -Key 'ImagesMountedCleanup'
             } else {
                 $script:ctx.BtnUnmountMountedDiscard.Content = 'Unmount (Discard)'
             }
@@ -246,7 +246,7 @@ function Update-MountedButtons {
     if ($script:ctx.BtnUnmountMountedCommit)  {
         try {
             $script:ctx.BtnUnmountMountedCommit.IsEnabled = ($hasSel -and $canCommit)
-            $script:ctx.BtnUnmountMountedCommit.Content = if ($selectedItems.Count -gt 1) { 'Auswahl Commit' } else { 'Unmount (Commit)' }
+            $script:ctx.BtnUnmountMountedCommit.Content = if ($selectedItems.Count -gt 1) { Get-UiString -Key 'ImagesMountedCommitSelection' } else { 'Unmount (Commit)' }
         } catch {}
     }
     if ($script:ctx.BtnRepairMounts) { try { $script:ctx.BtnRepairMounts.IsEnabled = $true } catch {} }
@@ -286,7 +286,7 @@ function Start-MountRepairAssistant {
 
     $problemItems = @(Get-MountRepairProblemItems)
     if ($problemItems.Count -lt 1) {
-        Show-UiInfo -Title 'Mount-Reparatur' -Message 'Aktuell sehe ich keine problematischen Mounts. Wenn trotzdem etwas hängt, bitte erst die Mount-Liste aktualisieren.'
+        Show-UiInfo -Title (Get-UiString -Key 'ImagesMountRepairTitle') -Message (Get-UiString -Key 'ImagesMountRepairNoProblems')
         return
     }
 
@@ -294,10 +294,10 @@ function Start-MountRepairAssistant {
     $mountText = (($problemItems | Select-Object -First 6 | ForEach-Object { [string]$_.MountDir }) -join "`r`n")
     if ($problemItems.Count -gt 6) { $mountText += "`r`n..." }
 
-    $message = "Es wurden problematische Mount-Einträge gefunden:`r`n`r`n$mountText`r`n`r`nSoll DISM /Cleanup-Wim jetzt ausgeführt werden? Das bereinigt hängende Mount-Registry-Einträge, führt aber keinen Commit aus."
+    $message = Get-UiString -Key 'ImagesMountRepairConfirmFormat' -Args @($mountText)
     $answer = [System.Windows.MessageBox]::Show(
         $message,
-        'Mount-Reparatur',
+        (Get-UiString -Key 'ImagesMountRepairTitle'),
         [System.Windows.MessageBoxButton]::YesNo,
         [System.Windows.MessageBoxImage]::Warning
     )
@@ -309,7 +309,7 @@ function Start-MountRepairAssistant {
     $fnRefresh = (Get-Item function:Refresh-MountedList -ErrorAction Stop).ScriptBlock
     $fnShowUiError = (Get-Item function:Show-UiError -ErrorAction Stop).ScriptBlock
 
-    & $fnSetBusy -Busy $true -Reason 'Mount-Reparatur läuft...' -Context $ctxLocal
+    & $fnSetBusy -Busy $true -Reason (Get-UiString -Key 'ImagesMountRepairBusy') -Context $ctxLocal
 
     $projectRoot = (Get-ProjectRoot).Replace("'", "''")
     $coreBoot = (Resolve-ProjectPath "Core\Bootstrap.psm1" -MustExist).Replace("'", "''")
@@ -341,15 +341,15 @@ Repair-WimMountRegistry -TimeoutSec 900 | Out-Null
         try {
             $item = @($result) | Select-Object -First 1
             $remaining = if ($item) { [int]$item.Remaining } else { 0 }
-            if ($setStatus) { & $setStatus ("Mount-Reparatur fertig. Einträge danach: {0}" -f $remaining) }
-            Show-UiInfo -Title 'Mount-Reparatur' -Message ("DISM /Cleanup-Wim wurde ausgeführt.`r`nVerbleibende Mount-Einträge: {0}" -f $remaining)
+            if ($setStatus) { & $setStatus (Get-UiString -Key 'ImagesMountRepairCompletedFormat' -Args @($remaining)) }
+            Show-UiInfo -Title (Get-UiString -Key 'ImagesMountRepairTitle') -Message (Get-UiString -Key 'ImagesMountRepairResultFormat' -Args @($remaining))
         } finally {
             & $fnSetBusy -Busy $false -Context $ctxLocal
             try { & $fnRefresh } catch {}
         }
     } -OnError {
         param($ex)
-        try { & $fnShowUiError -Title 'Mount-Reparatur' -Message $ex.Message }
+        try { & $fnShowUiError -Title (Get-UiString -Key 'ImagesMountRepairTitle') -Message $ex.Message }
         finally {
             & $fnSetBusy -Busy $false -Context $ctxLocal
             try { & $fnRefresh } catch {}

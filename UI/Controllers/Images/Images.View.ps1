@@ -99,7 +99,7 @@ function Get-ImagesPathForMode {
                 Write-Log -Level INFO -Message ("Images Path Resolve: Mode=IsoInstall; Path={0}" -f (Get-DisplayValue $p))
             } catch {}
 
-            if (-not $p) { throw "ISO Install ist nicht verfügbar (ISO mounten)." }
+            if (-not $p) { throw (Get-UiString -Key 'ImagesIsoInstallUnavailable') }
             return (Normalize-PathText $p)
         }
 
@@ -113,7 +113,7 @@ function Get-ImagesPathForMode {
                 Write-Log -Level INFO -Message ("Images Path Resolve: Mode=IsoBoot; Path={0}" -f (Get-DisplayValue $p))
             } catch {}
 
-            if (-not $p) { throw "ISO Boot ist nicht verfügbar (ISO mounten)." }
+            if (-not $p) { throw (Get-UiString -Key 'ImagesIsoBootUnavailable') }
             return (Normalize-PathText $p)
         }
 
@@ -136,7 +136,7 @@ function Get-ImagesPathForMode {
                 Write-Log -Level INFO -Message ("Images Path Resolve: Mode=Standalone; Path={0}" -f (Get-DisplayValue $p))
             } catch {}
 
-            if (-not $p) { throw "Standalone ist nicht gesetzt (WIM/ESD wählen)." }
+            if (-not $p) { throw (Get-UiString -Key 'ImagesStandaloneNotSet') }
             return (Normalize-PathText $p)
         }
     }

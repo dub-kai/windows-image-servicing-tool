@@ -106,7 +106,7 @@ function Update-SelectedCatalogDetails {
         Set-UiText -Root $page -Name 'TxtSelectedCatalogType'    -Value '-'
         Set-UiText -Root $page -Name 'TxtSelectedCatalogDate'    -Value '-'
         Set-UiText -Root $page -Name 'TxtSelectedCatalogVersion' -Value '-'
-        Set-UiText -Root $page -Name 'TxtSelectedCatalogTitle'   -Value 'Noch kein Catalog-Treffer ausgewaehlt.'
+        Set-UiText -Root $page -Name 'TxtSelectedCatalogTitle'   -Value (Get-UpdatesUiString -Key 'UpdatesCatalogNoSelection' -Default 'Noch kein Catalog-Treffer ausgewaehlt.')
     }
 
     Update-UpdatesActionButtons
@@ -186,8 +186,8 @@ function New-LocalCatalogItem {
         UpdateId            = ('LOCAL:' + $encodedPath)
         Title               = $name
         KB                  = $kb
-        Products            = 'Lokale Datei'
-        Classification      = 'Manuell hinzugefügt'
+        Products            = Get-UpdatesUiString -Key 'UpdatesLocalFileProduct' -Default 'Lokale Datei'
+        Classification      = Get-UpdatesUiString -Key 'UpdatesLocalManualClassification' -Default 'Manuell hinzugefügt'
         LastUpdated         = $item.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
         Version             = $version
         CatalogVersionLabel = $version
@@ -197,7 +197,7 @@ function New-LocalCatalogItem {
         IsInstalled         = $false
         IsInstalledByKb     = $false
         IsInstalledByVersion= $false
-        InstalledState      = 'Lokale Datei'
+        InstalledState      = Get-UpdatesUiString -Key 'UpdatesLocalFileState' -Default 'Lokale Datei'
         IsLocalPackage      = $true
         LocalPackagePath    = [string]$item.FullName
     }
@@ -208,8 +208,8 @@ function Add-LocalUpdatePackageUi {
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object Microsoft.Win32.OpenFileDialog
-    $dlg.Title = 'Lokales Update auswählen'
-    $dlg.Filter = 'Windows Update Pakete (*.msu;*.cab)|*.msu;*.cab|Alle Dateien (*.*)|*.*'
+    $dlg.Title = Get-UpdatesUiString -Key 'UpdatesLocalDialogTitle' -Default 'Lokales Update auswählen'
+    $dlg.Filter = Get-UpdatesUiString -Key 'UpdatesLocalDialogFilter' -Default 'Windows Update Pakete (*.msu;*.cab)|*.msu;*.cab|Alle Dateien (*.*)|*.*'
     $dlg.Multiselect = $true
 
     $ok = $dlg.ShowDialog()
@@ -229,7 +229,7 @@ function Add-LocalUpdatePackageUi {
 
     $newItems = @($added.ToArray())
     if ($newItems.Count -lt 1) {
-        Show-UiInfo -Message 'Es wurde keine gültige .msu- oder .cab-Datei ausgewählt.' -Title 'Lokales Update'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesLocalInvalidPackage' -Default 'Es wurde keine gültige .msu- oder .cab-Datei ausgewählt.') -Title (Get-UpdatesUiString -Key 'UpdatesLocalTitle' -Default 'Lokales Update')
         return
     }
 
@@ -240,9 +240,9 @@ function Add-LocalUpdatePackageUi {
     $script:lastCatalogSelectionKey = Get-CatalogSelectionKey -Item $newItems[0]
 
     Apply-CatalogView
-    Set-UpdatesStatusText -Message ('Lokales Update hinzugefügt: {0}' -f [string]$newItems[0].Title)
+    Set-UpdatesStatusText -Message (Get-UpdatesUiString -Key 'UpdatesLocalAddedStatusFormat' -Default 'Lokales Update hinzugefügt: {0}' -Args @([string]$newItems[0].Title))
     if ($script:ctx -and $script:ctx.Page) {
-        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value ('Lokale Update-Datei bereit. Du kannst sie jetzt in den ausgewählten Mount oder in alle Mounts integrieren.')
+        Set-UiText -Root $script:ctx.Page -Name 'TxtUpdatesFooterHint' -Value (Get-UpdatesUiString -Key 'UpdatesLocalReadyFooter' -Default 'Lokale Update-Datei bereit. Du kannst sie jetzt in den ausgewählten Mount oder in alle Mounts integrieren.')
     }
 }
 
@@ -299,7 +299,7 @@ function Update-RecommendationUi {
         Set-UiText -Root $page -Name 'TxtRecommendedLCU'        -Value '-'
         Set-UiText -Root $page -Name 'TxtRecommendedSSU'        -Value '-'
         Set-UiText -Root $page -Name 'TxtRecommendedDotNet'     -Value '-'
-        Set-UiText -Root $page -Name 'TxtRecommendationSummary' -Value 'Noch keine Catalog-Suche ausgefuehrt.'
+        Set-UiText -Root $page -Name 'TxtRecommendationSummary' -Value (Get-UpdatesUiString -Key 'UpdatesRecommendationNoSearch' -Default 'Noch keine Catalog-Suche ausgefuehrt.')
         return
     }
 
@@ -307,12 +307,13 @@ function Update-RecommendationUi {
     Set-UiText -Root $page -Name 'TxtRecommendedSSU'    -Value (Format-CatalogItemLine -Item $rec.RecommendedSSU)
     Set-UiText -Root $page -Name 'TxtRecommendedDotNet' -Value (Format-CatalogItemLine -Item $rec.RecommendedDotNet)
 
-    $summary = 'Gesamt: {0} | LCU: {1} | SSU: {2} | .NET: {3} | Preview: {4}' -f `
+    $summary = Get-UpdatesUiString -Key 'UpdatesRecommendationSummaryFormat' -Default 'Gesamt: {0} | LCU: {1} | SSU: {2} | .NET: {3} | Preview: {4}' -Args @(
         $rec.TotalCount,
         $rec.LCUCount,
         $rec.SSUCount,
         $rec.DotNetCount,
         $rec.PreviewCount
+    )
 
     Set-UiText -Root $page -Name 'TxtRecommendationSummary' -Value $summary
 }
@@ -373,15 +374,21 @@ function Apply-CatalogView {
     }
 
     $localKbCount = if ($null -ne $script:updateContext) { @($script:updateContext.InstalledKBs).Count } else { 0 }
-    $countText = 'Treffer: {0} | Gesamt: {1} | Empfohlen: {2} | Lokal: {3}' -f `
+    $countText = Get-UpdatesUiString -Key 'UpdatesCatalogResultsCountFormat' -Default 'Treffer: {0} | Gesamt: {1} | Empfohlen: {2} | Lokal: {3}' -Args @(
         $visible.Count,
         @($script:catalogAllResults).Count,
         @($script:catalogWorkResults).Count,
         $localKbCount
+    )
     Set-UiText -Root $page -Name 'TxtCatalogResultsCount' -Value $countText
 
     $packageCount = if ($null -ne $script:updateContext) { @($script:updateContext.Packages).Count } else { 0 }
-    $hintText = 'Ansicht: {0} | Pakete: {1} | Sichtbar: {2} | Gesamt: {3}' -f $mode, $packageCount, $visible.Count, @($script:catalogAllResults).Count
+    $modeText = switch ($mode) {
+        'All'      { Get-UpdatesUiString -Key 'UpdatesCatalogModeAll' -Default 'Alle Treffer' }
+        'Packages' { Get-UpdatesUiString -Key 'UpdatesCatalogModePackages' -Default 'Pakete' }
+        default    { Get-UpdatesUiString -Key 'UpdatesCatalogModeRecommended' -Default 'Empfohlen' }
+    }
+    $hintText = Get-UpdatesUiString -Key 'UpdatesCatalogFilterHintFormat' -Default 'Ansicht: {0} | Pakete: {1} | Sichtbar: {2} | Gesamt: {3}' -Args @($modeText, $packageCount, $visible.Count, @($script:catalogAllResults).Count)
     Set-UiText -Root $page -Name 'TxtUpdatesFilterHint' -Value $hintText
 
     try {
@@ -402,13 +409,13 @@ function Export-CatalogResultsCsv {
 
     $items = @($script:catalogVisibleResults)
     if ($items.Count -le 0) {
-        Show-UiInfo -Message 'Aktuell sind keine sichtbaren Catalog-Treffer zum Exportieren vorhanden.' -Title 'Catalog Export'
+        Show-UiInfo -Message (Get-UpdatesUiString -Key 'UpdatesCatalogExportEmpty' -Default 'Aktuell sind keine sichtbaren Catalog-Treffer zum Exportieren vorhanden.') -Title (Get-UpdatesUiString -Key 'UpdatesCatalogExportTitle' -Default 'Catalog Export')
         return
     }
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object Microsoft.Win32.SaveFileDialog
-    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.Filter = Get-UpdatesUiString -Key 'UpdatesPackagesCsvFilter' -Default 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
     $dlg.FileName = ('catalog_results_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
     $dlg.OverwritePrompt = $true
 
@@ -446,8 +453,8 @@ function Export-CatalogResultsCsv {
         }
 
         $rows | Export-Csv -LiteralPath $dest -Delimiter ';' -NoTypeInformation -Encoding UTF8
-        Set-UpdatesStatusText -Message ('Catalog CSV exportiert: {0}' -f $dest)
+        Set-UpdatesStatusText -Message (Get-UpdatesUiString -Key 'UpdatesCatalogCsvExportedFormat' -Default 'Catalog CSV exportiert: {0}' -Args @($dest))
     } catch {
-        Show-UiError -Message $_.Exception.Message -Title 'Catalog Export'
+        Show-UiError -Message $_.Exception.Message -Title (Get-UpdatesUiString -Key 'UpdatesCatalogExportTitle' -Default 'Catalog Export')
     }
 }

@@ -8,6 +8,7 @@ if (-not $script:configModule) {
     $script:configModule = Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -DisableNameChecking -Global -PassThru
 }
 Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\Notifications.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking -Global
 
 $script:getConfigValueCommand = $null
@@ -190,7 +191,7 @@ function Get-SettingsTextBoxInt {
     }
 
     if ($value -lt $Min -or $value -gt $Max) {
-        throw ("{0}: Wert muss zwischen {1} und {2} liegen." -f $Label, $Min, $Max)
+        throw (Get-UiString -Key 'SettingsIntRangeFormat' -Args @($Label, $Min, $Max))
     }
 
     return $value
@@ -210,13 +211,13 @@ function Refresh-SettingsDismBatchUI {
 
 function Save-SettingsDismBatchValues {
     $values = [ordered]@{
-        DismTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Label 'Standard-DISM-Timeout' -Min 60 -Max 86400
-        DismLockTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Label 'DISM-Lock-Timeout' -Min 30 -Max 86400
-        DismUnmountCommitTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Label 'Commit-Timeout' -Min 900 -Max 172800
-        DismUnmountCommitRetryCount = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Label 'Commit-Retry-Anzahl' -Min 1 -Max 20
-        DismUnmountCommitRetryDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Label 'Commit-Retry-Pause' -Min 1 -Max 600
-        MountedWimRefreshQuietPeriodSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Label 'Mount-Refresh-Wartezeit' -Min 0 -Max 600
-        BatchUnmountStepDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Label 'Batch-Unmount-Pause' -Min 0 -Max 600
+        DismTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismTimeoutSec -Label (Get-UiString -Key 'SettingsDismTimeoutLabel') -Min 60 -Max 86400
+        DismLockTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismLockTimeoutSec -Label (Get-UiString -Key 'SettingsDismLockTimeoutLabel') -Min 30 -Max 86400
+        DismUnmountCommitTimeoutSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitTimeoutSec -Label (Get-UiString -Key 'SettingsCommitTimeoutLabel') -Min 900 -Max 172800
+        DismUnmountCommitRetryCount = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryCount -Label (Get-UiString -Key 'SettingsCommitRetryCountLabel') -Min 1 -Max 20
+        DismUnmountCommitRetryDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsDismUnmountCommitRetryDelaySec -Label (Get-UiString -Key 'SettingsCommitRetryDelayLabel') -Min 1 -Max 600
+        MountedWimRefreshQuietPeriodSec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsMountedWimRefreshQuietPeriodSec -Label (Get-UiString -Key 'SettingsMountRefreshWaitLabel') -Min 0 -Max 600
+        BatchUnmountStepDelaySec = Get-SettingsTextBoxInt -TextBox $script:ctx.TxtSettingsBatchUnmountStepDelaySec -Label (Get-UiString -Key 'SettingsBatchUnmountPauseLabel') -Min 0 -Max 600
     }
 
     foreach ($key in $values.Keys) {
@@ -224,7 +225,7 @@ function Save-SettingsDismBatchValues {
     }
 
     Refresh-SettingsDismBatchUI
-    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Einstellungen gespeichert.' } catch {} }
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsDismBatchSaved') } catch {} }
 }
 
 function Reset-SettingsDismBatchValues {
@@ -242,7 +243,7 @@ function Reset-SettingsDismBatchValues {
     }
 
     Refresh-SettingsDismBatchUI
-    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus 'DISM/Batch-Standardwerte wiederhergestellt.' } catch {} }
+    if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsDismBatchDefaultsRestored') } catch {} }
 }
 
 function Get-CurrentAdkStatus {
@@ -430,7 +431,7 @@ function Show-SettingsHealthData {
 
 function Start-SettingsHealthRefresh {
     param(
-        [string]$StatusText = 'Health: Status aktualisiert'
+        [string]$StatusText = $(Get-UiString -Key 'HealthLoaded')
     )
 
     if (-not $script:ctx) { return }
@@ -834,6 +835,10 @@ function Refresh-SettingsUI {
             $script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked = Get-SettingsBoolValue -Key 'ImageMountReadOnlyDefault' -Default $true
         }
 
+        if ($script:ctx.ChkSettingsNotificationsEnabled) {
+            $script:ctx.ChkSettingsNotificationsEnabled.IsChecked = Get-SettingsBoolValue -Key 'NotificationsEnabled' -Default $true
+        }
+
         if ($script:ctx.ChkSettingsAppDebug) {
             $script:ctx.ChkSettingsAppDebug.IsChecked = Get-SettingsBoolValue -Key 'AppDebug' -Default $false
         }
@@ -864,6 +869,8 @@ function Initialize-SettingsController {
         ChkSettingsDriverLoadAllDefault = $null
         ChkSettingsUpdatesAutoCatalogDefault = $null
         ChkSettingsImageMountReadOnlyDefault = $null
+        ChkSettingsNotificationsEnabled = $null
+        BtnSettingsTestNotification = $null
         ChkSettingsAppDebug = $null
 
         BtnSettingsDetectAdk = $null
@@ -931,6 +938,8 @@ function Initialize-SettingsController {
     $script:ctx.ChkSettingsDriverLoadAllDefault = Find-Ui -Root $p -Name 'ChkSettingsDriverLoadAllDefault'
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
+    $script:ctx.ChkSettingsNotificationsEnabled = Find-Ui -Root $p -Name 'ChkSettingsNotificationsEnabled'
+    $script:ctx.BtnSettingsTestNotification = Find-Ui -Root $p -Name 'BtnSettingsTestNotification'
     $script:ctx.ChkSettingsAppDebug = Find-Ui -Root $p -Name 'ChkSettingsAppDebug'
     $script:ctx.BtnSettingsDetectAdk = Find-Ui -Root $p -Name 'BtnSettingsDetectAdk'
     $script:ctx.BtnSettingsPickAdkRoot = Find-Ui -Root $p -Name 'BtnSettingsPickAdkRoot'
@@ -1150,6 +1159,37 @@ function Initialize-SettingsController {
     if ($script:ctx.ChkSettingsImageMountReadOnlyDefault) {
         $script:ctx.ChkSettingsImageMountReadOnlyDefault.Add_Click({
             Save-SettingsValue -Key 'ImageMountReadOnlyDefault' -Value ([bool]$script:ctx.ChkSettingsImageMountReadOnlyDefault.IsChecked) -StatusMessage (Get-UiString -Key 'SettingsMountDefaultsUpdated')
+        })
+    }
+
+    if ($script:ctx.ChkSettingsNotificationsEnabled) {
+        $script:ctx.ChkSettingsNotificationsEnabled.Add_Click({
+            $enabled = [bool]$script:ctx.ChkSettingsNotificationsEnabled.IsChecked
+            Save-SettingsValue -Key 'NotificationsEnabled' -Value $enabled -StatusMessage (Get-UiString -Key 'SettingsNotificationsUpdated')
+            if ($enabled) {
+                try { Initialize-AppNotifications -ProjectRoot (Get-ProjectRoot) | Out-Null } catch {}
+            }
+        })
+    }
+
+    if ($script:ctx.BtnSettingsTestNotification) {
+        $script:ctx.BtnSettingsTestNotification.Add_Click({
+            try {
+                if ($script:ctx.ChkSettingsNotificationsEnabled -and $script:ctx.ChkSettingsNotificationsEnabled.IsChecked -ne $true) {
+                    $script:ctx.ChkSettingsNotificationsEnabled.IsChecked = $true
+                    Save-SettingsValue -Key 'NotificationsEnabled' -Value $true -StatusMessage (Get-UiString -Key 'SettingsNotificationsUpdated')
+                }
+
+                $shown = Show-AppToastNotification -Title (Get-UiString -Key 'NotificationTestTitle') -Message (Get-UiString -Key 'NotificationTestMessage') -Level Info
+                $statusKey = if ($shown) { 'SettingsTestNotificationSent' } else { 'SettingsTestNotificationFailed' }
+                if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key $statusKey) } catch {} }
+
+                if (-not $shown) {
+                    Show-UiInfo -Title (Get-UiString -Key 'StaticInfoTitle') -Message (Get-UiString -Key 'SettingsTestNotificationFailed')
+                }
+            } catch {
+                Show-UiError -Message $_.Exception.Message
+            }
         })
     }
 

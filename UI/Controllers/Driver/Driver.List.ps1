@@ -1,7 +1,7 @@
 function Clear-DriversList {
     param(
         $Context = $null,
-        [string]$StatusText = "Driver: Treiber=0"
+        [string]$StatusText = $(Get-UiString -Key 'DriverCountZero')
     )
 
     $ctxLocal = if ($null -ne $Context) { $Context } else { $script:ctx }
@@ -27,13 +27,13 @@ function Export-DriversCsv {
     }
 
     if (@($items).Count -le 0) {
-        Show-UiInfo -Message 'Aktuell sind keine Treiber zum Exportieren geladen.' -Title 'Driver Export'
+        Show-UiInfo -Message (Get-UiString -Key 'DriverExportEmpty') -Title (Get-UiString -Key 'DriverExportTitle')
         return
     }
 
     Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
     $dlg = New-Object Microsoft.Win32.SaveFileDialog
-    $dlg.Filter = 'CSV (*.csv)|*.csv|Alle Dateien (*.*)|*.*'
+    $dlg.Filter = Get-UiString -Key 'DriverCsvFilter'
     $dlg.FileName = ('drivers_{0}.csv' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
     $dlg.OverwritePrompt = $true
 
@@ -68,10 +68,10 @@ function Export-DriversCsv {
 
         $setStatus = $script:ctx["SetStatus"]
         if ($setStatus) {
-            try { & $setStatus ("Driver CSV exportiert: {0}" -f $dest) } catch {}
+            try { & $setStatus (Get-UiString -Key 'DriverCsvExportedFormat' -Args @($dest)) } catch {}
         }
     } catch {
-        Show-UiError -Message $_.Exception.Message -Title 'Driver Export'
+        Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'DriverExportTitle')
     }
 }
 
@@ -121,7 +121,7 @@ function Request-DriversReload {
     $mountDir = Resolve-DriverMountDir
     if (-not (Test-DriverMountUsable -MountDir $mountDir)) {
         try { Set-AppStateValue -Key "DriverMountDir" -Value $null } catch {}
-        try { Clear-DriversList -Context $script:ctx -StatusText "Driver: Treiber=0" } catch {}
+        try { Clear-DriversList -Context $script:ctx -StatusText (Get-UiString -Key 'DriverCountZero') } catch {}
         return
     }
 
@@ -153,7 +153,7 @@ function Load-DriversAsync {
     $mountDir = Resolve-DriverMountDir
     if (-not (Test-DriverMountUsable -MountDir $mountDir)) {
         try { Set-AppStateValue -Key "DriverMountDir" -Value $null } catch {}
-        Clear-DriversList -Context $script:ctx -StatusText "Driver: Treiber=0"
+        Clear-DriversList -Context $script:ctx -StatusText (Get-UiString -Key 'DriverCountZero')
         return
     }
 
@@ -176,7 +176,7 @@ function Load-DriversAsync {
         if ($chk) { $all = [bool]$chk.IsChecked }
     } catch { $all = $true }
 
-    & $fnBusy -Busy $true -Reason "Treiber werden gelesen..." -Context $ctxLocal
+    & $fnBusy -Busy $true -Reason (Get-UiString -Key 'DriverBusyReading') -Context $ctxLocal
 
     $dismModPath   = (Resolve-ProjectPath "Services\DismService.psm1" -MustExist)
     $parserModPath = (Resolve-ProjectPath "Services\DismDriversParser.psm1" -MustExist)
@@ -214,7 +214,7 @@ $drivers = ConvertFrom-DismDriversOutput -Text $res.StdOut
         param($resArr)
         try {
             $drivers = @($resArr)
-            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText ("Driver: Treiber={0}" -f $drivers.Count)
+            & $fnSet -Drivers $drivers -Context $ctxLocal -StatusText (Get-UiString -Key 'DriverLoadCountFormat' -Args @($drivers.Count))
         } finally {
             & $fnBusy -Busy $false -Context $ctxLocal
         }
@@ -229,7 +229,7 @@ $drivers = ConvertFrom-DismDriversOutput -Text $res.StdOut
 
             if ((-not $mountStillThere) -or $isTransient) {
                 try { Set-AppStateValue -Key "DriverMountDir" -Value $null } catch {}
-                try { & $fnClear -Context $ctxLocal -StatusText "Driver: Treiber=0" } catch {}
+                try { & $fnClear -Context $ctxLocal -StatusText (Get-UiString -Key 'DriverCountZero') } catch {}
             } else {
                 try { & $fnErr -Message $msg } catch {}
             }
