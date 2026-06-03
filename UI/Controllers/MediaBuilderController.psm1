@@ -43,6 +43,21 @@ function Get-MediaAppStateValueSafe {
     try { return Get-AppStateValue -Key $Key -Default $Default } catch { return $Default }
 }
 
+function Set-MediaAppStateValueSafe {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [AllowNull()]$Value
+    )
+
+    try { Set-AppStateValue -Key $Key -Value $Value } catch {}
+}
+
+function Remove-MediaAppStateValueSafe {
+    param([Parameter(Mandatory)][string]$Key)
+
+    try { Remove-AppStateValue -Key $Key } catch {}
+}
+
 function Format-MediaBytes {
     param([long]$Bytes)
 
@@ -615,6 +630,8 @@ function Set-MediaBusy {
         $script:ctx.BtnMediaPickUsbSource,
         $script:ctx.BtnMediaPickUsbTarget,
         $script:ctx.BtnMediaCheckUsb,
+        $script:ctx.BtnMediaOpenUsbTarget,
+        $script:ctx.BtnMediaResetUsb,
         $script:ctx.BtnMediaCopyToUsb,
         $script:ctx.RbMediaBuildWim,
         $script:ctx.RbMediaBuildEsd,
@@ -877,6 +894,22 @@ function Refresh-MediaUsbUI {
                 (-not [string]::IsNullOrWhiteSpace([string]$target))
             )
         }
+        if ($script:ctx.BtnMediaOpenUsbTarget) {
+            $script:ctx.BtnMediaOpenUsbTarget.IsEnabled = (
+                (-not $script:mediaBusy) -and
+                (-not [string]::IsNullOrWhiteSpace([string]$target)) -and
+                (Test-Path -LiteralPath ([string]$target) -PathType Container)
+            )
+        }
+        if ($script:ctx.BtnMediaResetUsb) {
+            $script:ctx.BtnMediaResetUsb.IsEnabled = (
+                (-not $script:mediaBusy) -and
+                (
+                    (-not [string]::IsNullOrWhiteSpace([string]$script:ctx.SelectedUsbSourcePath)) -or
+                    (-not [string]::IsNullOrWhiteSpace([string]$script:ctx.SelectedUsbTargetPath))
+                )
+            )
+        }
     } catch {}
 
     try {
@@ -886,10 +919,53 @@ function Refresh-MediaUsbUI {
             } elseif ([string]::IsNullOrWhiteSpace([string]$target)) {
                 $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbTargetMissing'
             } else {
-                $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReady'
+                $drive = Get-MediaDriveInfo -Path ([string]$target)
+                if ($drive -and $drive.IsReady) {
+                    $fileSystem = [string]$drive.DriveFormat
+                    if ([string]::IsNullOrWhiteSpace($fileSystem)) { $fileSystem = '-' }
+                    $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReadyWithTargetFormat' -Args @(
+                        [string]$target,
+                        (Format-MediaBytes ([int64]$drive.AvailableFreeSpace)),
+                        $fileSystem
+                    )
+                } else {
+                    $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReady'
+                }
             }
         }
     } catch {}
+}
+
+function Open-MediaUsbTarget {
+    if ($script:mediaBusy -or -not $script:ctx) { return }
+
+    try {
+        $target = [string]$script:ctx.SelectedUsbTargetPath
+        if ([string]::IsNullOrWhiteSpace($target) -or -not (Test-Path -LiteralPath $target -PathType Container)) {
+            throw (Get-UiString -Key 'MediaUsbTargetOpenMissing')
+        }
+
+        Start-Process -FilePath $target | Out-Null
+        $message = Get-UiString -Key 'MediaUsbTargetOpenedFormat' -Args @($target)
+        Add-MediaBuildLog $message
+        if ($script:ctx.SetStatus) { & $script:ctx.SetStatus $message }
+    } catch {
+        Show-UiError -Message $_.Exception.Message
+    }
+}
+
+function Reset-MediaUsbSelection {
+    if ($script:mediaBusy -or -not $script:ctx) { return }
+
+    $script:ctx.SelectedUsbSourcePath = $null
+    $script:ctx.SelectedUsbTargetPath = $null
+    Remove-MediaAppStateValueSafe -Key 'MediaUsbSourcePath'
+    Remove-MediaAppStateValueSafe -Key 'MediaUsbTargetPath'
+    Refresh-MediaBuilderUI
+
+    $message = Get-UiString -Key 'MediaUsbResetStatus'
+    Add-MediaBuildLog $message
+    if ($script:ctx.SetStatus) { & $script:ctx.SetStatus $message }
 }
 
 function Test-MediaUsbCopyPrerequisites {
@@ -1029,7 +1105,8 @@ if (`$exitCode -gt 7) {
             try {
                 $item = @($result) | Select-Object -First 1
                 Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyDoneLogFormat' -Args @([int]$item.ExitCode))
-                Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCopyDone') -Detail ([string]$item.Target) -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbCopyDone')
+                $detail = Get-UiString -Key 'MediaUsbCopyDoneDetailFormat' -Args @([string]$item.Target, [int]$item.ExitCode)
+                Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCopyDone') -Detail $detail -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbCopyDone')
                 if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCopyDoneStatus') }
             } finally {
                 Set-MediaBusy -Busy $false
@@ -1370,8 +1447,8 @@ function Initialize-MediaBuilderController {
         OnStateChanged              = $OnStateChanged
         SelectedInstallImagePath    = $null
         SelectedBootImagePath       = $null
-        SelectedUsbSourcePath       = $null
-        SelectedUsbTargetPath       = $null
+        SelectedUsbSourcePath       = Get-MediaAppStateValueSafe -Key 'MediaUsbSourcePath' -Default $null
+        SelectedUsbTargetPath       = Get-MediaAppStateValueSafe -Key 'MediaUsbTargetPath' -Default $null
         TxtMediaSourceIso           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaSourceIso'
         TxtMediaInstallImage        = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaInstallImage'
         TxtMediaBootImage           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaBootImage'
@@ -1393,6 +1470,8 @@ function Initialize-MediaBuilderController {
         BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'
         BtnMediaPickUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbTarget'
         BtnMediaCheckUsb            = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCheckUsb'
+        BtnMediaOpenUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaOpenUsbTarget'
+        BtnMediaResetUsb            = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaResetUsb'
         BtnMediaCopyToUsb           = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCopyToUsb'
         RbMediaBuildWim             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildWim'
         RbMediaBuildEsd             = Find-Ui -Root $MediaBuilderPage -Name 'RbMediaBuildEsd'
@@ -1460,6 +1539,7 @@ function Initialize-MediaBuilderController {
             $path = Pick-MediaFolder -Description (Get-UiString -Key 'MediaPickUsbSourceDescription')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbSourcePath = $path
+                Set-MediaAppStateValueSafe -Key 'MediaUsbSourcePath' -Value $path
                 Refresh-MediaBuilderUI
             }
         })
@@ -1470,6 +1550,7 @@ function Initialize-MediaBuilderController {
             $path = Pick-MediaFolder -Description (Get-UiString -Key 'MediaPickUsbTargetDescription')
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbTargetPath = $path
+                Set-MediaAppStateValueSafe -Key 'MediaUsbTargetPath' -Value $path
                 Refresh-MediaBuilderUI
             }
         })
@@ -1477,6 +1558,14 @@ function Initialize-MediaBuilderController {
 
     if ($script:ctx.BtnMediaCheckUsb) {
         $script:ctx.BtnMediaCheckUsb.Add_Click({ Start-MediaUsbCheck })
+    }
+
+    if ($script:ctx.BtnMediaOpenUsbTarget) {
+        $script:ctx.BtnMediaOpenUsbTarget.Add_Click({ Open-MediaUsbTarget })
+    }
+
+    if ($script:ctx.BtnMediaResetUsb) {
+        $script:ctx.BtnMediaResetUsb.Add_Click({ Reset-MediaUsbSelection })
     }
 
     if ($script:ctx.BtnMediaCopyToUsb) {

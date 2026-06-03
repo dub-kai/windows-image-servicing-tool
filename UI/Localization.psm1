@@ -772,6 +772,7 @@ MediaImageDialogFilter;"Windows Images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.w
 MediaUsbSourceMissing;Quelle fehlt. Du kannst eine gemountete ISO oder einen vorbereiteten Build-Ordner wählen.;Source missing. You can choose a mounted ISO or a prepared build folder.
 MediaUsbTargetMissing;USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.;USB target missing. Nothing is formatted; files are only copied into the selected folder.
 MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.";"Ready to copy. Existing files may be overwritten; nothing is deleted."
+MediaUsbReadyWithTargetFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}.;Ready to check. Target: {0}, free: {1}, file system: {2}.
 MediaUsbTargetDisplayFormat;{0} ({1}, {2} frei);{0} ({1}, {2} free)
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
@@ -780,6 +781,11 @@ MediaPickUsbSourceDescription;Quelle für den USB-Stick wählen;Choose source fo
 MediaPickUsbTargetDescription;USB-Zielordner wählen;Choose USB target folder
 MediaReady;Bereit;Ready
 MediaUsbCheck;USB prüfen;Check USB
+MediaUsbOpenTarget;Ziel öffnen;Open target
+MediaUsbReset;Reset;Reset
+MediaUsbResetStatus;USB-Auswahl zurückgesetzt.;USB selection reset.
+MediaUsbTargetOpenMissing;USB-Ziel ist nicht gesetzt oder existiert nicht.;USB target is not set or does not exist.
+MediaUsbTargetOpenedFormat;USB-Ziel geöffnet: {0};USB target opened: {0}
 MediaUsbSourceMissingPathFormat;USB-Quelle nicht gefunden oder kein Ordner: {0};USB source not found or not a folder: {0}
 MediaUsbTargetMissingPathFormat;USB-Ziel nicht gefunden oder kein Ordner: {0};USB target not found or not a folder: {0}
 MediaUsbSamePath;Quelle und USB-Ziel dürfen nicht identisch sein.;Source and USB target must not be identical.
@@ -799,6 +805,7 @@ MediaUsbCopySizeText;kopiert...;copying...
 MediaUsbCopyStartLogFormat;USB-Kopie startet: {0} -> {1};USB copy starting: {0} -> {1}
 MediaUsbCopyDoneLogFormat;USB-Kopie fertig: ExitCode {0};USB copy complete: exit code {0}
 MediaUsbCopyDone;USB-Kopie fertig.;USB copy complete.
+MediaUsbCopyDoneDetailFormat;Ziel: {0} | Robocopy ExitCode: {1};Target: {0} | robocopy exit code: {1}
 MediaUsbCopyDoneStatus;USB-Kopie fertig;USB copy complete
 MediaUsbCopyErrorLogFormat;USB-Kopie Fehler: {0};USB copy error: {0}
 MediaUsbRobocopyFailedFormat;Robocopy fehlgeschlagen (ExitCode={0}).`n`n{1};Robocopy failed (exit code={0}).`n`n{1}
@@ -1069,6 +1076,8 @@ function Apply-LocalizationToRoot {
         CmbItemLanguageDe = @{ Content = 'SettingsLangGerman' }
         CmbItemLanguageEn = @{ Content = 'SettingsLangEnglish' }
         BtnMediaCheckUsb = @{ Content = 'MediaUsbCheck' }
+        BtnMediaOpenUsbTarget = @{ Content = 'MediaUsbOpenTarget' }
+        BtnMediaResetUsb = @{ Content = 'MediaUsbReset' }
         GrpSettingsAdk = @{ Header = 'GroupAdk' }
         BtnSettingsDetectAdk = @{ Content = 'BtnDetectAdk' }
         BtnSettingsPickAdkRoot = @{ Content = 'BtnPickAdk' }
