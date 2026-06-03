@@ -642,6 +642,60 @@ function Invoke-SmokeImageCompositionPreflight {
     }
 }
 
+function Invoke-SmokeMediaUsbPreflight {
+    $testRoot = Join-Path $runDir 'MediaUsbPreflight'
+    $sourceRoot = Join-Path $testRoot 'source'
+    $targetRoot = Join-Path $testRoot 'target'
+    $nestedTarget = Join-Path $sourceRoot 'nested-target'
+
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'sources') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'efi\boot') -Force | Out-Null
+    New-Item -ItemType Directory -Path $targetRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $nestedTarget -Force | Out-Null
+
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'bootmgr') -Value 'fake boot manager' -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'efi\boot\bootx64.efi') -Value 'fake efi boot' -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $sourceRoot 'sources\install.wim') -Value 'fake install image' -Encoding ASCII
+
+    $mediaModule = Import-Module (Resolve-ProjectPath 'UI\Controllers\MediaBuilderController.psm1' -MustExist) -Force -DisableNameChecking -PassThru
+    $result = & $mediaModule {
+        param([string]$SourcePath, [string]$TargetPath)
+        Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+    } $sourceRoot $targetRoot
+
+    if (-not $result) { throw 'USB preflight returned no result.' }
+    if ([int64]$result.SourceBytes -le 0) { throw 'USB preflight did not calculate source size.' }
+    if ([string]::IsNullOrWhiteSpace([string]$result.TargetFileSystem) -or [string]$result.TargetFileSystem -eq '-') {
+        throw 'USB preflight did not detect target file system.'
+    }
+    if ($result.HasSources -ne $true) { throw 'USB preflight did not detect sources folder.' }
+    if ($result.HasBootFiles -ne $true) { throw 'USB preflight did not detect boot files.' }
+
+    $nestedBlocked = $false
+    try {
+        & $mediaModule {
+            param([string]$SourcePath, [string]$TargetPath)
+            Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+        } $sourceRoot $nestedTarget | Out-Null
+    } catch {
+        if ($_.Exception.Message -match 'innerhalb der Quelle|inside the source') {
+            $nestedBlocked = $true
+        } else {
+            throw
+        }
+    }
+
+    if (-not $nestedBlocked) { throw 'USB preflight did not reject a target inside the source.' }
+
+    return [pscustomobject]@{
+        SourceBytes      = [int64]$result.SourceBytes
+        SourceText       = [string]$result.SourceText
+        TargetFileSystem = [string]$result.TargetFileSystem
+        TargetFreeText   = [string]$result.TargetFreeText
+        NestedBlocked    = $nestedBlocked
+    }
+}
+
 function Invoke-SmokeFeatureMount {
     Import-Module (Resolve-ProjectPath 'Services\DismService.psm1' -MustExist) -Force -DisableNameChecking
     Import-Module (Resolve-ProjectPath 'Services\MountService.psm1' -MustExist) -Force -DisableNameChecking
@@ -810,6 +864,10 @@ try {
 
     Invoke-SmokeStep 'Image composition preflight preserves output' {
         Invoke-SmokeImageCompositionPreflight
+    }
+
+    Invoke-SmokeStep 'Media USB preflight' {
+        Invoke-SmokeMediaUsbPreflight
     }
 
     Invoke-SmokeStep 'Mounted ISO detection' {

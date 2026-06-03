@@ -772,6 +772,7 @@ MediaImageDialogFilter;"Windows Images (*.wim;*.esd)|*.wim;*.esd|WIM (*.wim)|*.w
 MediaUsbSourceMissing;Quelle fehlt. Du kannst eine gemountete ISO oder einen vorbereiteten Build-Ordner wählen.;Source missing. You can choose a mounted ISO or a prepared build folder.
 MediaUsbTargetMissing;USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.;USB target missing. Nothing is formatted; files are only copied into the selected folder.
 MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.";"Ready to copy. Existing files may be overwritten; nothing is deleted."
+MediaUsbTargetDisplayFormat;{0} ({1}, {2} frei);{0} ({1}, {2} free)
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
 MediaPickBootTitle;boot.wim auswählen;Choose boot.wim
@@ -1067,6 +1068,7 @@ function Apply-LocalizationToRoot {
         CmbItemStartPageSettings = @{ Content = 'NavSettings' }
         CmbItemLanguageDe = @{ Content = 'SettingsLangGerman' }
         CmbItemLanguageEn = @{ Content = 'SettingsLangEnglish' }
+        BtnMediaCheckUsb = @{ Content = 'MediaUsbCheck' }
         GrpSettingsAdk = @{ Header = 'GroupAdk' }
         BtnSettingsDetectAdk = @{ Content = 'BtnDetectAdk' }
         BtnSettingsPickAdkRoot = @{ Content = 'BtnPickAdk' }

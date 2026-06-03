@@ -809,6 +809,27 @@ function Get-MediaUsbSource {
     return [string](Get-MediaIsoRoot)
 }
 
+function Format-MediaUsbTargetDisplay {
+    param([AllowNull()][string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '-' }
+
+    try {
+        $drive = Get-MediaDriveInfo -Path $Path
+        if ($drive -and $drive.IsReady) {
+            $fileSystem = [string]$drive.DriveFormat
+            if ([string]::IsNullOrWhiteSpace($fileSystem)) { $fileSystem = '-' }
+            return (Get-UiString -Key 'MediaUsbTargetDisplayFormat' -Args @(
+                [string]$Path,
+                $fileSystem,
+                (Format-MediaBytes ([int64]$drive.AvailableFreeSpace))
+            ))
+        }
+    } catch {}
+
+    return [string]$Path
+}
+
 function Get-MediaDirectorySizeInfo {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -839,7 +860,7 @@ function Refresh-MediaUsbUI {
     $target = $script:ctx.SelectedUsbTargetPath
 
     try { if ($script:ctx.TxtMediaUsbSource) { $script:ctx.TxtMediaUsbSource.Text = (Get-DisplayOrDash $source) } } catch {}
-    try { if ($script:ctx.TxtMediaUsbTarget) { $script:ctx.TxtMediaUsbTarget.Text = (Get-DisplayOrDash $target) } } catch {}
+    try { if ($script:ctx.TxtMediaUsbTarget) { $script:ctx.TxtMediaUsbTarget.Text = (Format-MediaUsbTargetDisplay -Path $target) } } catch {}
 
     try {
         if ($script:ctx.BtnMediaCopyToUsb) {
