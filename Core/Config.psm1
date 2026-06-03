@@ -110,6 +110,7 @@ function Test-ConfigKeyPersistable {
     $persistableKeys = @(
         "StartPage",
         "UiLanguage",
+        "UiTheme",
         "AppDebug",
         "MountRoot",
         "NotificationsEnabled",
@@ -150,6 +151,7 @@ function New-DefaultConfig {
     return @{
         StartPage                 = "Dashboard"
         UiLanguage                = "de"
+        UiTheme                   = "Light"
         AppDebug                  = $false
         NotificationsEnabled      = $true
         NotificationMinimumDurationSec = 20

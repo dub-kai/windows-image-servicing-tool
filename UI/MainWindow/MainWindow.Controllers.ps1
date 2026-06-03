@@ -137,6 +137,16 @@ function New-MainWindowNavigateScript {
         if ($null -ne $refreshCmd) {
             & $refreshCmd
         }
+
+        try {
+            $themeAction = $null
+            if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
+                $themeAction = $Ctx.ApplyTheme
+            }
+            if ($themeAction -is [scriptblock]) {
+                & $themeAction
+            }
+        } catch {}
     }.GetNewClosure()
 }
 
@@ -166,6 +176,7 @@ function Initialize-MainWindowControllers {
             UpdatesPage       = $null
             SettingsPage      = $null
             SetStatus         = $null
+            ApplyTheme        = $null
             OnStateChanged    = $null
             NavigateDashboard = $null
             NavigateImages    = $null

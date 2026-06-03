@@ -46,6 +46,7 @@
     $updatesPage   = Import-XamlFile -RelativePath "UI\Pages\Updates.xaml"
     $settingsPage  = Import-XamlFile -RelativePath "UI\Pages\Settings.xaml"
     $applyLocalization = ${function:Apply-LocalizationToRoot}
+    $applyTheme = ${function:Apply-UiTheme}
     $getUiString = ${function:Get-UiString}
     $getLocalizedText = ${function:Get-LocalizedText}
     $refreshLocalization = {
@@ -61,6 +62,20 @@
         )) {
             if ($page) {
                 & $applyLocalization -Root $page
+            }
+        }
+
+        foreach ($root in @(
+            $window,
+            $dashboardPage,
+            $imagesPage,
+            $mediaPage,
+            $driverPage,
+            $updatesPage,
+            $settingsPage
+        )) {
+            if ($root) {
+                & $applyTheme -Root $root
             }
         }
     }.GetNewClosure()
@@ -84,6 +99,21 @@
         UpdatesPage   = $updatesPage
         SettingsPage  = $settingsPage
         SetStatus     = $setStatus
+        ApplyTheme    = {
+            foreach ($root in @(
+                $window,
+                $dashboardPage,
+                $imagesPage,
+                $mediaPage,
+                $driverPage,
+                $updatesPage,
+                $settingsPage
+            )) {
+                if ($root) {
+                    & $applyTheme -Root $root
+                }
+            }
+        }.GetNewClosure()
 
         OnStateChanged = {
             & $refreshLocalization

@@ -28,6 +28,8 @@ $script:UiTranslations = @{
         SettingsBehavior = "Standardverhalten"
         SettingsStartPage = "Startseite:"
         SettingsLanguage = "Sprache:"
+        SettingsTheme = "Darstellung:"
+        SettingsDarkModeEnabled = "Dark Mode aktivieren"
         SettingsDriverView = "Driver-Ansicht:"
         SettingsDriverLoadAll = "Treiber standardmäßig vollständig inkl. Inbox laden"
         SettingsUpdates = "Updates:"
@@ -110,6 +112,9 @@ $script:UiTranslations = @{
         SettingsHealthAfterMountRootReset = "Settings: Health nach MountRoot-Reset aktualisiert"
         SettingsStartPageStatus = "Settings: Startseite = {0}"
         SettingsLanguageStatus = "Settings: Sprache = {0}"
+        SettingsThemeUpdated = "Settings: Darstellung = {0}"
+        SettingsThemeLight = "Hell"
+        SettingsThemeDark = "Dunkel"
         SettingsAdkDetected = "Settings: ADK automatisch erkannt"
         SettingsAdkNotFound = "Settings: ADK nicht gefunden"
         SettingsAdkRootSet = "Settings: ADK-Ordner gesetzt"
@@ -170,6 +175,8 @@ $script:UiTranslations = @{
         SettingsBehavior = "Defaults"
         SettingsStartPage = "Start page:"
         SettingsLanguage = "Language:"
+        SettingsTheme = "Appearance:"
+        SettingsDarkModeEnabled = "Enable dark mode"
         SettingsDriverView = "Driver view:"
         SettingsDriverLoadAll = "Load drivers fully including inbox drivers by default"
         SettingsUpdates = "Updates:"
@@ -252,6 +259,9 @@ $script:UiTranslations = @{
         SettingsHealthAfterMountRootReset = "Settings: health refreshed after MountRoot reset"
         SettingsStartPageStatus = "Settings: start page = {0}"
         SettingsLanguageStatus = "Settings: language = {0}"
+        SettingsThemeUpdated = "Settings: appearance = {0}"
+        SettingsThemeLight = "Light"
+        SettingsThemeDark = "Dark"
         SettingsAdkDetected = "Settings: ADK detected automatically"
         SettingsAdkNotFound = "Settings: ADK not found"
         SettingsAdkRootSet = "Settings: ADK folder saved"
@@ -1056,6 +1066,8 @@ function Apply-LocalizationToRoot {
         GrpSettingsDefaults = @{ Header = 'SettingsBehavior' }
         TxtSettingsStartPageLabel = @{ Text = 'SettingsStartPage' }
         TxtSettingsLanguageLabel = @{ Text = 'SettingsLanguage' }
+        TxtSettingsThemeLabel = @{ Text = 'SettingsTheme' }
+        ChkSettingsDarkMode = @{ Content = 'SettingsDarkModeEnabled' }
         TxtSettingsDriverViewLabel = @{ Text = 'SettingsDriverView' }
         ChkSettingsDriverLoadAllDefault = @{ Content = 'SettingsDriverLoadAll' }
         TxtSettingsUpdatesLabel = @{ Text = 'SettingsUpdates' }
