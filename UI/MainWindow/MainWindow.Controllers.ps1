@@ -139,12 +139,21 @@ function New-MainWindowNavigateScript {
         }
 
         try {
-            $themeAction = $null
-            if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
-                $themeAction = $Ctx.ApplyTheme
+            $viewStateAction = $null
+            if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
+                $viewStateAction = $Ctx.ApplyViewState
             }
-            if ($themeAction -is [scriptblock]) {
-                & $themeAction
+            if ($viewStateAction -is [scriptblock]) {
+                & $viewStateAction -Root $Page
+            }
+            else {
+                $themeAction = $null
+                if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
+                    $themeAction = $Ctx.ApplyTheme
+                }
+                if ($themeAction -is [scriptblock]) {
+                    & $themeAction -Root $Page
+                }
             }
         } catch {}
     }.GetNewClosure()
@@ -176,6 +185,7 @@ function Initialize-MainWindowControllers {
             UpdatesPage       = $null
             SettingsPage      = $null
             SetStatus         = $null
+            ApplyViewState    = $null
             ApplyTheme        = $null
             OnStateChanged    = $null
             NavigateDashboard = $null

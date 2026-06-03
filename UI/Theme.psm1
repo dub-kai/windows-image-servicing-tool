@@ -41,25 +41,26 @@ function Get-UiThemePalette {
 
     if ($Theme -eq 'Dark') {
         return @{
-            Window      = New-UiThemeBrush '#0B1120'
-            Header      = New-UiThemeBrush '#0F172A'
-            Sidebar     = New-UiThemeBrush '#111827'
-            Content     = New-UiThemeBrush '#111827'
-            Footer      = New-UiThemeBrush '#0B1120'
-            Surface     = New-UiThemeBrush '#172033'
-            SurfaceSoft = New-UiThemeBrush '#1F2937'
-            Input       = New-UiThemeBrush '#0F172A'
-            Border      = New-UiThemeBrush '#334155'
-            Text        = New-UiThemeBrush '#E5E7EB'
-            Muted       = New-UiThemeBrush '#CBD5E1'
-            Hint        = New-UiThemeBrush '#94A3B8'
-            Accent      = New-UiThemeBrush '#14B8A6'
+            Window      = New-UiThemeBrush '#0E1111'
+            Header      = New-UiThemeBrush '#0B2A27'
+            Sidebar     = New-UiThemeBrush '#151918'
+            Content     = New-UiThemeBrush '#111513'
+            Footer      = New-UiThemeBrush '#0B0F0E'
+            Surface     = New-UiThemeBrush '#1A211F'
+            SurfaceSoft = New-UiThemeBrush '#202A26'
+            Input       = New-UiThemeBrush '#101413'
+            Border      = New-UiThemeBrush '#33413D'
+            Text        = New-UiThemeBrush '#ECEDE8'
+            Muted       = New-UiThemeBrush '#C6D0CB'
+            Hint        = New-UiThemeBrush '#98A49F'
+            Accent      = New-UiThemeBrush '#2DD4BF'
             AccentDark  = New-UiThemeBrush '#0F766E'
-            Warning     = New-UiThemeBrush '#FBBF24'
-            HeaderText  = New-UiThemeBrush '#F8FAFC'
-            HeaderMuted = New-UiThemeBrush '#CBD5E1'
-            FooterText  = New-UiThemeBrush '#E5E7EB'
-            FooterMuted = New-UiThemeBrush '#94A3B8'
+            Warning     = New-UiThemeBrush '#F59E0B'
+            HeaderText  = New-UiThemeBrush '#F8FAF7'
+            HeaderMuted = New-UiThemeBrush '#BFD7D1'
+            FooterText  = New-UiThemeBrush '#E7ECE9'
+            FooterMuted = New-UiThemeBrush '#9CAAA5'
+            Overlay     = New-UiThemeBrush '#88000000'
         }
     }
 
@@ -83,6 +84,7 @@ function Get-UiThemePalette {
         HeaderMuted = New-UiThemeBrush '#B7C5D2'
         FooterText  = New-UiThemeBrush '#E5E7EB'
         FooterMuted = New-UiThemeBrush '#97A7B7'
+        Overlay     = New-UiThemeBrush '#66000000'
     }
 }
 
@@ -155,8 +157,11 @@ function Set-UiThemeNamedShell {
         ShellContent = @{ Background = 'Content' }
         ShellFooter = @{ Background = 'Footer' }
         ShellStateCard = @{ Background = 'Input'; BorderBrush = 'Border' }
+        ShellBusyOverlay = @{ Background = 'Overlay' }
+        ShellBusyCard = @{ Background = 'Input'; BorderBrush = 'Border' }
         TxtMainTitle = @{ Foreground = 'HeaderText' }
         TxtMainSubtitle = @{ Foreground = 'HeaderMuted' }
+        TxtShellBusyMessage = @{ Foreground = 'Text' }
         TxtShellState = @{ Foreground = 'Text' }
         TxtIso = @{ Foreground = 'Muted' }
         TxtImage = @{ Foreground = 'Muted' }
@@ -194,8 +199,8 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value ([System.Windows.Media.Brushes]::Transparent)
         }
         'Border' {
-            if ($name -eq 'BusyOverlay') {
-                Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value (New-UiThemeBrush '#80000000')
+            if ($name -in @('BusyOverlay', 'ShellBusyOverlay')) {
+                Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Overlay
             } else {
                 Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Surface
             }

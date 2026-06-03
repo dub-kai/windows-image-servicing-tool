@@ -16,6 +16,7 @@ $script:UiTranslations = @{
     de = @{
         WindowTitle = "Windows Image Servicing Tool"
         HeaderSubtitle = "Deployment, Images, Driver und Updates in einer Oberfläche"
+        ShellBusyApplying = "Ansicht wird aktualisiert..."
         NavDashboard = "Dashboard"
         NavImages = "Images"
         NavMedia = "Media Builder"
@@ -163,6 +164,7 @@ $script:UiTranslations = @{
     en = @{
         WindowTitle = "Windows Image Servicing Tool"
         HeaderSubtitle = "Deployment, images, drivers and updates in one interface"
+        ShellBusyApplying = "Updating view..."
         NavDashboard = "Dashboard"
         NavImages = "Images"
         NavMedia = "Media Builder"
@@ -1054,6 +1056,7 @@ function Apply-LocalizationToRoot {
     $namedValues = @{
         TxtMainTitle = @{ Text = 'WindowTitle' }
         TxtMainSubtitle = @{ Text = 'HeaderSubtitle' }
+        TxtShellBusyMessage = @{ Text = 'ShellBusyApplying' }
         BtnDashboard = @{ Content = 'NavDashboard' }
         BtnImages = @{ Content = 'NavImages' }
         BtnMedia = @{ Content = 'NavMedia' }

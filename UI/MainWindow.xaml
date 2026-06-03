@@ -88,7 +88,7 @@
       <Setter Property="GridLinesVisibility" Value="Horizontal"/>
     </Style>
   </Window.Resources>
-  <Grid>
+  <Grid Name="ShellRoot">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -171,6 +171,38 @@
         <TextBlock Name="TxtStatus" Foreground="#E5E7EB" Text="Ready"/>
         <TextBlock Name="TxtBuild" Foreground="#97A7B7" DockPanel.Dock="Right" Text="v0.1"/>
       </DockPanel>
+    </Border>
+
+    <Border Name="ShellBusyOverlay"
+            Grid.Row="0"
+            Grid.RowSpan="3"
+            Panel.ZIndex="9000"
+            Background="#66000000"
+            Visibility="Collapsed"
+            IsHitTestVisible="True">
+      <Grid HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="0,110,0,0"
+            Width="420">
+        <Border Name="ShellBusyCard"
+                Background="White"
+                BorderBrush="#D5DEE6"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="16">
+          <StackPanel>
+            <TextBlock Name="TxtShellBusyMessage"
+                       Text="Ansicht wird aktualisiert..."
+                       FontWeight="SemiBold"
+                       Foreground="#0F172A"
+                       Margin="0,0,0,10"
+                       TextAlignment="Center"/>
+            <ProgressBar Name="PrgShellBusy"
+                         Height="10"
+                         IsIndeterminate="True"/>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Border>
   </Grid>
 </Window>
