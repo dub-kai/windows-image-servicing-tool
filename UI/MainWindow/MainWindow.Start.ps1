@@ -18,6 +18,8 @@
         }
     } catch {}
 
+    try { Start-MainWindowPageWarmup -Ctx $ctx } catch {}
+
     Write-Log -Level INFO -Message "UI: Window.ShowDialog()" -ToConsole
     $null = $ctx.Window.ShowDialog()
     Write-Log -Level INFO -Message "UI: Window closed" -ToConsole

@@ -150,6 +150,7 @@
         }.GetNewClosure()
         ControllerInitialized = @{}
         NavigationRefreshAt = @{}
+        PageWarmupTimer = $null
 
         NavigateDashboard = $null
         NavigateImages    = $null
