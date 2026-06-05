@@ -91,7 +91,9 @@ function New-MainWindowNavigateScript {
     param(
         [Parameter(Mandatory)]$Ctx,
         [Parameter(Mandatory)]$Frame,
-        [Parameter(Mandatory)]$Page,
+        [AllowNull()]$Page = $null,
+        [string]$PagePropertyName = $null,
+        [string]$RelativePath = $null,
         [string]$NavKey = $null,
         [string]$ControllerKey = $null,
         [string]$InitializeCommandName = $null,
@@ -109,6 +111,27 @@ function New-MainWindowNavigateScript {
     return {
         if (-not $Frame) {
             throw "$Label fehlgeschlagen: Frame nicht gefunden."
+        }
+
+        if (-not $Page -and -not [string]::IsNullOrWhiteSpace($PagePropertyName)) {
+            try {
+                if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+                    $Page = $Ctx.$PagePropertyName
+                }
+            } catch {}
+        }
+
+        if (-not $Page -and -not [string]::IsNullOrWhiteSpace($RelativePath)) {
+            Write-Log -Level INFO -Message ("UI: Lade Seite bei Bedarf: {0}" -f $RelativePath)
+            $Page = Import-XamlFile -RelativePath $RelativePath
+
+            if (-not [string]::IsNullOrWhiteSpace($PagePropertyName)) {
+                try {
+                    if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+                        $Ctx.$PagePropertyName = $Page
+                    }
+                } catch {}
+            }
         }
 
         if (-not $Page) {
@@ -224,6 +247,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DashboardPage `
+        -PagePropertyName 'DashboardPage' `
+        -RelativePath 'UI\Pages\Dashboard.xaml' `
         -NavKey 'Dashboard' `
         -ControllerKey 'Dashboard' `
         -InitializeCommandName 'Initialize-DashboardController' `
@@ -234,6 +259,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.ImagesPage `
+        -PagePropertyName 'ImagesPage' `
+        -RelativePath 'UI\Pages\Images.xaml' `
         -NavKey 'Images' `
         -ControllerKey 'Images' `
         -InitializeCommandName 'Initialize-ImagesController' `
@@ -244,6 +271,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.MediaPage `
+        -PagePropertyName 'MediaPage' `
+        -RelativePath 'UI\Pages\MediaBuilder.xaml' `
         -NavKey 'Media' `
         -ControllerKey 'Media' `
         -InitializeCommandName 'Initialize-MediaBuilderController' `
@@ -254,6 +283,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DriverPage `
+        -PagePropertyName 'DriverPage' `
+        -RelativePath 'UI\Pages\Driver.xaml' `
         -NavKey 'Driver' `
         -ControllerKey 'Driver' `
         -InitializeCommandName 'Initialize-DriverController' `
@@ -264,6 +295,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.UpdatesPage `
+        -PagePropertyName 'UpdatesPage' `
+        -RelativePath 'UI\Pages\Updates.xaml' `
         -NavKey 'Updates' `
         -ControllerKey 'Updates' `
         -InitializeCommandName 'Initialize-UpdatesController' `
@@ -274,6 +307,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.SettingsPage `
+        -PagePropertyName 'SettingsPage' `
+        -RelativePath 'UI\Pages\Settings.xaml' `
         -NavKey 'Settings' `
         -ControllerKey 'Settings' `
         -InitializeCommandName 'Initialize-SettingsController' `
