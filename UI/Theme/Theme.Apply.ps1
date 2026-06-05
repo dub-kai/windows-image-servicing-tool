@@ -79,6 +79,53 @@ function New-UiThemeStyle {
     return $style
 }
 
+function Set-UiThemeResource {
+    param(
+        [Parameter(Mandatory)]$Element,
+        [Parameter(Mandatory)]$Key,
+        [AllowNull()]$Value
+    )
+
+    try { $Element.Resources[$Key] = $Value } catch {}
+}
+
+function Set-UiThemeSystemColorResources {
+    param(
+        [Parameter(Mandatory)]$Element,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::WindowBrushKey) -Value $Palette.Input
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::WindowTextBrushKey) -Value $Palette.Text
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlBrushKey) -Value $Palette.Input
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlTextBrushKey) -Value $Palette.Text
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlDarkBrushKey) -Value $Palette.Border
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::HighlightBrushKey) -Value $Palette.AccentDark
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::HighlightTextBrushKey) -Value $Palette.ButtonText
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::InactiveSelectionHighlightBrushKey) -Value $Palette.SurfaceSoft
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::InactiveSelectionHighlightTextBrushKey) -Value $Palette.Text
+}
+
+function Set-UiThemeComboBoxStyles {
+    param(
+        [Parameter(Mandatory)]$ComboBox,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeSystemColorResources -Element $ComboBox -Palette $Palette
+
+    try {
+        $ComboBox.ItemContainerStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.ComboBoxItem]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.Input),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::PaddingProperty) -Value (New-Object System.Windows.Thickness(8, 4, 8, 4)))
+            )
+    } catch {}
+}
+
 function Set-UiThemeDataGridStyles {
     param(
         [Parameter(Mandatory)]$DataGrid,
@@ -209,11 +256,14 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
         }
         'ComboBox' {
+            Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
+            Set-UiThemeComboBoxStyles -ComboBox $Element -Palette $Palette
         }
         'ComboBoxItem' {
+            Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
@@ -224,6 +274,7 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'GroupBox' {
+            Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Surface
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
