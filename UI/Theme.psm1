@@ -61,6 +61,7 @@ function Get-UiThemePalette {
             FooterText  = New-UiThemeBrush '#E7ECE9'
             FooterMuted = New-UiThemeBrush '#9CAAA5'
             Overlay     = New-UiThemeBrush '#88000000'
+            ButtonText  = New-UiThemeBrush '#F8FAF7'
         }
     }
 
@@ -85,6 +86,7 @@ function Get-UiThemePalette {
         FooterText  = New-UiThemeBrush '#E5E7EB'
         FooterMuted = New-UiThemeBrush '#97A7B7'
         Overlay     = New-UiThemeBrush '#66000000'
+        ButtonText  = New-UiThemeBrush '#FFFFFF'
     }
 }
 
@@ -209,6 +211,11 @@ function Apply-UiThemeToElement {
         'TextBlock' {
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
+        'Button' {
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.AccentDark
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.ButtonText
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.AccentDark
+        }
         'TextBox' {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
@@ -250,6 +257,21 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
             Set-UiThemeProperty -Element $Element -PropertyName 'RowBackground' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'AlternatingRowBackground' -Value $Palette.Surface
+        }
+        'GridViewColumnHeader' {
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.SurfaceSoft
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
+        }
+        'DataGridColumnHeader' {
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.SurfaceSoft
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
+        }
+        'ProgressBar' {
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.SurfaceSoft
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Accent
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
         }
         'Frame' {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value ([System.Windows.Media.Brushes]::Transparent)
