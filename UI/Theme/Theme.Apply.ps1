@@ -100,10 +100,22 @@ function Set-UiThemeSystemColorResources {
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlBrushKey) -Value $Palette.Input
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlTextBrushKey) -Value $Palette.Text
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlDarkBrushKey) -Value $Palette.Border
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlLightBrushKey) -Value $Palette.Surface
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::ControlLightLightBrushKey) -Value $Palette.SurfaceSoft
+    Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::GrayTextBrushKey) -Value $Palette.Hint
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::HighlightBrushKey) -Value $Palette.AccentDark
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::HighlightTextBrushKey) -Value $Palette.ButtonText
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::InactiveSelectionHighlightBrushKey) -Value $Palette.SurfaceSoft
     Set-UiThemeResource -Element $Element -Key ([System.Windows.SystemColors]::InactiveSelectionHighlightTextBrushKey) -Value $Palette.Text
+}
+
+function Set-UiThemeButtonResources {
+    param(
+        [Parameter(Mandatory)]$Button,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeSystemColorResources -Element $Button -Palette $Palette
 }
 
 function Set-UiThemeComboBoxStyles {
@@ -123,6 +135,41 @@ function Set-UiThemeComboBoxStyles {
                 (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
                 (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::PaddingProperty) -Value (New-Object System.Windows.Thickness(8, 4, 8, 4)))
             )
+    } catch {}
+}
+
+function Set-UiThemeListViewStyles {
+    param(
+        [Parameter(Mandatory)]$ListView,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeSystemColorResources -Element $ListView -Palette $Palette
+
+    try {
+        $ListView.ItemContainerStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.ListViewItem]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.Input),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border)
+            )
+    } catch {}
+
+    try {
+        $view = $ListView.View
+        if ($view -is [System.Windows.Controls.GridView]) {
+            $view.ColumnHeaderContainerStyle = New-UiThemeStyle `
+                -TargetType ([System.Windows.Controls.GridViewColumnHeader]) `
+                -Setters @(
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.SurfaceSoft),
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderThicknessProperty) -Value (New-Object System.Windows.Thickness(0, 0, 1, 1))),
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::FontWeightProperty) -Value ([System.Windows.FontWeights]::SemiBold)),
+                    (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty) -Value ([System.Windows.HorizontalAlignment]::Left))
+                )
+        }
     } catch {}
 }
 
@@ -246,6 +293,7 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'Button' {
+            Set-UiThemeButtonResources -Button $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.AccentDark
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.ButtonText
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.AccentDark
@@ -288,6 +336,7 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
+            Set-UiThemeListViewStyles -ListView $Element -Palette $Palette
         }
         'DataGrid' {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
