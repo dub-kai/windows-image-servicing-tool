@@ -57,6 +57,82 @@ function Set-UiThemeProperty {
     try { $Element.$PropertyName = $Value } catch {}
 }
 
+function New-UiThemeSetter {
+    param(
+        [Parameter(Mandatory)]$Property,
+        [AllowNull()]$Value
+    )
+
+    return New-Object System.Windows.Setter($Property, $Value)
+}
+
+function New-UiThemeStyle {
+    param(
+        [Parameter(Mandatory)][type]$TargetType,
+        [Parameter(Mandatory)][object[]]$Setters
+    )
+
+    $style = New-Object System.Windows.Style($TargetType)
+    foreach ($setter in @($Setters)) {
+        if ($setter) { [void]$style.Setters.Add($setter) }
+    }
+    return $style
+}
+
+function Set-UiThemeDataGridStyles {
+    param(
+        [Parameter(Mandatory)]$DataGrid,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    try {
+        $DataGrid.ColumnHeaderStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.Primitives.DataGridColumnHeader]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.SurfaceSoft),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderThicknessProperty) -Value (New-Object System.Windows.Thickness(0, 0, 0, 1))),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::FontWeightProperty) -Value ([System.Windows.FontWeights]::SemiBold)),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty) -Value ([System.Windows.HorizontalAlignment]::Left))
+            )
+    } catch {}
+
+    try {
+        $DataGrid.RowStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.DataGridRow]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.Input),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border)
+            )
+    } catch {}
+
+    try {
+        $DataGrid.CellStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.DataGridCell]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value ([System.Windows.Media.Brushes]::Transparent)),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border)
+            )
+    } catch {}
+
+    try {
+        $textStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.TextBlock]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.TextBlock]::ForegroundProperty) -Value $Palette.Text)
+            )
+
+        foreach ($column in @($DataGrid.Columns)) {
+            if ($column -and $column.PSObject.Properties.Match('ElementStyle').Count -gt 0) {
+                $column.ElementStyle = $textStyle
+            }
+        }
+    } catch {}
+}
+
 function Set-UiThemeNamedShell {
     param(
         [Parameter(Mandatory)]$Root,
@@ -168,6 +244,9 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
             Set-UiThemeProperty -Element $Element -PropertyName 'RowBackground' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'AlternatingRowBackground' -Value $Palette.Surface
+            Set-UiThemeProperty -Element $Element -PropertyName 'HorizontalGridLinesBrush' -Value $Palette.Border
+            Set-UiThemeProperty -Element $Element -PropertyName 'VerticalGridLinesBrush' -Value $Palette.Border
+            Set-UiThemeDataGridStyles -DataGrid $Element -Palette $Palette
         }
         'GridViewColumnHeader' {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.SurfaceSoft
