@@ -34,6 +34,8 @@
     $frame     = Find-Ui -Root $window -Name "MainFrame"
     $txtStatus = Find-Ui -Root $window -Name "TxtStatus"
     $txtBuild  = Find-Ui -Root $window -Name "TxtBuild"
+    $shellBusyOverlay = Find-Ui -Root $window -Name "ShellBusyOverlay"
+    $txtShellBusyMessage = Find-Ui -Root $window -Name "TxtShellBusyMessage"
 
     if ($txtBuild -and $txtBuild.PSObject.Properties.Match("Text").Count -gt 0) {
         $txtBuild.Text = "v1.9 (Media Builder)"
@@ -46,22 +48,57 @@
     $updatesPage   = Import-XamlFile -RelativePath "UI\Pages\Updates.xaml"
     $settingsPage  = Import-XamlFile -RelativePath "UI\Pages\Settings.xaml"
     $applyLocalization = ${function:Apply-LocalizationToRoot}
+    $applyTheme = ${function:Apply-UiTheme}
     $getUiString = ${function:Get-UiString}
     $getLocalizedText = ${function:Get-LocalizedText}
-    $refreshLocalization = {
-        & $applyLocalization -Root $window
+    $showShellBusy = {
+        param([string]$MessageKey = 'ShellBusyApplying')
 
-        foreach ($page in @(
-            $dashboardPage,
-            $imagesPage,
-            $mediaPage,
-            $driverPage,
-            $updatesPage,
-            $settingsPage
-        )) {
-            if ($page) {
-                & $applyLocalization -Root $page
+        try {
+            if ($txtShellBusyMessage) {
+                $txtShellBusyMessage.Text = (& $getUiString -Key $MessageKey)
             }
+            if ($shellBusyOverlay) {
+                $shellBusyOverlay.Visibility = [System.Windows.Visibility]::Visible
+            }
+            if ($window) {
+                $window.Cursor = [System.Windows.Input.Cursors]::Wait
+                $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+            }
+        } catch {}
+    }.GetNewClosure()
+    $hideShellBusy = {
+        try {
+            if ($shellBusyOverlay) {
+                $shellBusyOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+            }
+            if ($window) {
+                $window.Cursor = $null
+                $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+            }
+        } catch {}
+    }.GetNewClosure()
+    $applyViewState = {
+        param([AllowNull()]$Root)
+
+        if (-not $Root) { return }
+        & $applyLocalization -Root $Root
+        & $applyTheme -Root $Root
+    }.GetNewClosure()
+    $refreshLocalization = {
+        param([bool]$ShowBusy = $false)
+
+        if ($ShowBusy) { & $showShellBusy -MessageKey 'ShellBusyApplying' }
+        try {
+            & $applyViewState -Root $window
+
+            $currentContent = $null
+            try { if ($frame) { $currentContent = $frame.Content } } catch {}
+            if ($currentContent) {
+                & $applyViewState -Root $currentContent
+            }
+        } finally {
+            if ($ShowBusy) { & $hideShellBusy }
         }
     }.GetNewClosure()
 
@@ -84,9 +121,23 @@
         UpdatesPage   = $updatesPage
         SettingsPage  = $settingsPage
         SetStatus     = $setStatus
+        ApplyViewState = $applyViewState
+        ApplyTheme    = {
+            param([AllowNull()]$Root)
+
+            if ($Root) {
+                & $applyTheme -Root $Root
+                return
+            }
+
+            & $applyTheme -Root $window
+            $currentContent = $null
+            try { if ($frame) { $currentContent = $frame.Content } } catch {}
+            if ($currentContent) { & $applyTheme -Root $currentContent }
+        }.GetNewClosure()
 
         OnStateChanged = {
-            & $refreshLocalization
+            & $refreshLocalization -ShowBusy $true
         }.GetNewClosure()
         ControllerInitialized = @{}
 

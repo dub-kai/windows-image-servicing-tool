@@ -88,7 +88,7 @@
       <Setter Property="GridLinesVisibility" Value="Horizontal"/>
     </Style>
   </Window.Resources>
-  <Grid>
+  <Grid Name="ShellRoot">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -96,7 +96,7 @@
     </Grid.RowDefinitions>
 
     <!-- Header -->
-    <Border Grid.Row="0" Background="#13283B" Padding="16,14">
+    <Border Name="ShellHeader" Grid.Row="0" Background="#13283B" Padding="16,14">
       <DockPanel LastChildFill="True">
 
         <Image Name="ImgBanner"
@@ -128,7 +128,7 @@
       </Grid.ColumnDefinitions>
 
       <!-- Left Nav -->
-      <Border Grid.Column="0" Background="#F2F6F9" Padding="14">
+      <Border Name="ShellSidebar" Grid.Column="0" Background="#F2F6F9" Padding="14">
         <DockPanel LastChildFill="True">
 
           <!-- Top nav -->
@@ -148,7 +148,7 @@
             <Separator Margin="0,10,0,10"/>
 
             <TextBlock Name="TxtShellState" Text="Status" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,8"/>
-            <Border Background="White" BorderBrush="#D5DEE6" BorderThickness="1" CornerRadius="12" Padding="12">
+            <Border Name="ShellStateCard" Background="White" BorderBrush="#D5DEE6" BorderThickness="1" CornerRadius="12" Padding="12">
               <StackPanel>
                 <TextBlock Name="TxtIso" Foreground="#334155" Text="ISO: -" TextWrapping="Wrap" Margin="0,0,0,8"/>
                 <TextBlock Name="TxtImage" Foreground="#334155" Text="Image: -" TextWrapping="Wrap"/>
@@ -160,17 +160,49 @@
       </Border>
 
       <!-- Content -->
-      <Border Grid.Column="1" Background="#EEF3F6" Padding="18">
+      <Border Name="ShellContent" Grid.Column="1" Background="#EEF3F6" Padding="18">
         <Frame Name="MainFrame" NavigationUIVisibility="Hidden"/>
       </Border>
     </Grid>
 
     <!-- Footer -->
-    <Border Grid.Row="2" Background="#102131" Padding="12,10">
+    <Border Name="ShellFooter" Grid.Row="2" Background="#102131" Padding="12,10">
       <DockPanel>
         <TextBlock Name="TxtStatus" Foreground="#E5E7EB" Text="Ready"/>
         <TextBlock Name="TxtBuild" Foreground="#97A7B7" DockPanel.Dock="Right" Text="v0.1"/>
       </DockPanel>
+    </Border>
+
+    <Border Name="ShellBusyOverlay"
+            Grid.Row="0"
+            Grid.RowSpan="3"
+            Panel.ZIndex="9000"
+            Background="#66000000"
+            Visibility="Collapsed"
+            IsHitTestVisible="True">
+      <Grid HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="0,110,0,0"
+            Width="420">
+        <Border Name="ShellBusyCard"
+                Background="White"
+                BorderBrush="#D5DEE6"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="16">
+          <StackPanel>
+            <TextBlock Name="TxtShellBusyMessage"
+                       Text="Ansicht wird aktualisiert..."
+                       FontWeight="SemiBold"
+                       Foreground="#0F172A"
+                       Margin="0,0,0,10"
+                       TextAlignment="Center"/>
+            <ProgressBar Name="PrgShellBusy"
+                         Height="10"
+                         IsIndeterminate="True"/>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Border>
   </Grid>
 </Window>

@@ -8,6 +8,7 @@ if (-not $script:configModule) {
     $script:configModule = Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -DisableNameChecking -Global -PassThru
 }
 Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\Theme.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "UI\Notifications.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "Services\AdkService.psm1" -MustExist) -Force -DisableNameChecking -Global
 
@@ -823,6 +824,10 @@ function Refresh-SettingsUI {
             Set-SettingsComboToTag -ComboBox $script:ctx.CmbSettingsLanguage -Tag $language
         }
 
+        if ($script:ctx.ChkSettingsDarkMode) {
+            $script:ctx.ChkSettingsDarkMode.IsChecked = ((Get-UiThemeName) -eq 'Dark')
+        }
+
         if ($script:ctx.ChkSettingsDriverLoadAllDefault) {
             $script:ctx.ChkSettingsDriverLoadAllDefault.IsChecked = Get-SettingsBoolValue -Key 'DriverLoadAllDefault' -Default $false
         }
@@ -866,6 +871,7 @@ function Initialize-SettingsController {
         BtnSettingsResetMountRoot = $null
         CmbSettingsStartPage = $null
         CmbSettingsLanguage = $null
+        ChkSettingsDarkMode = $null
         ChkSettingsDriverLoadAllDefault = $null
         ChkSettingsUpdatesAutoCatalogDefault = $null
         ChkSettingsImageMountReadOnlyDefault = $null
@@ -935,6 +941,7 @@ function Initialize-SettingsController {
     $script:ctx.BtnSettingsResetMountRoot = Find-Ui -Root $p -Name 'BtnSettingsResetMountRoot'
     $script:ctx.CmbSettingsStartPage = Find-Ui -Root $p -Name 'CmbSettingsStartPage'
     $script:ctx.CmbSettingsLanguage = Find-Ui -Root $p -Name 'CmbSettingsLanguage'
+    $script:ctx.ChkSettingsDarkMode = Find-Ui -Root $p -Name 'ChkSettingsDarkMode'
     $script:ctx.ChkSettingsDriverLoadAllDefault = Find-Ui -Root $p -Name 'ChkSettingsDriverLoadAllDefault'
     $script:ctx.ChkSettingsUpdatesAutoCatalogDefault = Find-Ui -Root $p -Name 'ChkSettingsUpdatesAutoCatalogDefault'
     $script:ctx.ChkSettingsImageMountReadOnlyDefault = Find-Ui -Root $p -Name 'ChkSettingsImageMountReadOnlyDefault'
@@ -1052,6 +1059,19 @@ function Initialize-SettingsController {
             Refresh-SettingsUI
             if ($script:ctx.OnStateChanged) { try { & $script:ctx.OnStateChanged } catch {} }
             if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsLanguageStatus' -Args @((Get-UiLanguageLabel -LanguageCode $selected))) } catch {} }
+        })
+    }
+
+    if ($script:ctx.ChkSettingsDarkMode) {
+        $script:ctx.ChkSettingsDarkMode.Add_Click({
+            if ($script:suppressSettingsEvents) { return }
+            $theme = if ([bool]$script:ctx.ChkSettingsDarkMode.IsChecked) { 'Dark' } else { 'Light' }
+            Set-UiTheme -Theme $theme | Out-Null
+            if ($script:ctx.OnStateChanged) { try { & $script:ctx.OnStateChanged } catch {} }
+            $labelKey = if ($theme -eq 'Dark') { 'SettingsThemeDark' } else { 'SettingsThemeLight' }
+            if ($script:ctx.SetStatus) {
+                try { & $script:ctx.SetStatus (Get-UiString -Key 'SettingsThemeUpdated' -Args @((Get-UiString -Key $labelKey))) } catch {}
+            }
         })
     }
 

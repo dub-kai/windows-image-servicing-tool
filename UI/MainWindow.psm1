@@ -5,6 +5,7 @@ Import-Module (Resolve-ProjectPath "UI\UiHelpers.psm1" -MustExist) -Force -Disab
 Import-Module (Resolve-ProjectPath "UI\UiAsync.psm1"   -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "Core\Config.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "UI\Localization.psm1" -MustExist) -Force -DisableNameChecking -Global
+Import-Module (Resolve-ProjectPath "UI\Theme.psm1" -MustExist) -Force -DisableNameChecking -Global
 Import-Module (Resolve-ProjectPath "UI\Notifications.psm1" -MustExist) -Force -DisableNameChecking -Global
 
 Import-Module (Resolve-ProjectPath "UI\Controllers\ImagesController.psm1"    -MustExist) -Force -DisableNameChecking
@@ -19,6 +20,7 @@ if (-not (Test-Path -LiteralPath $partsRoot)) { throw "MainWindow parts folder f
 
 $parts = @(
     "MainWindow.Context.ps1",
+    "MainWindow.NavState.ps1",
     "MainWindow.Controllers.ps1",
     "MainWindow.Navigation.ps1",
     "MainWindow.Start.ps1"

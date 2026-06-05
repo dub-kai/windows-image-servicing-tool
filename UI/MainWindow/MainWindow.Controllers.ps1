@@ -92,6 +92,7 @@ function New-MainWindowNavigateScript {
         [Parameter(Mandatory)]$Ctx,
         [Parameter(Mandatory)]$Frame,
         [Parameter(Mandatory)]$Page,
+        [string]$NavKey = $null,
         [string]$ControllerKey = $null,
         [string]$InitializeCommandName = $null,
         [string]$RefreshCommandName = $null,
@@ -137,6 +138,29 @@ function New-MainWindowNavigateScript {
         if ($null -ne $refreshCmd) {
             & $refreshCmd
         }
+
+        try {
+            $viewStateAction = $null
+            if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
+                $viewStateAction = $Ctx.ApplyViewState
+            }
+            if ($viewStateAction -is [scriptblock]) {
+                & $viewStateAction -Root $Page
+            }
+            else {
+                $themeAction = $null
+                if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
+                    $themeAction = $Ctx.ApplyTheme
+                }
+                if ($themeAction -is [scriptblock]) {
+                    & $themeAction -Root $Page
+                }
+            }
+        } catch {}
+
+        if (-not [string]::IsNullOrWhiteSpace($NavKey)) {
+            try { Set-MainWindowActiveNav -Ctx $Ctx -Key $NavKey } catch {}
+        }
     }.GetNewClosure()
 }
 
@@ -166,6 +190,8 @@ function Initialize-MainWindowControllers {
             UpdatesPage       = $null
             SettingsPage      = $null
             SetStatus         = $null
+            ApplyViewState    = $null
+            ApplyTheme        = $null
             OnStateChanged    = $null
             NavigateDashboard = $null
             NavigateImages    = $null
@@ -198,6 +224,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DashboardPage `
+        -NavKey 'Dashboard' `
         -ControllerKey 'Dashboard' `
         -InitializeCommandName 'Initialize-DashboardController' `
         -RefreshCommandName 'Refresh-DashboardUI' `
@@ -207,6 +234,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.ImagesPage `
+        -NavKey 'Images' `
         -ControllerKey 'Images' `
         -InitializeCommandName 'Initialize-ImagesController' `
         -RefreshCommandName 'Refresh-ImagesUI' `
@@ -216,6 +244,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.MediaPage `
+        -NavKey 'Media' `
         -ControllerKey 'Media' `
         -InitializeCommandName 'Initialize-MediaBuilderController' `
         -RefreshCommandName 'Refresh-MediaBuilderUI' `
@@ -225,6 +254,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DriverPage `
+        -NavKey 'Driver' `
         -ControllerKey 'Driver' `
         -InitializeCommandName 'Initialize-DriverController' `
         -RefreshCommandName 'Refresh-DriverUI' `
@@ -234,6 +264,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.UpdatesPage `
+        -NavKey 'Updates' `
         -ControllerKey 'Updates' `
         -InitializeCommandName 'Initialize-UpdatesController' `
         -RefreshCommandName 'Refresh-UpdatesUI' `
@@ -243,6 +274,7 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.SettingsPage `
+        -NavKey 'Settings' `
         -ControllerKey 'Settings' `
         -InitializeCommandName 'Initialize-SettingsController' `
         -RefreshCommandName 'Refresh-SettingsUI' `

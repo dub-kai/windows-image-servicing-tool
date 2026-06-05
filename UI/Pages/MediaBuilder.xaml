@@ -126,11 +126,13 @@
 
             <TextBlock Grid.Row="3" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,10,8" Text="USB-Ziel:"/>
             <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtMediaUsbTarget" Margin="0,0,10,8" Text="-" TextWrapping="Wrap"/>
-            <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
-              <Button Name="BtnMediaPickUsbTarget" Content="USB wählen" Height="28" MinWidth="110" Margin="0,0,8,0"/>
-              <Button Name="BtnMediaCheckUsb" Content="USB prüfen" Height="28" MinWidth="110" Margin="0,0,8,0"/>
-              <Button Name="BtnMediaCopyToUsb" Content="Auf USB kopieren" Height="28" MinWidth="140"/>
-            </StackPanel>
+            <WrapPanel Grid.Row="3" Grid.Column="2" MaxWidth="320" Margin="0,0,0,4">
+              <Button Name="BtnMediaPickUsbTarget" Content="USB wählen" Height="28" MinWidth="110" Margin="0,0,8,4"/>
+              <Button Name="BtnMediaCheckUsb" Content="USB prüfen" Height="28" MinWidth="110" Margin="0,0,8,4"/>
+              <Button Name="BtnMediaOpenUsbTarget" Content="Ziel öffnen" Height="28" MinWidth="110" Margin="0,0,8,4"/>
+              <Button Name="BtnMediaResetUsb" Content="Reset" Height="28" MinWidth="90" Margin="0,0,8,4"/>
+              <Button Name="BtnMediaCopyToUsb" Content="Auf USB kopieren" Height="28" MinWidth="140" Margin="0,0,0,4"/>
+            </WrapPanel>
 
             <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
                        Name="TxtMediaUsbSummary"
