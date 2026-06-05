@@ -20,6 +20,7 @@ if (-not (Test-Path -LiteralPath $partsRoot)) { throw "MainWindow parts folder f
 
 $parts = @(
     "MainWindow.Context.ps1",
+    "MainWindow.NavState.ps1",
     "MainWindow.Controllers.ps1",
     "MainWindow.Navigation.ps1",
     "MainWindow.Start.ps1"
