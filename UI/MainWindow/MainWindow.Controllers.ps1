@@ -138,6 +138,18 @@ function New-MainWindowNavigateScript {
             throw "$Label fehlgeschlagen: Zielseite nicht gefunden."
         }
 
+        $controllerWasInitialized = $false
+        try {
+            $controllerWasInitialized = (
+                -not [string]::IsNullOrWhiteSpace($ControllerKey) -and
+                $Ctx.ControllerInitialized -and
+                $Ctx.ControllerInitialized.ContainsKey($ControllerKey) -and
+                $Ctx.ControllerInitialized[$ControllerKey]
+            )
+        } catch {
+            $controllerWasInitialized = $false
+        }
+
         if (-not [string]::IsNullOrWhiteSpace($ControllerKey) -and -not [string]::IsNullOrWhiteSpace($InitializeCommandName)) {
             & $ensureController `
                 -Ctx $Ctx `
@@ -158,8 +170,32 @@ function New-MainWindowNavigateScript {
             }
         }
 
-        if ($null -ne $refreshCmd) {
-            & $refreshCmd
+        if ($null -ne $refreshCmd -and $controllerWasInitialized) {
+            $shouldRefresh = $true
+            try {
+                if ($null -eq $Ctx.NavigationRefreshAt) {
+                    $Ctx.NavigationRefreshAt = @{}
+                }
+
+                $refreshKey = if ([string]::IsNullOrWhiteSpace($ControllerKey)) { [string]$Label } else { [string]$ControllerKey }
+                $now = Get-Date
+                if ($Ctx.NavigationRefreshAt.ContainsKey($refreshKey)) {
+                    $last = [datetime]$Ctx.NavigationRefreshAt[$refreshKey]
+                    if (($now - $last).TotalMilliseconds -lt 2000) {
+                        $shouldRefresh = $false
+                    }
+                }
+
+                if ($shouldRefresh) {
+                    $Ctx.NavigationRefreshAt[$refreshKey] = $now
+                }
+            } catch {
+                $shouldRefresh = $true
+            }
+
+            if ($shouldRefresh) {
+                & $refreshCmd
+            }
         }
 
         try {
@@ -223,6 +259,7 @@ function Initialize-MainWindowControllers {
             NavigateUpdates   = $null
             NavigateSettings  = $null
             ControllerInitialized = @{}
+            NavigationRefreshAt = @{}
         }
     }
 

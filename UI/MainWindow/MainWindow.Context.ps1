@@ -45,6 +45,7 @@
     $applyTheme = ${function:Apply-UiTheme}
     $getUiString = ${function:Get-UiString}
     $getLocalizedText = ${function:Get-LocalizedText}
+    $viewStateCache = @{}
     $showShellBusy = {
         param([string]$MessageKey = 'ShellBusyApplying')
 
@@ -76,8 +77,22 @@
         param([AllowNull()]$Root)
 
         if (-not $Root) { return }
+        $rootKey = $null
+        try { $rootKey = [string][System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Root) } catch {}
+
+        $stateKey = 'unknown'
+        try { $stateKey = ('{0}|{1}' -f (Get-UiLanguage), (Get-UiThemeName)) } catch {}
+
+        if ($rootKey -and $viewStateCache.ContainsKey($rootKey) -and $viewStateCache[$rootKey] -eq $stateKey) {
+            return
+        }
+
         & $applyLocalization -Root $Root
         & $applyTheme -Root $Root
+
+        if ($rootKey) {
+            $viewStateCache[$rootKey] = $stateKey
+        }
     }.GetNewClosure()
     $refreshLocalization = {
         param([bool]$ShowBusy = $false)
@@ -134,6 +149,7 @@
             & $refreshLocalization -ShowBusy $true
         }.GetNewClosure()
         ControllerInitialized = @{}
+        NavigationRefreshAt = @{}
 
         NavigateDashboard = $null
         NavigateImages    = $null
