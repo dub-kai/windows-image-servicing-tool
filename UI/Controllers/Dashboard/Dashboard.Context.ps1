@@ -26,6 +26,7 @@
         BtnOpenHistory = $null
         BtnOpenDismLog = $null
         GridRecentJobs = $null
+        AutoDetectStarted = $false
     }
 
     $p = $DashboardPage
@@ -193,7 +194,12 @@
         })
     }
 
-    try { $null = Try-AutoDetectIso_Local -Quiet } catch {}
+    if ($DashboardPage) {
+        $DashboardPage.Add_Loaded({
+            try { Start-DashboardAutoDetectAsync } catch {}
+        })
+    }
+
     Invoke-StateChangedSafe
     Refresh-DashboardUI
 }

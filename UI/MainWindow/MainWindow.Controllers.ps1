@@ -87,11 +87,137 @@ function Ensure-MainWindowControllerInitialized {
     $Ctx.ControllerInitialized[$Key] = $true
 }
 
+function Get-MainWindowPageSpecs {
+    return @(
+        [pscustomobject]@{ Key = 'Dashboard'; PropertyName = 'DashboardPage'; RelativePath = 'UI\Pages\Dashboard.xaml' },
+        [pscustomobject]@{ Key = 'Images'; PropertyName = 'ImagesPage'; RelativePath = 'UI\Pages\Images.xaml' },
+        [pscustomobject]@{ Key = 'Media'; PropertyName = 'MediaPage'; RelativePath = 'UI\Pages\MediaBuilder.xaml' },
+        [pscustomobject]@{ Key = 'Driver'; PropertyName = 'DriverPage'; RelativePath = 'UI\Pages\Driver.xaml' },
+        [pscustomobject]@{ Key = 'Updates'; PropertyName = 'UpdatesPage'; RelativePath = 'UI\Pages\Updates.xaml' },
+        [pscustomobject]@{ Key = 'Settings'; PropertyName = 'SettingsPage'; RelativePath = 'UI\Pages\Settings.xaml' }
+    )
+}
+
+function Ensure-MainWindowPageLoaded {
+    param(
+        [Parameter(Mandatory)][object]$Ctx,
+        [Parameter(Mandatory)][string]$PagePropertyName,
+        [Parameter(Mandatory)][string]$RelativePath,
+        [switch]$ApplyViewState
+    )
+
+    $page = $null
+    try {
+        if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+            $page = $Ctx.$PagePropertyName
+        }
+    } catch {}
+
+    if (-not $page) {
+        Write-Log -Level INFO -Message ("UI: Lade Seite bei Bedarf: {0}" -f $RelativePath)
+        $page = Import-XamlFile -RelativePath $RelativePath
+
+        try {
+            if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+                $Ctx.$PagePropertyName = $page
+            }
+        } catch {}
+    }
+
+    if ($ApplyViewState -and $page) {
+        try {
+            $viewStateAction = $null
+            if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
+                $viewStateAction = $Ctx.ApplyViewState
+            }
+            if ($viewStateAction -is [scriptblock]) {
+                & $viewStateAction -Root $page
+            }
+        } catch {}
+    }
+
+    return $page
+}
+
+function Start-MainWindowPageWarmup {
+    param(
+        [Parameter(Mandatory)][object]$Ctx,
+        [int]$InitialDelayMs = 900,
+        [int]$IntervalMs = 350
+    )
+
+    try {
+        if (-not $Ctx.Window) { return }
+
+        $getPageSpecs = ${function:Get-MainWindowPageSpecs}
+        $ensurePage = ${function:Ensure-MainWindowPageLoaded}
+
+        $pending = New-Object System.Collections.Queue
+        foreach ($spec in @(& $getPageSpecs)) {
+            $page = $null
+            try {
+                if ($Ctx.PSObject.Properties.Match([string]$spec.PropertyName).Count -gt 0) {
+                    $page = $Ctx.($spec.PropertyName)
+                }
+            } catch {}
+
+            if (-not $page) {
+                [void]$pending.Enqueue($spec)
+            }
+        }
+
+        if ($pending.Count -lt 1) { return }
+
+        $dispatcher = $Ctx.Window.Dispatcher
+        $timer = New-Object System.Windows.Threading.DispatcherTimer(
+            [System.Windows.Threading.DispatcherPriority]::ContextIdle,
+            $dispatcher
+        )
+        $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $InitialDelayMs))
+
+        $tick = {
+            try {
+                if ($pending.Count -lt 1) {
+                    $timer.Stop()
+                    return
+                }
+
+                $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $IntervalMs))
+                $spec = $pending.Dequeue()
+                $null = & $ensurePage `
+                    -Ctx $Ctx `
+                    -PagePropertyName ([string]$spec.PropertyName) `
+                    -RelativePath ([string]$spec.RelativePath) `
+                    -ApplyViewState
+
+                try { Write-Log -Level INFO -Message ("UI: Seite vorgewärmt: {0}" -f [string]$spec.Key) } catch {}
+            } catch {
+                try { Write-Log -Level WARN -Message ("UI: Seiten-Warmup fehlgeschlagen: {0}" -f $_.Exception.Message) } catch {}
+            }
+        }.GetNewClosure()
+
+        $timer.Add_Tick($tick)
+        $timer.Start()
+
+        try {
+            if ($Ctx.PSObject.Properties.Match('PageWarmupTimer').Count -gt 0) {
+                $Ctx.PageWarmupTimer = $timer
+            }
+        } catch {}
+
+        Write-Log -Level INFO -Message ("UI: Seiten-Warmup geplant: {0} Seite(n)." -f $pending.Count)
+    } catch {
+        try { Write-Log -Level WARN -Message ("UI: Seiten-Warmup konnte nicht geplant werden: {0}" -f $_.Exception.Message) } catch {}
+    }
+}
+
 function New-MainWindowNavigateScript {
     param(
         [Parameter(Mandatory)]$Ctx,
         [Parameter(Mandatory)]$Frame,
-        [Parameter(Mandatory)]$Page,
+        [AllowNull()]$Page = $null,
+        [string]$PagePropertyName = $null,
+        [string]$RelativePath = $null,
         [string]$NavKey = $null,
         [string]$ControllerKey = $null,
         [string]$InitializeCommandName = $null,
@@ -105,14 +231,31 @@ function New-MainWindowNavigateScript {
     }
 
     $ensureController = ${function:Ensure-MainWindowControllerInitialized}
+    $ensurePage = ${function:Ensure-MainWindowPageLoaded}
 
     return {
         if (-not $Frame) {
             throw "$Label fehlgeschlagen: Frame nicht gefunden."
         }
 
+        if (-not [string]::IsNullOrWhiteSpace($PagePropertyName) -and -not [string]::IsNullOrWhiteSpace($RelativePath)) {
+            $Page = & $ensurePage -Ctx $Ctx -PagePropertyName $PagePropertyName -RelativePath $RelativePath
+        }
+
         if (-not $Page) {
             throw "$Label fehlgeschlagen: Zielseite nicht gefunden."
+        }
+
+        $controllerWasInitialized = $false
+        try {
+            $controllerWasInitialized = (
+                -not [string]::IsNullOrWhiteSpace($ControllerKey) -and
+                $Ctx.ControllerInitialized -and
+                $Ctx.ControllerInitialized.ContainsKey($ControllerKey) -and
+                $Ctx.ControllerInitialized[$ControllerKey]
+            )
+        } catch {
+            $controllerWasInitialized = $false
         }
 
         if (-not [string]::IsNullOrWhiteSpace($ControllerKey) -and -not [string]::IsNullOrWhiteSpace($InitializeCommandName)) {
@@ -135,8 +278,32 @@ function New-MainWindowNavigateScript {
             }
         }
 
-        if ($null -ne $refreshCmd) {
-            & $refreshCmd
+        if ($null -ne $refreshCmd -and $controllerWasInitialized) {
+            $shouldRefresh = $true
+            try {
+                if ($null -eq $Ctx.NavigationRefreshAt) {
+                    $Ctx.NavigationRefreshAt = @{}
+                }
+
+                $refreshKey = if ([string]::IsNullOrWhiteSpace($ControllerKey)) { [string]$Label } else { [string]$ControllerKey }
+                $now = Get-Date
+                if ($Ctx.NavigationRefreshAt.ContainsKey($refreshKey)) {
+                    $last = [datetime]$Ctx.NavigationRefreshAt[$refreshKey]
+                    if (($now - $last).TotalMilliseconds -lt 2000) {
+                        $shouldRefresh = $false
+                    }
+                }
+
+                if ($shouldRefresh) {
+                    $Ctx.NavigationRefreshAt[$refreshKey] = $now
+                }
+            } catch {
+                $shouldRefresh = $true
+            }
+
+            if ($shouldRefresh) {
+                & $refreshCmd
+            }
         }
 
         try {
@@ -200,6 +367,8 @@ function Initialize-MainWindowControllers {
             NavigateUpdates   = $null
             NavigateSettings  = $null
             ControllerInitialized = @{}
+            NavigationRefreshAt = @{}
+            PageWarmupTimer = $null
         }
     }
 
@@ -224,6 +393,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DashboardPage `
+        -PagePropertyName 'DashboardPage' `
+        -RelativePath 'UI\Pages\Dashboard.xaml' `
         -NavKey 'Dashboard' `
         -ControllerKey 'Dashboard' `
         -InitializeCommandName 'Initialize-DashboardController' `
@@ -234,6 +405,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.ImagesPage `
+        -PagePropertyName 'ImagesPage' `
+        -RelativePath 'UI\Pages\Images.xaml' `
         -NavKey 'Images' `
         -ControllerKey 'Images' `
         -InitializeCommandName 'Initialize-ImagesController' `
@@ -244,6 +417,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.MediaPage `
+        -PagePropertyName 'MediaPage' `
+        -RelativePath 'UI\Pages\MediaBuilder.xaml' `
         -NavKey 'Media' `
         -ControllerKey 'Media' `
         -InitializeCommandName 'Initialize-MediaBuilderController' `
@@ -254,6 +429,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.DriverPage `
+        -PagePropertyName 'DriverPage' `
+        -RelativePath 'UI\Pages\Driver.xaml' `
         -NavKey 'Driver' `
         -ControllerKey 'Driver' `
         -InitializeCommandName 'Initialize-DriverController' `
@@ -264,6 +441,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.UpdatesPage `
+        -PagePropertyName 'UpdatesPage' `
+        -RelativePath 'UI\Pages\Updates.xaml' `
         -NavKey 'Updates' `
         -ControllerKey 'Updates' `
         -InitializeCommandName 'Initialize-UpdatesController' `
@@ -274,6 +453,8 @@ function Initialize-MainWindowControllers {
         -Ctx $Ctx `
         -Frame $Ctx.Frame `
         -Page $Ctx.SettingsPage `
+        -PagePropertyName 'SettingsPage' `
+        -RelativePath 'UI\Pages\Settings.xaml' `
         -NavKey 'Settings' `
         -ControllerKey 'Settings' `
         -InitializeCommandName 'Initialize-SettingsController' `

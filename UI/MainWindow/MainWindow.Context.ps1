@@ -41,16 +41,11 @@
         $txtBuild.Text = "v1.9 (Media Builder)"
     }
 
-    $dashboardPage = Import-XamlFile -RelativePath "UI\Pages\Dashboard.xaml"
-    $imagesPage    = Import-XamlFile -RelativePath "UI\Pages\Images.xaml"
-    $mediaPage     = Import-XamlFile -RelativePath "UI\Pages\MediaBuilder.xaml"
-    $driverPage    = Import-XamlFile -RelativePath "UI\Pages\Driver.xaml"
-    $updatesPage   = Import-XamlFile -RelativePath "UI\Pages\Updates.xaml"
-    $settingsPage  = Import-XamlFile -RelativePath "UI\Pages\Settings.xaml"
     $applyLocalization = ${function:Apply-LocalizationToRoot}
     $applyTheme = ${function:Apply-UiTheme}
     $getUiString = ${function:Get-UiString}
     $getLocalizedText = ${function:Get-LocalizedText}
+    $viewStateCache = @{}
     $showShellBusy = {
         param([string]$MessageKey = 'ShellBusyApplying')
 
@@ -82,8 +77,22 @@
         param([AllowNull()]$Root)
 
         if (-not $Root) { return }
+        $rootKey = $null
+        try { $rootKey = [string][System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Root) } catch {}
+
+        $stateKey = 'unknown'
+        try { $stateKey = ('{0}|{1}' -f (Get-UiLanguage), (Get-UiThemeName)) } catch {}
+
+        if ($rootKey -and $viewStateCache.ContainsKey($rootKey) -and $viewStateCache[$rootKey] -eq $stateKey) {
+            return
+        }
+
         & $applyLocalization -Root $Root
         & $applyTheme -Root $Root
+
+        if ($rootKey) {
+            $viewStateCache[$rootKey] = $stateKey
+        }
     }.GetNewClosure()
     $refreshLocalization = {
         param([bool]$ShowBusy = $false)
@@ -114,12 +123,12 @@
         Window        = $window
         Frame         = $frame
         StartPage     = (Get-ConfigValue -Key 'StartPage' -Default 'Dashboard')
-        DashboardPage = $dashboardPage
-        ImagesPage    = $imagesPage
-        MediaPage     = $mediaPage
-        DriverPage    = $driverPage
-        UpdatesPage   = $updatesPage
-        SettingsPage  = $settingsPage
+        DashboardPage = $null
+        ImagesPage    = $null
+        MediaPage     = $null
+        DriverPage    = $null
+        UpdatesPage   = $null
+        SettingsPage  = $null
         SetStatus     = $setStatus
         ApplyViewState = $applyViewState
         ApplyTheme    = {
@@ -140,6 +149,8 @@
             & $refreshLocalization -ShowBusy $true
         }.GetNewClosure()
         ControllerInitialized = @{}
+        NavigationRefreshAt = @{}
+        PageWarmupTimer = $null
 
         NavigateDashboard = $null
         NavigateImages    = $null

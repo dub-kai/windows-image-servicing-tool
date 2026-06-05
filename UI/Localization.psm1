@@ -8,6 +8,7 @@ if (-not $script:configModule) {
 
 $script:getConfigValueCommand = $null
 $script:setConfigValueCommand = $null
+$script:UiTextKeyIndex = $null
 
 try { $script:getConfigValueCommand = $script:configModule.ExportedCommands['Get-ConfigValue'] } catch {}
 try { $script:setConfigValueCommand = $script:configModule.ExportedCommands['Set-ConfigValue'] } catch {}
@@ -845,6 +846,31 @@ foreach ($row in @($script:UiStaticTextTranslations)) {
     $script:UiTranslations['en'][$key] = [string]$row.en
 }
 
+function Get-UiTextKeyIndex {
+    if ($null -ne $script:UiTextKeyIndex) {
+        return $script:UiTextKeyIndex
+    }
+
+    $index = @{}
+    $languages = @('de', 'en') + @($script:UiTranslations.Keys | Where-Object { $_ -notin @('de', 'en') } | Sort-Object)
+
+    foreach ($language in $languages) {
+        if (-not $script:UiTranslations.ContainsKey($language)) { continue }
+
+        $table = $script:UiTranslations[$language]
+        foreach ($key in $table.Keys) {
+            $value = [string]$table[$key]
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            if (-not $index.ContainsKey($value)) {
+                $index[$value] = [string]$key
+            }
+        }
+    }
+
+    $script:UiTextKeyIndex = $index
+    return $script:UiTextKeyIndex
+}
+
 function Get-LocalizationConfigValue {
     param(
         [Parameter(Mandatory)][string]$Key,
@@ -927,14 +953,9 @@ function Get-LocalizedText {
         return $Text
     }
 
-    foreach ($langTable in $script:UiTranslations.Values) {
-        foreach ($key in $langTable.Keys) {
-            $deValue = $script:UiTranslations['de'][$key]
-            $enValue = $script:UiTranslations['en'][$key]
-            if (($Text -eq [string]$deValue) -or ($Text -eq [string]$enValue)) {
-                return Get-UiString -Key $key -Language $Language
-            }
-        }
+    $index = Get-UiTextKeyIndex
+    if ($index.ContainsKey($Text)) {
+        return Get-UiString -Key ([string]$index[$Text]) -Language $Language
     }
 
     return $Text
@@ -974,6 +995,40 @@ function Set-LocalizedElementProperty {
     }
 }
 
+function Set-LocalizedElementTextProperties {
+    param(
+        [Parameter(Mandatory)]$Element,
+        [Parameter(Mandatory)][string]$Language
+    )
+
+    if (-not $Element) { return }
+
+    if ($Element -is [System.Windows.Window]) {
+        Set-LocalizedElementProperty -Element $Element -PropertyName 'Title' -Language $Language
+    }
+
+    if (($Element -is [System.Windows.Controls.TextBlock]) -or
+        ($Element -is [System.Windows.Controls.TextBox]) -or
+        ($Element -is [System.Windows.Documents.Run])) {
+        Set-LocalizedElementProperty -Element $Element -PropertyName 'Text' -Language $Language
+    }
+
+    if ($Element -is [System.Windows.Controls.ContentControl]) {
+        Set-LocalizedElementProperty -Element $Element -PropertyName 'Content' -Language $Language
+    }
+
+    if (($Element -is [System.Windows.Controls.HeaderedContentControl]) -or
+        ($Element -is [System.Windows.Controls.HeaderedItemsControl]) -or
+        ($Element -is [System.Windows.Controls.GridViewColumn]) -or
+        ($Element -is [System.Windows.Controls.DataGridColumn])) {
+        Set-LocalizedElementProperty -Element $Element -PropertyName 'Header' -Language $Language
+    }
+
+    if ($Element -is [System.Windows.FrameworkElement]) {
+        Set-LocalizedElementProperty -Element $Element -PropertyName 'ToolTip' -Language $Language
+    }
+}
+
 function Add-LocalizationChild {
     param(
         [Parameter(Mandatory)][System.Collections.Queue]$Queue,
@@ -991,29 +1046,41 @@ function Add-LocalizationChildren {
         [Parameter(Mandatory)]$Element
     )
 
-    try { Add-LocalizationChild -Queue $Queue -Child $Element.ContextMenu } catch {}
-    try { Add-LocalizationChild -Queue $Queue -Child $Element.ToolTip } catch {}
-    try { Add-LocalizationChild -Queue $Queue -Child $Element.Content } catch {}
-    try { Add-LocalizationChild -Queue $Queue -Child $Element.Header } catch {}
-    try { Add-LocalizationChild -Queue $Queue -Child $Element.View } catch {}
+    if ($Element -is [System.Windows.FrameworkElement]) {
+        Add-LocalizationChild -Queue $Queue -Child $Element.ContextMenu
+        Add-LocalizationChild -Queue $Queue -Child $Element.ToolTip
+    }
 
-    try {
+    if ($Element -is [System.Windows.Controls.ContentControl]) {
+        Add-LocalizationChild -Queue $Queue -Child $Element.Content
+    }
+
+    if (($Element -is [System.Windows.Controls.HeaderedContentControl]) -or
+        ($Element -is [System.Windows.Controls.HeaderedItemsControl])) {
+        Add-LocalizationChild -Queue $Queue -Child $Element.Header
+    }
+
+    if ($Element -is [System.Windows.Controls.ListView]) {
+        Add-LocalizationChild -Queue $Queue -Child $Element.View
+    }
+
+    if ($Element -is [System.Windows.Controls.GridView]) {
         foreach ($column in @($Element.Columns)) {
             Add-LocalizationChild -Queue $Queue -Child $column
         }
-    } catch {}
+    }
 
-    try {
-        foreach ($column in @($Element.View.Columns)) {
+    if ($Element -is [System.Windows.Controls.DataGrid]) {
+        foreach ($column in @($Element.Columns)) {
             Add-LocalizationChild -Queue $Queue -Child $column
         }
-    } catch {}
+    }
 
-    try {
+    if ($Element -is [System.Windows.Controls.ItemsControl]) {
         foreach ($item in @($Element.Items)) {
             Add-LocalizationChild -Queue $Queue -Child $item
         }
-    } catch {}
+    }
 
     try {
         foreach ($child in [System.Windows.LogicalTreeHelper]::GetChildren($Element)) {
@@ -1048,9 +1115,7 @@ function Apply-LocalizationByCurrentText {
         $hash = [System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($element)
         if (-not $seen.Add($hash)) { continue }
 
-        foreach ($propertyName in @('Title', 'Text', 'Content', 'Header', 'ToolTip')) {
-            Set-LocalizedElementProperty -Element $element -PropertyName $propertyName -Language $Language
-        }
+        Set-LocalizedElementTextProperties -Element $element -Language $Language
 
         Add-LocalizationChildren -Queue $queue -Element $element
     }
