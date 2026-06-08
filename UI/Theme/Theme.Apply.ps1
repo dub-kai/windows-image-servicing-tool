@@ -176,6 +176,30 @@ function Set-UiThemeComboBoxStyles {
 
     Set-UiThemeSystemColorResources -Element $ComboBox -Palette $Palette
 
+    foreach ($entry in @(
+        @{ Key = 'ComboBox.Static.Background'; Value = $Palette.Input },
+        @{ Key = 'ComboBox.Static.Border'; Value = $Palette.Border },
+        @{ Key = 'ComboBox.Static.Glyph'; Value = $Palette.Text },
+        @{ Key = 'ComboBox.MouseOver.Background'; Value = $Palette.SurfaceSoft },
+        @{ Key = 'ComboBox.MouseOver.Border'; Value = $Palette.AccentDark },
+        @{ Key = 'ComboBox.MouseOver.Glyph'; Value = $Palette.Text },
+        @{ Key = 'ComboBox.Pressed.Background'; Value = $Palette.SurfaceSoft },
+        @{ Key = 'ComboBox.Pressed.Border'; Value = $Palette.AccentDark },
+        @{ Key = 'ComboBox.Pressed.Glyph'; Value = $Palette.Text },
+        @{ Key = 'ComboBox.Disabled.Background'; Value = $Palette.SurfaceSoft },
+        @{ Key = 'ComboBox.Disabled.Border'; Value = $Palette.Border },
+        @{ Key = 'ComboBox.Disabled.Foreground'; Value = $Palette.Hint },
+        @{ Key = 'ComboBox.Disabled.Glyph'; Value = $Palette.Hint },
+        @{ Key = 'ComboBox.Static.Editable.Background'; Value = $Palette.Input },
+        @{ Key = 'ComboBox.Static.Editable.Border'; Value = $Palette.Border },
+        @{ Key = 'ComboBox.MouseOver.Editable.Background'; Value = $Palette.Input },
+        @{ Key = 'ComboBox.MouseOver.Editable.Border'; Value = $Palette.AccentDark },
+        @{ Key = 'ComboBox.Disabled.Editable.Background'; Value = $Palette.SurfaceSoft },
+        @{ Key = 'ComboBox.Disabled.Editable.Border'; Value = $Palette.Border }
+    )) {
+        try { Set-UiThemeResource -Element $ComboBox -Key ([string]$entry.Key) -Value $entry.Value } catch {}
+    }
+
     try {
         $comboStyle = New-UiThemeStyle `
             -TargetType ([System.Windows.Controls.ComboBox]) `
