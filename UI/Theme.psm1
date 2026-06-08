@@ -10,6 +10,7 @@ if (-not (Test-Path -LiteralPath $themePartsRoot)) { throw "Theme parts folder f
 
 $themeParts = @(
     "Theme.Palette.ps1",
+    "Theme.Cache.ps1",
     "Theme.Apply.ps1"
 )
 

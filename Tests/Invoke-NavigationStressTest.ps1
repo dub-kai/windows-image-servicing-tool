@@ -42,6 +42,40 @@ function Write-NavigationStressLine {
     Write-Host $line
 }
 
+function Get-NavigationStressAverage {
+    param([object[]]$Items)
+
+    if (-not $Items -or $Items.Count -lt 1) { return 0 }
+    return [int](($Items | Measure-Object DurationMs -Average).Average)
+}
+
+function Get-NavigationStressMaximum {
+    param([object[]]$Items)
+
+    if (-not $Items -or $Items.Count -lt 1) { return 0 }
+    return [int](($Items | Measure-Object DurationMs -Maximum).Maximum)
+}
+
+function Get-NavigationStressPageSummary {
+    param([object[]]$Steps)
+
+    foreach ($group in @($Steps | Group-Object Page)) {
+        $items = @($group.Group | Sort-Object Cycle)
+        $cold = @($items | Where-Object { [int]$_.Cycle -eq 1 })
+        $warm = @($items | Where-Object { [int]$_.Cycle -gt 1 })
+
+        [pscustomobject]@{
+            Page              = [string]$group.Name
+            Count             = [int]$items.Count
+            ColdDurationMs    = Get-NavigationStressMaximum -Items $cold
+            WarmAvgDurationMs = Get-NavigationStressAverage -Items $warm
+            WarmMaxDurationMs = Get-NavigationStressMaximum -Items $warm
+            AvgDurationMs     = Get-NavigationStressAverage -Items $items
+            MaxDurationMs     = Get-NavigationStressMaximum -Items $items
+        }
+    }
+}
+
 function Import-NavigationStressModules {
     Import-Module (Join-Path $ProjectRoot 'Core\Bootstrap.psm1') -Global -Force -DisableNameChecking
     Set-ProjectRoot -Path $ProjectRoot | Out-Null
@@ -159,6 +193,7 @@ try {
 }
 
 $allSteps = @($steps.ToArray())
+$pageSummary = @(Get-NavigationStressPageSummary -Steps $allSteps)
 $result = [pscustomobject]@{
     Ok            = $ok
     Error         = $errorText
@@ -173,6 +208,7 @@ $result = [pscustomobject]@{
     StepCount     = $allSteps.Count
     MaxDurationMs = if ($allSteps.Count -gt 0) { [int](($allSteps | Measure-Object DurationMs -Maximum).Maximum) } else { 0 }
     AvgDurationMs = if ($allSteps.Count -gt 0) { [int](($allSteps | Measure-Object DurationMs -Average).Average) } else { 0 }
+    PageSummary   = $pageSummary
     Steps         = $allSteps
 }
 
