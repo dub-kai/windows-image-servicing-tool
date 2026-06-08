@@ -142,8 +142,8 @@ function Ensure-MainWindowPageLoaded {
 function Start-MainWindowPageWarmup {
     param(
         [Parameter(Mandatory)][object]$Ctx,
-        [int]$InitialDelayMs = 900,
-        [int]$IntervalMs = 350
+        [int]$InitialDelayMs = 2200,
+        [int]$IntervalMs = 900
     )
 
     try {
