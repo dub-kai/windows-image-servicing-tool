@@ -27,6 +27,7 @@
         BtnOpenDismLog = $null
         GridRecentJobs = $null
         AutoDetectStarted = $false
+        AutoDetectTimer = $null
     }
 
     $p = $DashboardPage
@@ -196,7 +197,7 @@
 
     if ($DashboardPage) {
         $DashboardPage.Add_Loaded({
-            try { Start-DashboardAutoDetectAsync } catch {}
+            try { Start-DashboardDeferredAutoDetect -DelayMs 1800 } catch {}
         })
     }
 

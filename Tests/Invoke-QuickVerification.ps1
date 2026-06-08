@@ -2,7 +2,10 @@
 param(
     [string]$ProjectRoot = '',
     [string]$OutputDir,
-    [int]$NavigationCycles = 2
+    [int]$NavigationCycles = 2,
+    [switch]$IncludeSmoke,
+    [ValidateSet('Basic', 'Full')]
+    [string]$SmokeScope = 'Basic'
 )
 
 Set-StrictMode -Version Latest
@@ -68,6 +71,20 @@ $steps.Add((Invoke-QuickVerificationStep -Name 'ThemeScan' -Arguments ($common +
 $steps.Add((Invoke-QuickVerificationStep -Name 'NavigationStress' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-NavigationStressTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'NavigationStress'), '-Cycles', ([string]$NavigationCycles), '-PauseMs', '80')))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'StartupWarmup' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-StartupWarmupTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'StartupWarmup'), '-WarmupTimeoutMs', '6000')))) | Out-Null
 
+if ($IncludeSmoke) {
+    $smokeArgs = $common + @(
+        '-File', (Join-Path $ProjectRoot 'Tests\Invoke-ProjectSmokeTest.ps1'),
+        '-ProjectRoot', $ProjectRoot,
+        '-OutputDir', (Join-Path $runDir 'ProjectSmoke'),
+        '-Scope', $SmokeScope,
+        '-SkipMountLifecycle',
+        '-SkipFeatureMount',
+        '-SkipLiveCatalog',
+        '-GuiStartupSeconds', '8'
+    )
+    $steps.Add((Invoke-QuickVerificationStep -Name ("ProjectSmoke:{0}" -f $SmokeScope) -Arguments $smokeArgs)) | Out-Null
+}
+
 $allSteps = @($steps.ToArray())
 $ok = (@($allSteps | Where-Object { -not $_.Ok }).Count -eq 0)
 $result = [pscustomobject]@{
@@ -78,6 +95,8 @@ $result = [pscustomobject]@{
     OutputDir     = $runDir
     ResultPath    = $resultPath
     StepCount     = $allSteps.Count
+    IncludeSmoke  = [bool]$IncludeSmoke
+    SmokeScope    = $SmokeScope
     TotalMs       = if ($allSteps.Count -gt 0) { [int](($allSteps | Measure-Object DurationMs -Sum).Sum) } else { 0 }
     FailedSteps   = @($allSteps | Where-Object { -not $_.Ok } | Select-Object -ExpandProperty Name)
     Steps         = $allSteps

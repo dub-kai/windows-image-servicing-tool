@@ -629,6 +629,8 @@ function Set-MediaBusy {
         $script:ctx.BtnMediaBuildInstallEsd,
         $script:ctx.BtnMediaPickUsbSource,
         $script:ctx.BtnMediaPickUsbTarget,
+        $script:ctx.CmbMediaUsbDrives,
+        $script:ctx.BtnMediaRefreshUsbDrives,
         $script:ctx.BtnMediaCheckUsb,
         $script:ctx.BtnMediaOpenUsbTarget,
         $script:ctx.BtnMediaResetUsb,
@@ -1143,6 +1145,7 @@ function Initialize-MediaBuilderController {
         SelectedBootImagePath       = $null
         SelectedUsbSourcePath       = Get-MediaAppStateValueSafe -Key 'MediaUsbSourcePath' -Default $null
         SelectedUsbTargetPath       = Get-MediaAppStateValueSafe -Key 'MediaUsbTargetPath' -Default $null
+        LastUsbPreflight            = $null
         TxtMediaSourceIso           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaSourceIso'
         TxtMediaInstallImage        = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaInstallImage'
         TxtMediaBootImage           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaBootImage'
@@ -1160,8 +1163,11 @@ function Initialize-MediaBuilderController {
         BtnMediaCancelBuildOverlay  = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuildOverlay'
         TxtMediaUsbSource           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSource'
         TxtMediaUsbTarget           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbTarget'
+        CmbMediaUsbDrives           = Find-Ui -Root $MediaBuilderPage -Name 'CmbMediaUsbDrives'
+        BtnMediaRefreshUsbDrives    = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaRefreshUsbDrives'
         TxtMediaUsbStatus           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbStatus'
         TxtMediaUsbSummary          = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSummary'
+        TxtMediaUsbPreflight        = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbPreflight'
         TxtMediaUsbWarnings         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbWarnings'
         BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'
         BtnMediaPickUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbTarget'
@@ -1236,6 +1242,7 @@ function Initialize-MediaBuilderController {
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbSourcePath = $path
                 Set-MediaAppStateValueSafe -Key 'MediaUsbSourcePath' -Value $path
+                $script:ctx.LastUsbPreflight = $null
                 Refresh-MediaBuilderUI
             }
         })
@@ -1247,7 +1254,31 @@ function Initialize-MediaBuilderController {
             if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
                 $script:ctx.SelectedUsbTargetPath = $path
                 Set-MediaAppStateValueSafe -Key 'MediaUsbTargetPath' -Value $path
+                $script:ctx.LastUsbPreflight = $null
                 Refresh-MediaBuilderUI
+            }
+        })
+    }
+
+    if ($script:ctx.BtnMediaRefreshUsbDrives) {
+        $script:ctx.BtnMediaRefreshUsbDrives.Add_Click({ Refresh-MediaUsbDriveList })
+    }
+
+    if ($script:ctx.CmbMediaUsbDrives) {
+        $script:ctx.CmbMediaUsbDrives.Add_SelectionChanged({
+            if ($script:mediaUsbSuppressDriveSelection) { return }
+            try {
+                $selected = $script:ctx.CmbMediaUsbDrives.SelectedItem
+                $path = $null
+                if ($selected) { $path = [string]$selected.Path }
+                if (-not [string]::IsNullOrWhiteSpace($path)) {
+                    $script:ctx.SelectedUsbTargetPath = $path
+                    Set-MediaAppStateValueSafe -Key 'MediaUsbTargetPath' -Value $path
+                    $script:ctx.LastUsbPreflight = $null
+                    Refresh-MediaBuilderUI
+                }
+            } catch {
+                Show-UiError -Message $_.Exception.Message
             }
         })
     }
@@ -1289,9 +1320,13 @@ function Initialize-MediaBuilderController {
     }
 
     if ($MediaBuilderPage) {
-        $MediaBuilderPage.Add_Loaded({ Refresh-MediaBuilderUI })
+        $MediaBuilderPage.Add_Loaded({
+            Refresh-MediaUsbDriveList
+            Refresh-MediaBuilderUI
+        })
     }
 
+    Refresh-MediaUsbDriveList
     Refresh-MediaBuilderUI
     Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaReady') -Detail (Get-UiString -Key 'StaticNoBuildStarted') -SizeBytes 0
 }

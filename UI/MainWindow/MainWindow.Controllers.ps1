@@ -417,7 +417,7 @@ function New-MainWindowNavigateScript {
                     $now = Get-Date
                     if ($Ctx.NavigationRefreshAt.ContainsKey($refreshKey)) {
                         $last = [datetime]$Ctx.NavigationRefreshAt[$refreshKey]
-                    if (($now - $last).TotalMilliseconds -lt 8000) {
+                    if (($now - $last).TotalMilliseconds -lt 15000) {
                             $shouldRefresh = $false
                         }
                     }

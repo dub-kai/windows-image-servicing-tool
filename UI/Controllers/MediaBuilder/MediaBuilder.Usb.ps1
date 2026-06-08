@@ -1,6 +1,8 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$script:mediaUsbSuppressDriveSelection = $false
+
 function Get-MediaUsbSource {
     $selected = $script:ctx.SelectedUsbSourcePath
     if (-not [string]::IsNullOrWhiteSpace([string]$selected)) { return [string]$selected }
@@ -86,6 +88,67 @@ function Get-MediaUsbFileSystemHint {
     }
 }
 
+function Get-MediaUsbDriveCandidates {
+    $items = New-Object System.Collections.Generic.List[object]
+
+    foreach ($drive in @([System.IO.DriveInfo]::GetDrives() | Sort-Object Name)) {
+        try {
+            if (-not $drive.IsReady) { continue }
+            if ($drive.DriveType -notin @([System.IO.DriveType]::Removable, [System.IO.DriveType]::Fixed)) { continue }
+
+            $fileSystem = [string]$drive.DriveFormat
+            if ([string]::IsNullOrWhiteSpace($fileSystem)) { $fileSystem = '-' }
+
+            $kindKey = if ($drive.DriveType -eq [System.IO.DriveType]::Removable) { 'MediaUsbDriveKindRemovable' } else { 'MediaUsbDriveKindFixed' }
+            $kind = Get-UiString -Key $kindKey
+
+            $items.Add([pscustomobject]@{
+                Path       = [string]$drive.RootDirectory.FullName
+                Name       = [string]$drive.Name
+                Kind       = $kind
+                FileSystem = $fileSystem
+                FreeText   = Format-MediaBytes ([int64]$drive.AvailableFreeSpace)
+                TotalText  = Format-MediaBytes ([int64]$drive.TotalSize)
+                Display    = Get-UiString -Key 'MediaUsbDriveDisplayFormat' -Args @(
+                    [string]$drive.Name,
+                    $kind,
+                    $fileSystem,
+                    (Format-MediaBytes ([int64]$drive.AvailableFreeSpace)),
+                    (Format-MediaBytes ([int64]$drive.TotalSize))
+                )
+            }) | Out-Null
+        } catch {}
+    }
+
+    return @($items.ToArray())
+}
+
+function Refresh-MediaUsbDriveList {
+    if (-not $script:ctx -or -not $script:ctx.CmbMediaUsbDrives) { return }
+
+    $selectedTarget = [string]$script:ctx.SelectedUsbTargetPath
+    $drives = @(Get-MediaUsbDriveCandidates)
+
+    try {
+        $script:mediaUsbSuppressDriveSelection = $true
+        $script:ctx.CmbMediaUsbDrives.ItemsSource = $drives
+        $script:ctx.CmbMediaUsbDrives.SelectedItem = $null
+
+        if (-not [string]::IsNullOrWhiteSpace($selectedTarget)) {
+            $targetFull = $selectedTarget
+            try { $targetFull = [System.IO.Path]::GetFullPath($selectedTarget).TrimEnd('\') + '\' } catch {}
+            foreach ($item in $drives) {
+                if ([string]$item.Path -eq $targetFull) {
+                    $script:ctx.CmbMediaUsbDrives.SelectedItem = $item
+                    break
+                }
+            }
+        }
+    } finally {
+        $script:mediaUsbSuppressDriveSelection = $false
+    }
+}
+
 function Set-MediaUsbStatus {
     param(
         [AllowNull()][string]$Source,
@@ -145,6 +208,27 @@ function Set-MediaUsbStatus {
     )
 }
 
+function Set-MediaUsbPreflightText {
+    param([AllowNull()]$Preflight)
+
+    if (-not $script:ctx -or -not $script:ctx.TxtMediaUsbPreflight) { return }
+
+    if (-not $Preflight) {
+        $script:ctx.TxtMediaUsbPreflight.Text = Get-UiString -Key 'MediaUsbPreflightNotChecked'
+        return
+    }
+
+    $warningCount = @($Preflight.Warnings).Count
+    $script:ctx.TxtMediaUsbPreflight.Text = Get-UiString -Key 'MediaUsbPreflightSummaryFormat' -Args @(
+        [string]$Preflight.SourceText,
+        [int]$Preflight.FileCount,
+        [string]$Preflight.TargetFreeText,
+        [string]$Preflight.TargetFileSystem,
+        [string]$Preflight.BootReadiness,
+        [int]$warningCount
+    )
+}
+
 function Refresh-MediaUsbUI {
     if (-not $script:ctx) { return }
 
@@ -166,6 +250,7 @@ function Refresh-MediaUsbUI {
     try { if ($script:ctx.TxtMediaUsbSource) { $script:ctx.TxtMediaUsbSource.Text = (Get-DisplayOrDash $source) } } catch {}
     try { if ($script:ctx.TxtMediaUsbTarget) { $script:ctx.TxtMediaUsbTarget.Text = (Format-MediaUsbTargetDisplay -Path $target) } } catch {}
     try { Set-MediaUsbStatus -Source $source -Target $target -Drive $targetDrive -Signals $sourceSignals } catch {}
+    try { Set-MediaUsbPreflightText -Preflight $script:ctx.LastUsbPreflight } catch {}
 
     try {
         if ($script:ctx.BtnMediaCopyToUsb) {
@@ -302,6 +387,7 @@ function Reset-MediaUsbSelection {
 
     $script:ctx.SelectedUsbSourcePath = $null
     $script:ctx.SelectedUsbTargetPath = $null
+    $script:ctx.LastUsbPreflight = $null
     Remove-MediaAppStateValueSafe -Key 'MediaUsbSourcePath'
     Remove-MediaAppStateValueSafe -Key 'MediaUsbTargetPath'
     Refresh-MediaBuilderUI
@@ -424,7 +510,16 @@ function Start-MediaUsbCheck {
     if ($script:mediaBusy) { return }
 
     try {
+        Set-MediaBusy -Busy $true -Reason (Get-UiString -Key 'MediaUsbCheckBusy')
+        try {
+            $page = $script:ctx.Page
+            if ($page -and $page.Dispatcher) {
+                $page.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+            }
+        } catch {}
+
         $check = Test-MediaUsbCopyPrerequisites -SourcePath (Get-MediaUsbSource) -TargetPath $script:ctx.SelectedUsbTargetPath
+        $script:ctx.LastUsbPreflight = $check
         $message = Get-UiString -Key 'MediaUsbCheckOkMessageDetailsFormat' -Args @(
             [string]$check.Source,
             [string]$check.Target,
@@ -440,10 +535,17 @@ function Start-MediaUsbCheck {
         Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCheckStatusFormat' -Args @([string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetDriveName))
         Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCheckOkTitle') -Detail $message -SizeBytes ([int64]$check.SourceBytes) -SizeText ([string]$check.SourceText)
         if ($script:ctx.SetStatus) { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCheckStatusFormat' -Args @([string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetDriveName)) }
+        Set-MediaBusy -Busy $false
         Show-UiInfo -Title (Get-UiString -Key 'MediaUsbCheckOkTitle') -Message $message
         Refresh-MediaBuilderUI
     } catch {
+        $script:ctx.LastUsbPreflight = $null
+        Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCheckFailedTitle') -Detail $_.Exception.Message -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbStatusBlocked')
+        if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCheckFailedStatus') } catch {} }
         Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'MediaUsbCheckOkTitle')
+    } finally {
+        Set-MediaBusy -Busy $false
+        Refresh-MediaBuilderUI
     }
 }
 

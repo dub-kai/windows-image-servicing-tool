@@ -111,3 +111,52 @@ if (`$hits.Count -gt 0) {
             } catch {}
         }
 }
+
+function Start-DashboardDeferredAutoDetect {
+    param([int]$DelayMs = 1800)
+
+    if (-not $script:ctx) { return }
+    $startAutoDetect = ${function:Start-DashboardAutoDetectAsync}
+
+    try {
+        if ($script:ctx.ContainsKey('AutoDetectStarted') -and $script:ctx['AutoDetectStarted']) { return }
+    } catch {
+        return
+    }
+
+    $page = $null
+    try { $page = $script:ctx.DashboardPage } catch {}
+    if (-not $page -or -not $page.Dispatcher) {
+        Start-DashboardAutoDetectAsync
+        return
+    }
+
+    try {
+        if ($script:ctx.ContainsKey('AutoDetectTimer') -and $script:ctx['AutoDetectTimer']) {
+            try { $script:ctx['AutoDetectTimer'].Stop() } catch {}
+            $script:ctx['AutoDetectTimer'] = $null
+        }
+
+        $timer = New-Object System.Windows.Threading.DispatcherTimer(
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+            $page.Dispatcher
+        )
+        $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(250, $DelayMs))
+        $timer.Add_Tick({
+            try {
+                if ($script:ctx -and $script:ctx.ContainsKey('AutoDetectTimer')) {
+                    try { $script:ctx['AutoDetectTimer'].Stop() } catch {}
+                    $script:ctx['AutoDetectTimer'] = $null
+                }
+                & $startAutoDetect
+            } catch {
+                try { Write-Log -Level WARN -Message ("Dashboard AutoDetect delayed start failed: {0}" -f $_.Exception.Message) } catch {}
+            }
+        }.GetNewClosure())
+
+        $script:ctx['AutoDetectTimer'] = $timer
+        $timer.Start()
+    } catch {
+        Start-DashboardAutoDetectAsync
+    }
+}
