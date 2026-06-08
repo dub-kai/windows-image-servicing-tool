@@ -86,14 +86,86 @@ function Get-MediaUsbFileSystemHint {
     }
 }
 
+function Set-MediaUsbStatus {
+    param(
+        [AllowNull()][string]$Source,
+        [AllowNull()][string]$Target,
+        [AllowNull()]$Drive,
+        [AllowNull()]$Signals
+    )
+
+    if (-not $script:ctx -or -not $script:ctx.TxtMediaUsbStatus) { return }
+
+    $sourceState = Get-UiString -Key 'MediaUsbStatusOpen'
+    if (-not [string]::IsNullOrWhiteSpace([string]$Source)) {
+        if ($Signals -and $Signals.BootReady) {
+            $sourceState = Get-UiString -Key 'MediaUsbStatusOk'
+        } elseif ($Signals -and ($Signals.HasSources -or $Signals.HasBootFiles)) {
+            $sourceState = Get-UiString -Key 'MediaUsbStatusWarn'
+        } else {
+            $sourceState = Get-UiString -Key 'MediaUsbStatusCheck'
+        }
+    }
+
+    $targetState = Get-UiString -Key 'MediaUsbStatusOpen'
+    if (-not [string]::IsNullOrWhiteSpace([string]$Target)) {
+        if ((Test-Path -LiteralPath ([string]$Target) -PathType Container)) {
+            $targetState = Get-UiString -Key 'MediaUsbStatusOk'
+        } else {
+            $targetState = Get-UiString -Key 'MediaUsbStatusWarn'
+        }
+    }
+
+    $fileSystemState = Get-UiString -Key 'MediaUsbStatusOpen'
+    $fileSystem = ''
+    try { if ($Drive -and $Drive.IsReady) { $fileSystem = [string]$Drive.DriveFormat } } catch {}
+    if (-not [string]::IsNullOrWhiteSpace($fileSystem)) {
+        $fileSystemState = $fileSystem
+    } elseif (-not [string]::IsNullOrWhiteSpace([string]$Target)) {
+        $fileSystemState = Get-UiString -Key 'MediaUsbStatusCheck'
+    }
+
+    $copyState = Get-UiString -Key 'MediaUsbStatusOpen'
+    if (
+        (-not [string]::IsNullOrWhiteSpace([string]$Source)) -and
+        (-not [string]::IsNullOrWhiteSpace([string]$Target)) -and
+        (Test-Path -LiteralPath ([string]$Source) -PathType Container) -and
+        (Test-Path -LiteralPath ([string]$Target) -PathType Container)
+    ) {
+        $copyState = Get-UiString -Key 'MediaUsbStatusReady'
+    } elseif ((-not [string]::IsNullOrWhiteSpace([string]$Source)) -or (-not [string]::IsNullOrWhiteSpace([string]$Target))) {
+        $copyState = Get-UiString -Key 'MediaUsbStatusBlocked'
+    }
+
+    $script:ctx.TxtMediaUsbStatus.Text = Get-UiString -Key 'MediaUsbStatusLineFormat' -Args @(
+        $sourceState,
+        $targetState,
+        $fileSystemState,
+        $copyState
+    )
+}
+
 function Refresh-MediaUsbUI {
     if (-not $script:ctx) { return }
 
     $source = Get-MediaUsbSource
     $target = $script:ctx.SelectedUsbTargetPath
+    $targetDrive = $null
+    $sourceSignals = $null
+
+    try {
+        if (-not [string]::IsNullOrWhiteSpace([string]$target) -and (Test-Path -LiteralPath ([string]$target) -PathType Container)) {
+            $targetDrive = Get-MediaDriveInfo -Path ([string]$target)
+        }
+    } catch {}
+
+    try {
+        $sourceSignals = Get-MediaUsbSourceSignals -SourcePath $source
+    } catch {}
 
     try { if ($script:ctx.TxtMediaUsbSource) { $script:ctx.TxtMediaUsbSource.Text = (Get-DisplayOrDash $source) } } catch {}
     try { if ($script:ctx.TxtMediaUsbTarget) { $script:ctx.TxtMediaUsbTarget.Text = (Format-MediaUsbTargetDisplay -Path $target) } } catch {}
+    try { Set-MediaUsbStatus -Source $source -Target $target -Drive $targetDrive -Signals $sourceSignals } catch {}
 
     try {
         if ($script:ctx.BtnMediaCopyToUsb) {
@@ -135,7 +207,7 @@ function Refresh-MediaUsbUI {
             } elseif ([string]::IsNullOrWhiteSpace([string]$target)) {
                 $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbTargetMissing'
             } else {
-                $drive = Get-MediaDriveInfo -Path ([string]$target)
+                $drive = $targetDrive
                 if ($drive -and $drive.IsReady) {
                     $fileSystem = [string]$drive.DriveFormat
                     if ([string]::IsNullOrWhiteSpace($fileSystem)) { $fileSystem = '-' }
@@ -161,7 +233,7 @@ function Refresh-MediaUsbUI {
         if ($script:ctx.TxtMediaUsbWarnings) {
             $warningText = ''
             if (-not [string]::IsNullOrWhiteSpace([string]$target) -and (Test-Path -LiteralPath ([string]$target) -PathType Container)) {
-                $drive = Get-MediaDriveInfo -Path ([string]$target)
+                $drive = $targetDrive
                 $warnings = New-Object System.Collections.Generic.List[string]
                 if ($drive -and $drive.IsReady) {
                     $driveType = '-'
@@ -186,12 +258,12 @@ function Refresh-MediaUsbUI {
                     [void]$warnings.Add((Get-UiString -Key 'MediaUsbExistingItemsWarningFormat' -Args @([int]$existingItems)))
                 }
 
-                $signals = Get-MediaUsbSourceSignals -SourcePath $source
-                if ($signals.BootReady) {
+                $signals = $sourceSignals
+                if ($signals -and $signals.BootReady) {
                     [void]$warnings.Add((Get-UiString -Key 'MediaUsbBootReadyHint'))
                 } else {
-                    if (-not $signals.HasSources) { [void]$warnings.Add((Get-UiString -Key 'MediaUsbMissingSourcesWarning')) }
-                    if (-not $signals.HasBootFiles) { [void]$warnings.Add((Get-UiString -Key 'MediaUsbMissingBootWarning')) }
+                    if ((-not $signals) -or (-not $signals.HasSources)) { [void]$warnings.Add((Get-UiString -Key 'MediaUsbMissingSourcesWarning')) }
+                    if ((-not $signals) -or (-not $signals.HasBootFiles)) { [void]$warnings.Add((Get-UiString -Key 'MediaUsbMissingBootWarning')) }
                 }
 
                 $warningText = (@($warnings.ToArray()) -join "`n")

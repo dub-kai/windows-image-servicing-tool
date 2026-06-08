@@ -110,6 +110,7 @@
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="170"/>
@@ -136,11 +137,17 @@
             </WrapPanel>
 
             <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
+                       Name="TxtMediaUsbStatus"
+                       FontWeight="SemiBold"
+                       Margin="0,4,0,8"
+                       TextWrapping="Wrap"
+                       Text="Quelle: offen | Ziel: offen | Dateisystem: offen | Kopie: offen"/>
+            <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3"
                        Name="TxtMediaUsbSummary"
                        Foreground="#92400E"
                        TextWrapping="Wrap"
                        Text="Hinweis: Für UEFI-Boot muss der Stick passend vorbereitet sein. Das Tool kopiert hier nur Dateien."/>
-            <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3"
+            <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
                        Name="TxtMediaUsbWarnings"
                        Foreground="#B45309"
                        Margin="0,6,0,0"

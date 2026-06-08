@@ -1160,6 +1160,7 @@ function Initialize-MediaBuilderController {
         BtnMediaCancelBuildOverlay  = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCancelBuildOverlay'
         TxtMediaUsbSource           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSource'
         TxtMediaUsbTarget           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbTarget'
+        TxtMediaUsbStatus           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbStatus'
         TxtMediaUsbSummary          = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSummary'
         TxtMediaUsbWarnings         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbWarnings'
         BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'

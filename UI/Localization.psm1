@@ -802,11 +802,22 @@ MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben we
 MediaUsbReadyWithTargetFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}.;Ready to check. Target: {0}, free: {1}, file system: {2}.
 MediaUsbReadyWithTargetDetailsFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}, Laufwerk: {3}, vorhandene Einträge: {4}.;Ready to check. Target: {0}, free: {1}, file system: {2}, drive: {3}, existing items: {4}.
 MediaUsbTargetDisplayFormat;{0} ({1}, {2} frei);{0} ({1}, {2} free)
+MediaUsbStatusLineFormat;Quelle: {0} | Ziel: {1} | Dateisystem: {2} | Kopie: {3};Source: {0} | Target: {1} | file system: {2} | copy: {3}
+MediaUsbStatusOpen;offen;open
+MediaUsbStatusCheck;prüfen;check
+MediaUsbStatusOk;OK;OK
+MediaUsbStatusWarn;Warnung;warning
+MediaUsbStatusReady;bereit;ready
+MediaUsbStatusBlocked;blockiert;blocked
+MediaUsbStatusLineInitial;Quelle: offen | Ziel: offen | Dateisystem: offen | Kopie: offen;Source: open | Target: open | file system: open | copy: open
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
 MediaPickBootTitle;boot.wim auswählen;Choose boot.wim
 MediaPickUsbSourceDescription;Quelle für den USB-Stick wählen;Choose source for USB stick
 MediaPickUsbTargetDescription;USB-Zielordner wählen;Choose USB target folder
+MediaUsbPickSourceButton;Quelle wählen;Pick source
+MediaUsbPickTargetButton;USB wählen;Pick USB
+MediaUsbCopyButton;Auf USB kopieren;Copy to USB
 MediaReady;Bereit;Ready
 MediaUsbCheck;USB prüfen;Check USB
 MediaUsbOpenTarget;Ziel öffnen;Open target
@@ -1178,9 +1189,13 @@ function Apply-LocalizationToRoot {
         CmbItemStartPageSettings = @{ Content = 'NavSettings' }
         CmbItemLanguageDe = @{ Content = 'SettingsLangGerman' }
         CmbItemLanguageEn = @{ Content = 'SettingsLangEnglish' }
+        TxtMediaUsbStatus = @{ Text = 'MediaUsbStatusLineInitial' }
+        BtnMediaPickUsbSource = @{ Content = 'MediaUsbPickSourceButton' }
+        BtnMediaPickUsbTarget = @{ Content = 'MediaUsbPickTargetButton' }
         BtnMediaCheckUsb = @{ Content = 'MediaUsbCheck' }
         BtnMediaOpenUsbTarget = @{ Content = 'MediaUsbOpenTarget' }
         BtnMediaResetUsb = @{ Content = 'MediaUsbReset' }
+        BtnMediaCopyToUsb = @{ Content = 'MediaUsbCopyButton' }
         GrpSettingsAdk = @{ Header = 'GroupAdk' }
         BtnSettingsDetectAdk = @{ Content = 'BtnDetectAdk' }
         BtnSettingsPickAdkRoot = @{ Content = 'BtnPickAdk' }
