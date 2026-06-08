@@ -940,6 +940,40 @@ function Refresh-MediaUsbUI {
             }
         }
     } catch {}
+
+    try {
+        if ($script:ctx.TxtMediaUsbWarnings) {
+            $warningText = ''
+            if (-not [string]::IsNullOrWhiteSpace([string]$target) -and (Test-Path -LiteralPath ([string]$target) -PathType Container)) {
+                $drive = Get-MediaDriveInfo -Path ([string]$target)
+                $warnings = New-Object System.Collections.Generic.List[string]
+                if ($drive -and $drive.IsReady) {
+                    $driveType = '-'
+                    try { $driveType = [string]$drive.DriveType } catch {}
+                    try {
+                        if ($drive.DriveType -ne [System.IO.DriveType]::Removable) {
+                            [void]$warnings.Add((Get-UiString -Key 'MediaUsbNonRemovableWarning' -Args @($driveType)))
+                        }
+                    } catch {}
+                }
+
+                $existingItems = 0
+                try { $existingItems = @((Get-ChildItem -LiteralPath ([string]$target) -Force -ErrorAction SilentlyContinue)).Count } catch {}
+                if ($existingItems -gt 0) {
+                    [void]$warnings.Add((Get-UiString -Key 'MediaUsbExistingItemsWarningFormat' -Args @([int]$existingItems)))
+                }
+
+                $warningText = (@($warnings.ToArray()) -join "`n")
+            }
+
+            $script:ctx.TxtMediaUsbWarnings.Text = $warningText
+            $script:ctx.TxtMediaUsbWarnings.Visibility = if ([string]::IsNullOrWhiteSpace($warningText)) {
+                [System.Windows.Visibility]::Collapsed
+            } else {
+                [System.Windows.Visibility]::Visible
+            }
+        }
+    } catch {}
 }
 
 function Open-MediaUsbTarget {
@@ -1499,6 +1533,7 @@ function Initialize-MediaBuilderController {
         TxtMediaUsbSource           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSource'
         TxtMediaUsbTarget           = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbTarget'
         TxtMediaUsbSummary          = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbSummary'
+        TxtMediaUsbWarnings         = Find-Ui -Root $MediaBuilderPage -Name 'TxtMediaUsbWarnings'
         BtnMediaPickUsbSource       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbSource'
         BtnMediaPickUsbTarget       = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaPickUsbTarget'
         BtnMediaCheckUsb            = Find-Ui -Root $MediaBuilderPage -Name 'BtnMediaCheckUsb'

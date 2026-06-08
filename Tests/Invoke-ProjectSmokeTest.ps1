@@ -883,6 +883,21 @@ try {
         }
     }
 
+    Invoke-SmokeStep 'Dark theme surface scan' {
+        $themeScanOutput = Join-Path $runDir 'ThemeScan'
+        $themeScanScript = Resolve-ProjectPath 'Tests\Invoke-ThemeScanTest.ps1' -MustExist
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -Sta -File $themeScanScript -ProjectRoot $ProjectRoot -OutputDir $themeScanOutput -MaxIssues 0 | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "Dark theme scan failed with exit code $LASTEXITCODE."
+        }
+
+        $latest = Get-ChildItem -LiteralPath $themeScanOutput -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if (-not $latest) { throw 'Dark theme scan did not write an output directory.' }
+        $resultFile = Join-Path $latest.FullName 'theme_scan_result.json'
+        if (-not (Test-Path -LiteralPath $resultFile -PathType Leaf)) { throw 'Dark theme scan did not write a result file.' }
+        Get-Content -LiteralPath $resultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+
     Invoke-SmokeStep 'Localization static UI switch' {
         Invoke-SmokeLocalizationSwitch
     }

@@ -203,6 +203,13 @@ function Ensure-MainWindowPageLoaded {
             } catch {}
         }
 
+        try {
+            if ($page -and $page.PSObject.Properties.Match('Dispatcher').Count -gt 0 -and $page.Dispatcher) {
+                $page.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Loaded)
+                $page.UpdateLayout()
+            }
+        } catch {}
+
         return $page
     } finally {
         try {
@@ -221,8 +228,8 @@ function Ensure-MainWindowPageLoaded {
 function Start-MainWindowPageWarmup {
     param(
         [Parameter(Mandatory)][object]$Ctx,
-        [int]$InitialDelayMs = 3500,
-        [int]$IntervalMs = 1400
+        [int]$InitialDelayMs = 1200,
+        [int]$IntervalMs = 650
     )
 
     try {
@@ -270,6 +277,11 @@ function Start-MainWindowPageWarmup {
                         -PagePropertyName ([string]$spec.PropertyName) `
                         -RelativePath ([string]$spec.RelativePath) `
                         -ApplyViewState
+                    try {
+                        if ($Ctx.PageWarmupCompleted) {
+                            $Ctx.PageWarmupCompleted[[string]$spec.Key] = Get-Date
+                        }
+                    } catch {}
                 } finally {
                     try {
                         $warmupSw.Stop()
@@ -502,6 +514,7 @@ function Initialize-MainWindowControllers {
             ControllerInitialized = @{}
             NavigationRefreshAt = @{}
             PageWarmupTimer = $null
+            PageWarmupCompleted = @{}
         }
     }
 

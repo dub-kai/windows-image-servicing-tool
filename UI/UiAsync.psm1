@@ -213,6 +213,28 @@ function Set-UiBusyProgressText {
     try { $ctrl.Text = $Text } catch {}
 }
 
+function Set-UiBusyProgressIndicator {
+    param(
+        $Root,
+        $Context,
+        [Parameter(Mandatory)][bool]$Busy
+    )
+
+    $rootLocal = Resolve-UiBusyProgressRoot -Root $Root -Context $Context
+    $progress = $null
+
+    foreach ($name in @('PrgBusy', 'PrgShellBusy')) {
+        $progress = Resolve-UiBusyProgressControl -Root $rootLocal -Context $Context -Name $name
+        if ($progress) { break }
+    }
+
+    if (-not $progress) { return }
+
+    try { $progress.IsIndeterminate = $Busy } catch {}
+    try { $progress.Opacity = if ($Busy) { 1.0 } else { 0.45 } } catch {}
+    try { $progress.ToolTip = if ($Busy) { Get-UiAsyncLocalizedString -Key 'UiBusyDefaultMessage' -Default 'Bitte warten...' } else { $null } } catch {}
+}
+
 function Format-UiBusyElapsed {
     param([TimeSpan]$Elapsed)
 
@@ -317,6 +339,7 @@ function Start-UiBusyProgress {
     Stop-UiBusyProgress -Root $rootLocal -Context $Context
 
     $startedAt = [DateTime]::Now
+    Set-UiBusyProgressIndicator -Root $rootLocal -Context $Context -Busy $true
     Update-UiBusyProgress -Root $rootLocal -Context $Context -StartedAt $startedAt -Message $Message -Detail $Detail -Hint $Hint -ShowDismTail:$ShowDismTail
 
     $dispatcher = $script:UiDispatcher
@@ -365,6 +388,7 @@ function Stop-UiBusyProgress {
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDetail' -Text ''
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyHint' -Text ''
     Set-UiBusyProgressText -Root $rootLocal -Context $Context -Name 'TxtBusyDismLastLine' -Text ''
+    Set-UiBusyProgressIndicator -Root $rootLocal -Context $Context -Busy $false
 }
 
 function Start-UiTask {

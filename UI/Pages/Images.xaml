@@ -373,7 +373,8 @@
                        Margin="0,0,0,10"
                        TextAlignment="Center"
                        TextWrapping="Wrap" />
-            <ProgressBar Height="18"
+            <ProgressBar Name="PrgBusy"
+                         Height="18"
                          Width="420"
                          IsIndeterminate="True" />
             <TextBlock Name="TxtBusyElapsed"
