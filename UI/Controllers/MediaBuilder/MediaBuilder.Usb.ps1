@@ -229,6 +229,30 @@ function Set-MediaUsbPreflightText {
     )
 }
 
+function Format-MediaUsbUserError {
+    param([AllowNull()][string]$Message)
+
+    $text = [string]$Message
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        $text = Get-UiString -Key 'MediaUsbUnknownError'
+    }
+
+    $hintKey = 'MediaUsbErrorHintGeneral'
+    if ($text -match 'FAT32|4 GB|4GB') {
+        $hintKey = 'MediaUsbErrorHintFat32'
+    } elseif ($text -match 'Speicher|space|free') {
+        $hintKey = 'MediaUsbErrorHintSpace'
+    } elseif ($text -match 'Quelle|Ziel|source|target|Pfad|path|gefunden|found') {
+        $hintKey = 'MediaUsbErrorHintPaths'
+    } elseif ($text -match 'Robocopy|robocopy') {
+        $hintKey = 'MediaUsbErrorHintRobocopy'
+    }
+
+    $hint = Get-UiString -Key $hintKey
+    if ([string]::IsNullOrWhiteSpace($hint)) { return $text }
+    return ("{0}`r`n`r`n{1}" -f $text, $hint)
+}
+
 function Refresh-MediaUsbUI {
     if (-not $script:ctx) { return }
 
@@ -540,9 +564,10 @@ function Start-MediaUsbCheck {
         Refresh-MediaBuilderUI
     } catch {
         $script:ctx.LastUsbPreflight = $null
-        Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCheckFailedTitle') -Detail $_.Exception.Message -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbStatusBlocked')
+        $friendlyMessage = Format-MediaUsbUserError -Message $_.Exception.Message
+        Set-MediaBuildStatus -Message (Get-UiString -Key 'MediaUsbCheckFailedTitle') -Detail $friendlyMessage -SizeBytes 0 -SizeText (Get-UiString -Key 'MediaUsbStatusBlocked')
         if ($script:ctx.SetStatus) { try { & $script:ctx.SetStatus (Get-UiString -Key 'MediaUsbCheckFailedStatus') } catch {} }
-        Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'MediaUsbCheckOkTitle')
+        Show-UiError -Message $friendlyMessage -Title (Get-UiString -Key 'MediaUsbCheckOkTitle')
     } finally {
         Set-MediaBusy -Busy $false
         Refresh-MediaBuilderUI
@@ -606,8 +631,9 @@ if (`$exitCode -gt 7) {
         } -OnError {
             param($ex)
             try {
-                Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyErrorLogFormat' -Args @($ex.Message))
-                Show-UiError -Message $ex.Message -Title (Get-UiString -Key 'MediaUsbCopyTitle')
+                $friendlyMessage = Format-MediaUsbUserError -Message $ex.Message
+                Add-MediaBuildLog (Get-UiString -Key 'MediaUsbCopyErrorLogFormat' -Args @($friendlyMessage))
+                Show-UiError -Message $friendlyMessage -Title (Get-UiString -Key 'MediaUsbCopyTitle')
             } finally {
                 Set-MediaBusy -Busy $false
                 Refresh-MediaBuilderUI
@@ -615,7 +641,7 @@ if (`$exitCode -gt 7) {
             }
         }
     } catch {
-        Show-UiError -Message $_.Exception.Message -Title (Get-UiString -Key 'MediaUsbCopyTitle')
+        Show-UiError -Message (Format-MediaUsbUserError -Message $_.Exception.Message) -Title (Get-UiString -Key 'MediaUsbCopyTitle')
     }
 }
 

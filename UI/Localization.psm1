@@ -820,6 +820,12 @@ MediaUsbRefreshDrivesButton;Laufwerke aktualisieren;Refresh drives
 MediaUsbCheckBusy;USB-Prüfung läuft...;USB check running...
 MediaUsbCheckFailedTitle;USB-Prüfung fehlgeschlagen;USB check failed
 MediaUsbCheckFailedStatus;USB-Prüfung fehlgeschlagen;USB check failed
+MediaUsbUnknownError;Unbekannter USB-Fehler.;Unknown USB error.
+MediaUsbErrorHintGeneral;Naechster Schritt: Quelle und Ziel pruefen, dann USB erneut pruefen.;Next step: check source and target, then run the USB check again.
+MediaUsbErrorHintPaths;Naechster Schritt: Stelle sicher, dass Quelle und USB-Ziel existieren und nicht ineinander liegen.;Next step: make sure source and USB target exist and are not nested inside each other.
+MediaUsbErrorHintSpace;Naechster Schritt: Ziel-Laufwerk mit mehr freiem Speicher waehlen oder Quelle verkleinern.;Next step: choose a target drive with more free space or reduce the source.
+MediaUsbErrorHintFat32;Naechster Schritt: Bei FAT32 install.wim splitten oder ein geeignetes anderes Dateisystem verwenden.;Next step: split install.wim for FAT32 or use another suitable file system.
+MediaUsbErrorHintRobocopy;Naechster Schritt: Zielzugriff pruefen, Explorer-Fenster am Ziel schliessen und Kopie erneut starten.;Next step: check target access, close Explorer windows on the target, and start the copy again.
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
 MediaPickBootTitle;boot.wim auswählen;Choose boot.wim

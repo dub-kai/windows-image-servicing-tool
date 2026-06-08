@@ -68,6 +68,7 @@ $steps = New-Object System.Collections.Generic.List[object]
 $common = @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass')
 $steps.Add((Invoke-QuickVerificationStep -Name 'ModuleImport' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-ModuleImportTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'ModuleImport'))))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'ThemeScan' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-ThemeScanTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'ThemeScan'), '-MaxIssues', '0')))) | Out-Null
+$steps.Add((Invoke-QuickVerificationStep -Name 'UsbAcceptance' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-UsbAcceptanceTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'UsbAcceptance'))))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'NavigationStress' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-NavigationStressTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'NavigationStress'), '-Cycles', ([string]$NavigationCycles), '-PauseMs', '80')))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'StartupWarmup' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-StartupWarmupTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'StartupWarmup'), '-WarmupTimeoutMs', '6000')))) | Out-Null
 
