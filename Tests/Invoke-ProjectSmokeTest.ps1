@@ -721,6 +721,7 @@ function Invoke-SmokeMediaUsbPreflight {
     }
     if ($result.HasSources -ne $true) { throw 'USB preflight did not detect sources folder.' }
     if ($result.HasBootFiles -ne $true) { throw 'USB preflight did not detect boot files.' }
+    if ([string]$result.BootReadiness -ne 'Ready') { throw 'USB preflight did not classify boot readiness as ready.' }
     if ([string]::IsNullOrWhiteSpace([string]$result.TargetDriveType) -or [string]$result.TargetDriveType -eq '-') {
         throw 'USB preflight did not detect target drive type.'
     }
@@ -754,6 +755,7 @@ function Invoke-SmokeMediaUsbPreflight {
         TargetDriveType  = [string]$result.TargetDriveType
         ExistingItems    = [int]$result.TargetExistingItems
         WarningCount     = @($result.Warnings).Count
+        BootReadiness    = [string]$result.BootReadiness
         TargetFreeText   = [string]$result.TargetFreeText
         NestedBlocked    = $nestedBlocked
     }

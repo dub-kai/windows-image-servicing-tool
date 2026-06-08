@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 
 $script:imagesInitialMountedRefreshDone = $false
 $script:isSyncingImagesView = $false
+$script:imagesDeferredMountedRefreshTimer = $null
 
 function Get-ImagesAppStateValueSafe {
     param(
@@ -32,6 +33,46 @@ function Set-ImagesAppStateValueSafe {
             Set-AppStateValue -Key $Key -Value $Value
             return
         } catch {}
+    }
+}
+
+function Start-ImagesDeferredMountedRefresh {
+    param([int]$DelayMs = 450)
+
+    if (-not $script:ctx -or $script:imagesInitialMountedRefreshDone) { return }
+
+    $page = $null
+    try { $page = $script:ctx.ImagesPage } catch {}
+    if (-not $page -or -not $page.Dispatcher) { return }
+
+    try {
+        if ($script:imagesDeferredMountedRefreshTimer) {
+            $script:imagesDeferredMountedRefreshTimer.Stop()
+            $script:imagesDeferredMountedRefreshTimer = $null
+        }
+
+        $timer = New-Object System.Windows.Threading.DispatcherTimer(
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+            $page.Dispatcher
+        )
+        $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $DelayMs))
+        $timer.Add_Tick({
+            try {
+                $script:imagesDeferredMountedRefreshTimer.Stop()
+                $script:imagesDeferredMountedRefreshTimer = $null
+                if (-not $script:imagesInitialMountedRefreshDone) {
+                    $script:imagesInitialMountedRefreshDone = $true
+                    Refresh-MountedList
+                }
+            } catch {
+                try { Write-Log -Level WARN -Message ("Images: deferred mounted refresh failed: {0}" -f $_.Exception.Message) } catch {}
+            }
+        })
+
+        $script:imagesDeferredMountedRefreshTimer = $timer
+        $timer.Start()
+    } catch {
+        try { Write-Log -Level WARN -Message ("Images: deferred mounted refresh could not start: {0}" -f $_.Exception.Message) } catch {}
     }
 }
 
@@ -685,8 +726,7 @@ if ($Page) {
             }
 
             if (-not $script:imagesInitialMountedRefreshDone) {
-                $script:imagesInitialMountedRefreshDone = $true
-                Refresh-MountedList
+                Start-ImagesDeferredMountedRefresh -DelayMs 450
             }
         } catch {
             Show-UiError -Message $_.Exception.Message
@@ -752,9 +792,5 @@ if ($Page) {
         Show-UiError -Message $_.Exception.Message
     }
 
-    try {
-        Refresh-MountedList
-    } catch {
-        Show-UiError -Message $_.Exception.Message
-    }
+    try { Start-ImagesDeferredMountedRefresh -DelayMs 650 } catch {}
 }

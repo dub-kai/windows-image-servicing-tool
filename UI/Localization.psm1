@@ -820,6 +820,10 @@ MediaUsbSamePath;Quelle und USB-Ziel dürfen nicht identisch sein.;Source and US
 MediaUsbTargetInsideSource;Das USB-Ziel darf nicht innerhalb der Quelle liegen.;The USB target must not be inside the source.
 MediaUsbMissingSourcesWarning;USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.;USB check: the source is missing the sources folder. Copying works, but bootability is questionable.
 MediaUsbMissingBootWarning;USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.;USB check: no typical boot files found. Check the source.
+MediaUsbBootReadyHint;USB-Check: Boot-Dateien und sources-Ordner gefunden. Die Quelle wirkt bootfähig.;USB check: boot files and sources folder found. The source looks bootable.
+MediaUsbFat32Hint;USB-Check: FAT32 ist UEFI-freundlich, kann aber keine Einzeldateien über 4 GB speichern.;USB check: FAT32 is UEFI-friendly, but cannot store single files larger than 4 GB.
+MediaUsbNtfsHint;USB-Check: NTFS erlaubt große Dateien. Bootfähigkeit hängt von Firmware und Bootloader ab.;USB check: NTFS allows large files. Bootability depends on firmware and boot loader.
+MediaUsbExfatHint;USB-Check: exFAT ist nicht für jeden Windows-Installer als Bootmedium geeignet.;USB check: exFAT is not suitable as boot media for every Windows installer.
 MediaUsbNonRemovableWarning;USB-Check: Ziel-Laufwerk wird als {0} erkannt, nicht als Wechseldatenträger. Bitte Laufwerk genau prüfen.;USB check: target drive is detected as {0}, not removable media. Check the target drive carefully.
 MediaUsbExistingItemsWarningFormat;USB-Check: Ziel enthält bereits {0} Einträge. Es wird nichts gelöscht, aber Dateien können überschrieben werden.;USB check: target already contains {0} item(s). Nothing is deleted, but files may be overwritten.
 MediaUsbInsufficientSpaceFormat;Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}.;Not enough free space on {0}. Free: {1}, required: {2}.

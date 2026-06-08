@@ -676,6 +676,7 @@ function Apply-UiThemeToElement {
         'ScrollViewer' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'ScrollBar' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette

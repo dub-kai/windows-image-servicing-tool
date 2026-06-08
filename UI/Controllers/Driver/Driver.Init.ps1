@@ -105,5 +105,5 @@
     }
 
     Refresh-DriverUI
-    Refresh-DriverMountedList
+    Start-DriverDeferredMountedRefresh -DelayMs 650
 }
