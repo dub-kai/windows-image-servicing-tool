@@ -142,7 +142,14 @@ function Get-CurrentEditionSafe {
         }
     }
     catch {
-        Write-UpdateLog -Level WARN -Message ("Updates: Edition konnte nicht gelesen werden: {0}" -f $_.Exception.Message)
+        $message = [string]$_.Exception.Message
+        $level = 'WARN'
+        if ($message -match '(?i)(option is unknown|get-currentedition option is unknown|not recognized)') {
+            $message = 'DISM /Get-CurrentEdition wird von diesem Image nicht unterstützt.'
+            $level = 'INFO'
+        }
+
+        Write-UpdateLog -Level $level -Message ("Updates: Edition konnte nicht gelesen werden: {0}" -f $message)
     }
 
     return '-'

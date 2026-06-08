@@ -140,6 +140,56 @@ function Skip-SmokeStep {
     Write-SmokeLine ("SKIP  {0} {1}" -f $Name, $Reason)
 }
 
+function Get-SmokeLogSummary {
+    $logPath = $null
+    try {
+        if (Get-Command Get-LogFilePath -ErrorAction SilentlyContinue) {
+            $logPath = Get-LogFilePath
+        }
+    } catch {}
+
+    if ([string]::IsNullOrWhiteSpace([string]$logPath)) {
+        $logPath = Join-Path $ProjectRoot ('Logs\WinImageAdmin_{0}.log' -f (Get-Date -Format 'yyyy-MM-dd'))
+    }
+
+    $lines = @()
+    if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+        try {
+            $runStart = $script:StartedAt
+            $collected = New-Object System.Collections.Generic.List[string]
+            foreach ($line in @(Get-Content -LiteralPath $logPath -ErrorAction Stop)) {
+                if ($line -notmatch '^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.\d{3}') { continue }
+                try {
+                    $timestamp = [datetime]::ParseExact($matches[1], 'yyyy-MM-dd HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture)
+                    if ($timestamp -ge $runStart.AddSeconds(-2)) {
+                        [void]$collected.Add([string]$line)
+                    }
+                } catch {
+                    continue
+                }
+            }
+            $lines = @($collected.ToArray())
+        } catch {
+            $lines = @()
+        }
+    }
+
+    $warnings = @($lines | Where-Object { $_ -match '\[WARN\]' })
+    $errors = @($lines | Where-Object { $_ -match '\[ERROR\]' })
+    $perf = @($lines | Where-Object { $_ -match 'PERF UI:' })
+
+    return [pscustomobject]@{
+        LogPath       = $logPath
+        LinesChecked  = @($lines).Count
+        WarningCount  = @($warnings).Count
+        ErrorCount    = @($errors).Count
+        PerfCount     = @($perf).Count
+        WarningSample = @($warnings | Select-Object -First 5)
+        ErrorSample   = @($errors | Select-Object -First 5)
+        PerfSample    = @($perf | Select-Object -Last 8)
+    }
+}
+
 function Save-SmokeResult {
     $okCount = @($script:Results.ToArray() | Where-Object { $_.Status -eq 'OK' }).Count
     $failCount = @($script:Results.ToArray() | Where-Object { $_.Status -eq 'FAIL' }).Count
@@ -154,6 +204,7 @@ function Save-SmokeResult {
         OutputDir    = $runDir
         ProgressPath = $progressPath
         ResultPath   = $resultPath
+        LogSummary   = Get-SmokeLogSummary
         Counts       = [pscustomobject]@{
             OK   = $okCount
             FAIL = $failCount

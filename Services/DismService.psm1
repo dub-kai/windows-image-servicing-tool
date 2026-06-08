@@ -78,6 +78,25 @@ function Get-DismTextTail {
     }
 }
 
+function Get-DismNonZeroLogLevel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][int]$ExitCode,
+        [Parameter(Mandatory)][string]$ArgumentLine,
+        [AllowEmptyString()][string]$StdOut = '',
+        [AllowEmptyString()][string]$StdErr = ''
+    )
+
+    if ($ExitCode -eq 183) { return 'WARN' }
+
+    $text = (($StdOut, $StdErr) -join "`n")
+    if ($ArgumentLine -match '(?i)/Get-CurrentEdition' -and $text -match '(?i)(option is unknown|get-currentedition option is unknown|not recognized)') {
+        return 'WARN'
+    }
+
+    return 'ERROR'
+}
+
 function Invoke-Dism {
     [CmdletBinding()]
     param(
@@ -235,7 +254,8 @@ exit `$LASTEXITCODE
         if ($null -eq $code) { $code = -1 }
 
         if ($code -ne 0) {
-            if ($code -eq 183) {
+            $logLevel = Get-DismNonZeroLogLevel -ExitCode $code -ArgumentLine $argLine -StdOut $stdout -StdErr $stderr
+            if ($logLevel -eq 'WARN') {
                 try {
                     Write-Log -Level WARN -Message ("DISM ExitCode={0} ({1}ms) Args={2}" -f $code, $durMs, $argLine)
                 } catch {}
