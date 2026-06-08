@@ -923,10 +923,16 @@ function Refresh-MediaUsbUI {
                 if ($drive -and $drive.IsReady) {
                     $fileSystem = [string]$drive.DriveFormat
                     if ([string]::IsNullOrWhiteSpace($fileSystem)) { $fileSystem = '-' }
-                    $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReadyWithTargetFormat' -Args @(
+                    $driveType = '-'
+                    $existingItems = 0
+                    try { $driveType = [string]$drive.DriveType } catch {}
+                    try { $existingItems = @((Get-ChildItem -LiteralPath ([string]$target) -Force -ErrorAction SilentlyContinue)).Count } catch {}
+                    $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReadyWithTargetDetailsFormat' -Args @(
                         [string]$target,
                         (Format-MediaBytes ([int64]$drive.AvailableFreeSpace)),
-                        $fileSystem
+                        $fileSystem,
+                        $driveType,
+                        [int]$existingItems
                     )
                 } else {
                     $script:ctx.TxtMediaUsbSummary.Text = Get-UiString -Key 'MediaUsbReady'
@@ -1007,9 +1013,29 @@ function Test-MediaUsbCopyPrerequisites {
     $drive = Get-MediaDriveInfo -Path $targetFull
     $fileSystem = ''
     $availableFreeSpace = [int64]0
+    $targetDriveType = '-'
+    $targetIsRemovable = $false
+    $targetExistingItems = 0
+    $warnings = New-Object System.Collections.Generic.List[string]
+
+    try { $targetExistingItems = @((Get-ChildItem -LiteralPath $targetFull -Force -ErrorAction SilentlyContinue)).Count } catch { $targetExistingItems = 0 }
+    if ($targetExistingItems -gt 0) {
+        $warning = Get-UiString -Key 'MediaUsbExistingItemsWarningFormat' -Args @([int]$targetExistingItems)
+        $warnings.Add($warning) | Out-Null
+        Add-MediaBuildLog $warning
+    }
+
     if ($drive -and $drive.IsReady) {
         try { $fileSystem = [string]$drive.DriveFormat } catch { $fileSystem = '' }
         try { $availableFreeSpace = [int64]$drive.AvailableFreeSpace } catch { $availableFreeSpace = 0 }
+        try { $targetDriveType = [string]$drive.DriveType } catch { $targetDriveType = '-' }
+        $targetIsRemovable = $drive.DriveType -eq [System.IO.DriveType]::Removable
+
+        if (-not $targetIsRemovable) {
+            $warning = Get-UiString -Key 'MediaUsbNonRemovableWarning' -Args @($targetDriveType)
+            $warnings.Add($warning) | Out-Null
+            Add-MediaBuildLog $warning
+        }
 
         if ([int64]$sizeInfo.TotalBytes -gt 0 -and $availableFreeSpace -lt [int64]$sizeInfo.TotalBytes) {
             throw (Get-UiString -Key 'MediaUsbInsufficientSpaceFormat' -Args @($drive.Name, (Format-MediaBytes $availableFreeSpace), (Format-MediaBytes $sizeInfo.TotalBytes)))
@@ -1031,6 +1057,10 @@ function Test-MediaUsbCopyPrerequisites {
         TargetFreeText     = $(if ($availableFreeSpace -gt 0) { Format-MediaBytes $availableFreeSpace } else { '-' })
         TargetDriveName    = $(if ($drive) { [string]$drive.Name } else { '-' })
         TargetFileSystem   = $(if ([string]::IsNullOrWhiteSpace($fileSystem)) { '-' } else { $fileSystem })
+        TargetDriveType    = $targetDriveType
+        TargetIsRemovable  = $targetIsRemovable
+        TargetExistingItems = [int]$targetExistingItems
+        Warnings           = @($warnings.ToArray())
         HasSources         = $hasSources
         HasBootFiles       = $hasBootFiles
     }
@@ -1041,10 +1071,12 @@ function Start-MediaUsbCheck {
 
     try {
         $check = Test-MediaUsbCopyPrerequisites -SourcePath (Get-MediaUsbSource) -TargetPath $script:ctx.SelectedUsbTargetPath
-        $message = Get-UiString -Key 'MediaUsbCheckOkMessageFormat' -Args @(
+        $message = Get-UiString -Key 'MediaUsbCheckOkMessageDetailsFormat' -Args @(
             [string]$check.Source,
             [string]$check.Target,
             [string]$check.TargetFileSystem,
+            [string]$check.TargetDriveType,
+            [int]$check.TargetExistingItems,
             [string]$check.SourceText,
             [string]$check.TargetFreeText
         )
@@ -1068,7 +1100,7 @@ function Start-MediaUsbCopyAsync {
 
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue | Out-Null
         $answer = [System.Windows.MessageBox]::Show(
-            (Get-UiString -Key 'MediaUsbCopyConfirmFormat' -Args @([string]$check.Source, [string]$check.Target, [string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetFileSystem)),
+            (Get-UiString -Key 'MediaUsbCopyConfirmDetailsFormat' -Args @([string]$check.Source, [string]$check.Target, [string]$check.SourceText, [string]$check.TargetFreeText, [string]$check.TargetFileSystem, [string]$check.TargetDriveType, [int]$check.TargetExistingItems)),
             (Get-UiString -Key 'MediaUsbCopyTitle'),
             [System.Windows.MessageBoxButton]::YesNo,
             [System.Windows.MessageBoxImage]::Information

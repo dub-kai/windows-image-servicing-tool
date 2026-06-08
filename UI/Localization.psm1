@@ -800,6 +800,7 @@ MediaUsbSourceMissing;Quelle fehlt. Du kannst eine gemountete ISO oder einen vor
 MediaUsbTargetMissing;USB-Ziel fehlt. Es wird nichts formatiert, nur in den gewählten Ordner kopiert.;USB target missing. Nothing is formatted; files are only copied into the selected folder.
 MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben werden; gelöscht wird nichts.";"Ready to copy. Existing files may be overwritten; nothing is deleted."
 MediaUsbReadyWithTargetFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}.;Ready to check. Target: {0}, free: {1}, file system: {2}.
+MediaUsbReadyWithTargetDetailsFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}, Laufwerk: {3}, vorhandene Einträge: {4}.;Ready to check. Target: {0}, free: {1}, file system: {2}, drive: {3}, existing items: {4}.
 MediaUsbTargetDisplayFormat;{0} ({1}, {2} frei);{0} ({1}, {2} free)
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
@@ -819,12 +820,16 @@ MediaUsbSamePath;Quelle und USB-Ziel dürfen nicht identisch sein.;Source and US
 MediaUsbTargetInsideSource;Das USB-Ziel darf nicht innerhalb der Quelle liegen.;The USB target must not be inside the source.
 MediaUsbMissingSourcesWarning;USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.;USB check: the source is missing the sources folder. Copying works, but bootability is questionable.
 MediaUsbMissingBootWarning;USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.;USB check: no typical boot files found. Check the source.
+MediaUsbNonRemovableWarning;USB-Check: Ziel-Laufwerk wird als {0} erkannt, nicht als Wechseldatenträger. Bitte Laufwerk genau prüfen.;USB check: target drive is detected as {0}, not removable media. Check the target drive carefully.
+MediaUsbExistingItemsWarningFormat;USB-Check: Ziel enthält bereits {0} Einträge. Es wird nichts gelöscht, aber Dateien können überschrieben werden.;USB check: target already contains {0} item(s). Nothing is deleted, but files may be overwritten.
 MediaUsbInsufficientSpaceFormat;Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}.;Not enough free space on {0}. Free: {1}, required: {2}.
 MediaUsbFat32LargeFileFormat;Das Ziel ist FAT32, aber {0} ist {1} groß. FAT32 kann keine Dateien über 4 GB speichern. Nutze eine Quelle mit geteilter install.swm oder ein anderes Dateisystem.;The target is FAT32, but {0} is {1}. FAT32 cannot store files larger than 4 GB. Use a source with split install.swm files or another file system.
 MediaUsbCheckOkTitle;USB-Prüfung;USB check
 MediaUsbCheckOkMessageFormat;USB-Prüfung OK.`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nDateisystem: {2}`r`nQuellgröße: {3}`r`nFrei am Ziel: {4};USB check OK.`r`n`r`nSource: {0}`r`nTarget: {1}`r`nFile system: {2}`r`nSource size: {3}`r`nFree on target: {4}
+MediaUsbCheckOkMessageDetailsFormat;USB-Prüfung OK.`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nDateisystem: {2}`r`nLaufwerk: {3}`r`nVorhandene Einträge: {4}`r`nQuellgröße: {5}`r`nFrei am Ziel: {6};USB check OK.`r`n`r`nSource: {0}`r`nTarget: {1}`r`nFile system: {2}`r`nDrive: {3}`r`nExisting items: {4}`r`nSource size: {5}`r`nFree on target: {6}
 MediaUsbCheckStatusFormat;USB-Prüfung OK: {0} Quelle, {1} frei auf {2};USB check OK: {0} source, {1} free on {2}
 MediaUsbCopyConfirmFormat;Dateien auf USB-Ziel kopieren?`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nQuellgröße: {2}`r`nFrei am Ziel: {3}`r`nDateisystem: {4}`r`n`r`nEs wird nicht formatiert und nichts gelöscht. Vorhandene Dateien können überschrieben werden.;Copy files to USB target?`r`n`r`nSource: {0}`r`nTarget: {1}`r`nSource size: {2}`r`nFree on target: {3}`r`nFile system: {4}`r`n`r`nNothing is formatted or deleted. Existing files may be overwritten.
+MediaUsbCopyConfirmDetailsFormat;Dateien auf USB-Ziel kopieren?`r`n`r`nQuelle: {0}`r`nZiel: {1}`r`nQuellgröße: {2}`r`nFrei am Ziel: {3}`r`nDateisystem: {4}`r`nLaufwerk: {5}`r`nVorhandene Einträge: {6}`r`n`r`nEs wird nicht formatiert und nichts gelöscht. Vorhandene Dateien können überschrieben werden.;Copy files to USB target?`r`n`r`nSource: {0}`r`nTarget: {1}`r`nSource size: {2}`r`nFree on target: {3}`r`nFile system: {4}`r`nDrive: {5}`r`nExisting items: {6}`r`n`r`nNothing is formatted or deleted. Existing files may be overwritten.
 MediaUsbCopyTitle;USB kopieren;Copy USB
 MediaUsbCopyBusy;USB-Kopie läuft...;USB copy running...
 MediaUsbCopyDetail;Dateien werden mit robocopy kopiert. Das kann je nach Stick dauern.;Files are copied with robocopy. This can take a while depending on the USB stick.

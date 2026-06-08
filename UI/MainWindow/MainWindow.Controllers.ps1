@@ -1,6 +1,29 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Write-MainWindowPerf {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][int64]$DurationMs,
+        [hashtable]$Data = $null
+    )
+
+    try {
+        $suffix = ''
+        if ($null -ne $Data -and $Data.Count -gt 0) {
+            $parts = @()
+            foreach ($key in @($Data.Keys | Sort-Object)) {
+                $parts += ('{0}={1}' -f $key, $Data[$key])
+            }
+            if ($parts.Count -gt 0) {
+                $suffix = ' | ' + ($parts -join '; ')
+            }
+        }
+
+        Write-Log -Level INFO -Message ("PERF UI: {0} {1}ms{2}" -f $Name, $DurationMs, $suffix)
+    } catch {}
+}
+
 function Invoke-ControllerInitializer {
     param(
         [Parameter(Mandatory)][string]$CommandName,
@@ -77,14 +100,25 @@ function Ensure-MainWindowControllerInitialized {
         return
     }
 
-    Write-Log -Level INFO -Message ("UI: Initialisiere Controller bei Bedarf: {0}" -f $Key)
-    Invoke-ControllerInitializer `
-        -CommandName $CommandName `
-        -PageObject $PageObject `
-        -SetStatus $Ctx.SetStatus `
-        -OnStateChanged $Ctx.OnStateChanged
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        Write-Log -Level INFO -Message ("UI: Initialisiere Controller bei Bedarf: {0}" -f $Key)
+        Invoke-ControllerInitializer `
+            -CommandName $CommandName `
+            -PageObject $PageObject `
+            -SetStatus $Ctx.SetStatus `
+            -OnStateChanged $Ctx.OnStateChanged
 
-    $Ctx.ControllerInitialized[$Key] = $true
+        $Ctx.ControllerInitialized[$Key] = $true
+    } finally {
+        try {
+            $sw.Stop()
+            Write-MainWindowPerf -Name 'ControllerInit' -DurationMs $sw.ElapsedMilliseconds -Data @{
+                Key = $Key
+                Command = $CommandName
+            }
+        } catch {}
+    }
 }
 
 function Get-MainWindowPageSpecs {
@@ -98,6 +132,33 @@ function Get-MainWindowPageSpecs {
     )
 }
 
+function Show-MainWindowNavigationWait {
+    param([Parameter(Mandatory)][object]$Ctx)
+
+    try {
+        if (-not $Ctx.Window) { return $false }
+        $Ctx.Window.Cursor = [System.Windows.Input.Cursors]::Wait
+        $Ctx.Window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Hide-MainWindowNavigationWait {
+    param(
+        [Parameter(Mandatory)][object]$Ctx,
+        [Parameter(Mandatory)][bool]$Enabled
+    )
+
+    if (-not $Enabled) { return }
+    try {
+        if ($Ctx.Window) {
+            $Ctx.Window.Cursor = $null
+        }
+    } catch {}
+}
+
 function Ensure-MainWindowPageLoaded {
     param(
         [Parameter(Mandatory)][object]$Ctx,
@@ -106,44 +167,62 @@ function Ensure-MainWindowPageLoaded {
         [switch]$ApplyViewState
     )
 
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $loadedFromDisk = $false
+    $viewStateApplied = $false
     $page = $null
     try {
-        if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
-            $page = $Ctx.$PagePropertyName
-        }
-    } catch {}
-
-    if (-not $page) {
-        Write-Log -Level INFO -Message ("UI: Lade Seite bei Bedarf: {0}" -f $RelativePath)
-        $page = Import-XamlFile -RelativePath $RelativePath
-
         try {
             if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
-                $Ctx.$PagePropertyName = $page
+                $page = $Ctx.$PagePropertyName
             }
         } catch {}
-    }
 
-    if ($ApplyViewState -and $page) {
+        if (-not $page) {
+            Write-Log -Level INFO -Message ("UI: Lade Seite bei Bedarf: {0}" -f $RelativePath)
+            $page = Import-XamlFile -RelativePath $RelativePath
+            $loadedFromDisk = $true
+
+            try {
+                if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+                    $Ctx.$PagePropertyName = $page
+                }
+            } catch {}
+        }
+
+        if ($ApplyViewState -and $page) {
+            try {
+                $viewStateAction = $null
+                if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
+                    $viewStateAction = $Ctx.ApplyViewState
+                }
+                if ($viewStateAction -is [scriptblock]) {
+                    & $viewStateAction -Root $page
+                    $viewStateApplied = $true
+                }
+            } catch {}
+        }
+
+        return $page
+    } finally {
         try {
-            $viewStateAction = $null
-            if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
-                $viewStateAction = $Ctx.ApplyViewState
-            }
-            if ($viewStateAction -is [scriptblock]) {
-                & $viewStateAction -Root $page
+            $sw.Stop()
+            if ($loadedFromDisk -or $sw.ElapsedMilliseconds -ge 15) {
+                Write-MainWindowPerf -Name 'PageLoad' -DurationMs $sw.ElapsedMilliseconds -Data @{
+                    Path = $RelativePath
+                    LoadedFromDisk = $loadedFromDisk
+                    ViewState = $viewStateApplied
+                }
             }
         } catch {}
     }
-
-    return $page
 }
 
 function Start-MainWindowPageWarmup {
     param(
         [Parameter(Mandatory)][object]$Ctx,
-        [int]$InitialDelayMs = 900,
-        [int]$IntervalMs = 350
+        [int]$InitialDelayMs = 3500,
+        [int]$IntervalMs = 1400
     )
 
     try {
@@ -170,7 +249,7 @@ function Start-MainWindowPageWarmup {
 
         $dispatcher = $Ctx.Window.Dispatcher
         $timer = New-Object System.Windows.Threading.DispatcherTimer(
-            [System.Windows.Threading.DispatcherPriority]::ContextIdle,
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
             $dispatcher
         )
         $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $InitialDelayMs))
@@ -184,11 +263,21 @@ function Start-MainWindowPageWarmup {
 
                 $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $IntervalMs))
                 $spec = $pending.Dequeue()
-                $null = & $ensurePage `
-                    -Ctx $Ctx `
-                    -PagePropertyName ([string]$spec.PropertyName) `
-                    -RelativePath ([string]$spec.RelativePath) `
-                    -ApplyViewState
+                $warmupSw = [System.Diagnostics.Stopwatch]::StartNew()
+                try {
+                    $null = & $ensurePage `
+                        -Ctx $Ctx `
+                        -PagePropertyName ([string]$spec.PropertyName) `
+                        -RelativePath ([string]$spec.RelativePath) `
+                        -ApplyViewState
+                } finally {
+                    try {
+                        $warmupSw.Stop()
+                        Write-MainWindowPerf -Name 'PageWarmup' -DurationMs $warmupSw.ElapsedMilliseconds -Data @{
+                            Key = [string]$spec.Key
+                        }
+                    } catch {}
+                }
 
                 try { Write-Log -Level INFO -Message ("UI: Seite vorgewärmt: {0}" -f [string]$spec.Key) } catch {}
             } catch {
@@ -232,101 +321,145 @@ function New-MainWindowNavigateScript {
 
     $ensureController = ${function:Ensure-MainWindowControllerInitialized}
     $ensurePage = ${function:Ensure-MainWindowPageLoaded}
+    $showNavigationWait = ${function:Show-MainWindowNavigationWait}
+    $hideNavigationWait = ${function:Hide-MainWindowNavigationWait}
 
     return {
-        if (-not $Frame) {
-            throw "$Label fehlgeschlagen: Frame nicht gefunden."
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($PagePropertyName) -and -not [string]::IsNullOrWhiteSpace($RelativePath)) {
-            $Page = & $ensurePage -Ctx $Ctx -PagePropertyName $PagePropertyName -RelativePath $RelativePath
-        }
-
-        if (-not $Page) {
-            throw "$Label fehlgeschlagen: Zielseite nicht gefunden."
-        }
-
+        $navSw = [System.Diagnostics.Stopwatch]::StartNew()
+        $usedBusyCursor = $false
+        $pageWasCached = $true
         $controllerWasInitialized = $false
-        try {
-            $controllerWasInitialized = (
-                -not [string]::IsNullOrWhiteSpace($ControllerKey) -and
-                $Ctx.ControllerInitialized -and
-                $Ctx.ControllerInitialized.ContainsKey($ControllerKey) -and
-                $Ctx.ControllerInitialized[$ControllerKey]
-            )
-        } catch {
-            $controllerWasInitialized = $false
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($ControllerKey) -and -not [string]::IsNullOrWhiteSpace($InitializeCommandName)) {
-            & $ensureController `
-                -Ctx $Ctx `
-                -Key $ControllerKey `
-                -CommandName $InitializeCommandName `
-                -PageObject $Page
-        }
+        $refreshRan = $false
+        $viewStateRan = $false
 
         try {
-            [void]$Frame.Navigate($Page)
-        }
-        catch {
-            try {
-                $Frame.Content = $Page
+            if (-not $Frame) {
+                throw "$Label fehlgeschlagen: Frame nicht gefunden."
             }
-            catch {
-                throw
-            }
-        }
 
-        if ($null -ne $refreshCmd -and $controllerWasInitialized) {
-            $shouldRefresh = $true
-            try {
-                if ($null -eq $Ctx.NavigationRefreshAt) {
-                    $Ctx.NavigationRefreshAt = @{}
+            if (-not [string]::IsNullOrWhiteSpace($PagePropertyName) -and -not [string]::IsNullOrWhiteSpace($RelativePath)) {
+                $existingPage = $null
+                try {
+                    if ($Ctx.PSObject.Properties.Match($PagePropertyName).Count -gt 0) {
+                        $existingPage = $Ctx.$PagePropertyName
+                    }
+                } catch {}
+
+                $pageWasCached = ($null -ne $existingPage)
+                if (-not $pageWasCached) {
+                    $usedBusyCursor = [bool](& $showNavigationWait -Ctx $Ctx)
                 }
 
-                $refreshKey = if ([string]::IsNullOrWhiteSpace($ControllerKey)) { [string]$Label } else { [string]$ControllerKey }
-                $now = Get-Date
-                if ($Ctx.NavigationRefreshAt.ContainsKey($refreshKey)) {
-                    $last = [datetime]$Ctx.NavigationRefreshAt[$refreshKey]
-                    if (($now - $last).TotalMilliseconds -lt 2000) {
-                        $shouldRefresh = $false
+                $Page = & $ensurePage -Ctx $Ctx -PagePropertyName $PagePropertyName -RelativePath $RelativePath
+            }
+
+            if (-not $Page) {
+                throw "$Label fehlgeschlagen: Zielseite nicht gefunden."
+            }
+
+            try {
+                $controllerWasInitialized = (
+                    -not [string]::IsNullOrWhiteSpace($ControllerKey) -and
+                    $Ctx.ControllerInitialized -and
+                    $Ctx.ControllerInitialized.ContainsKey($ControllerKey) -and
+                    $Ctx.ControllerInitialized[$ControllerKey]
+                )
+            } catch {
+                $controllerWasInitialized = $false
+            }
+
+            if ((-not $controllerWasInitialized) -and -not [string]::IsNullOrWhiteSpace($ControllerKey) -and -not [string]::IsNullOrWhiteSpace($InitializeCommandName)) {
+                if (-not $usedBusyCursor) {
+                    $usedBusyCursor = [bool](& $showNavigationWait -Ctx $Ctx)
+                }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($ControllerKey) -and -not [string]::IsNullOrWhiteSpace($InitializeCommandName)) {
+                & $ensureController `
+                    -Ctx $Ctx `
+                    -Key $ControllerKey `
+                    -CommandName $InitializeCommandName `
+                    -PageObject $Page
+            }
+
+            try {
+                [void]$Frame.Navigate($Page)
+            }
+            catch {
+                try {
+                    $Frame.Content = $Page
+                }
+                catch {
+                    throw
+                }
+            }
+
+            if ($null -ne $refreshCmd -and $controllerWasInitialized) {
+                $shouldRefresh = $true
+                try {
+                    if ($null -eq $Ctx.NavigationRefreshAt) {
+                        $Ctx.NavigationRefreshAt = @{}
                     }
+
+                    $refreshKey = if ([string]::IsNullOrWhiteSpace($ControllerKey)) { [string]$Label } else { [string]$ControllerKey }
+                    $now = Get-Date
+                    if ($Ctx.NavigationRefreshAt.ContainsKey($refreshKey)) {
+                        $last = [datetime]$Ctx.NavigationRefreshAt[$refreshKey]
+                    if (($now - $last).TotalMilliseconds -lt 8000) {
+                            $shouldRefresh = $false
+                        }
+                    }
+
+                    if ($shouldRefresh) {
+                        $Ctx.NavigationRefreshAt[$refreshKey] = $now
+                    }
+                } catch {
+                    $shouldRefresh = $true
                 }
 
                 if ($shouldRefresh) {
-                    $Ctx.NavigationRefreshAt[$refreshKey] = $now
-                }
-            } catch {
-                $shouldRefresh = $true
-            }
-
-            if ($shouldRefresh) {
-                & $refreshCmd
-            }
-        }
-
-        try {
-            $viewStateAction = $null
-            if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
-                $viewStateAction = $Ctx.ApplyViewState
-            }
-            if ($viewStateAction -is [scriptblock]) {
-                & $viewStateAction -Root $Page
-            }
-            else {
-                $themeAction = $null
-                if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
-                    $themeAction = $Ctx.ApplyTheme
-                }
-                if ($themeAction -is [scriptblock]) {
-                    & $themeAction -Root $Page
+                    & $refreshCmd
+                    $refreshRan = $true
                 }
             }
-        } catch {}
 
-        if (-not [string]::IsNullOrWhiteSpace($NavKey)) {
-            try { Set-MainWindowActiveNav -Ctx $Ctx -Key $NavKey } catch {}
+            try {
+                $viewStateAction = $null
+                if ($Ctx.PSObject.Properties.Match('ApplyViewState').Count -gt 0) {
+                    $viewStateAction = $Ctx.ApplyViewState
+                }
+                if ($viewStateAction -is [scriptblock]) {
+                    & $viewStateAction -Root $Page
+                    $viewStateRan = $true
+                }
+                else {
+                    $themeAction = $null
+                    if ($Ctx.PSObject.Properties.Match('ApplyTheme').Count -gt 0) {
+                        $themeAction = $Ctx.ApplyTheme
+                    }
+                    if ($themeAction -is [scriptblock]) {
+                        & $themeAction -Root $Page
+                        $viewStateRan = $true
+                    }
+                }
+            } catch {}
+
+            if (-not [string]::IsNullOrWhiteSpace($NavKey)) {
+                try { Set-MainWindowActiveNav -Ctx $Ctx -Key $NavKey } catch {}
+            }
+        } finally {
+            & $hideNavigationWait -Ctx $Ctx -Enabled $usedBusyCursor
+
+            try {
+                $navSw.Stop()
+                Write-MainWindowPerf -Name 'Navigation' -DurationMs $navSw.ElapsedMilliseconds -Data @{
+                    Label = $Label
+                    PageCached = $pageWasCached
+                    ControllerCached = $controllerWasInitialized
+                    Refresh = $refreshRan
+                    ViewState = $viewStateRan
+                }
+            } catch {}
         }
     }.GetNewClosure()
 }
