@@ -641,11 +641,15 @@ function Apply-UiThemeToElement {
         }
         'CheckBox' {
             Set-UiThemeToggleResources -Toggle $Element -Palette $Palette -Prefix 'CheckBox'
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
         }
         'RadioButton' {
             Set-UiThemeToggleResources -Toggle $Element -Palette $Palette -Prefix 'RadioButton'
+            Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
+            Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
         }
         'GroupBox' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
@@ -672,6 +676,7 @@ function Apply-UiThemeToElement {
         'ScrollViewer' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
+            Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'ScrollBar' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette

@@ -739,7 +739,8 @@
           <TextBlock Text="Bitte warten..."
                      FontWeight="SemiBold"
                      Margin="0,0,0,8"/>
-          <ProgressBar IsIndeterminate="True"
+          <ProgressBar Name="PrgBusy"
+                       IsIndeterminate="True"
                        Height="14"
                        Width="260"/>
           <TextBlock Name="TxtBusyMessage"

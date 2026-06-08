@@ -802,11 +802,32 @@ MediaUsbReady;"Bereit zum Kopieren. Vorhandene Dateien können überschrieben we
 MediaUsbReadyWithTargetFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}.;Ready to check. Target: {0}, free: {1}, file system: {2}.
 MediaUsbReadyWithTargetDetailsFormat;Bereit zum Prüfen. Ziel: {0}, frei: {1}, Dateisystem: {2}, Laufwerk: {3}, vorhandene Einträge: {4}.;Ready to check. Target: {0}, free: {1}, file system: {2}, drive: {3}, existing items: {4}.
 MediaUsbTargetDisplayFormat;{0} ({1}, {2} frei);{0} ({1}, {2} free)
+MediaUsbDriveDisplayFormat;{0} | {1} | {2} | frei {3} von {4};{0} | {1} | {2} | free {3} of {4}
+MediaUsbDriveKindRemovable;USB/Wechselmedium;USB/removable
+MediaUsbDriveKindFixed;Festplatte;fixed disk
+MediaUsbDriveLabel;Laufwerk:;Drive:
+MediaUsbStatusLineFormat;Quelle: {0} | Ziel: {1} | Dateisystem: {2} | Kopie: {3};Source: {0} | Target: {1} | file system: {2} | copy: {3}
+MediaUsbStatusOpen;offen;open
+MediaUsbStatusCheck;prüfen;check
+MediaUsbStatusOk;OK;OK
+MediaUsbStatusWarn;Warnung;warning
+MediaUsbStatusReady;bereit;ready
+MediaUsbStatusBlocked;blockiert;blocked
+MediaUsbStatusLineInitial;Quelle: offen | Ziel: offen | Dateisystem: offen | Kopie: offen;Source: open | Target: open | file system: open | copy: open
+MediaUsbPreflightNotChecked;Preflight: noch nicht geprüft.;Preflight: not checked yet.
+MediaUsbPreflightSummaryFormat;Preflight: {0}, {1} Datei(en) | Ziel frei: {2} | Dateisystem: {3} | Boot: {4} | Warnungen: {5};Preflight: {0}, {1} file(s) | target free: {2} | file system: {3} | boot: {4} | warnings: {5}
+MediaUsbRefreshDrivesButton;Laufwerke aktualisieren;Refresh drives
+MediaUsbCheckBusy;USB-Prüfung läuft...;USB check running...
+MediaUsbCheckFailedTitle;USB-Prüfung fehlgeschlagen;USB check failed
+MediaUsbCheckFailedStatus;USB-Prüfung fehlgeschlagen;USB check failed
 MediaPickComposeSourceTitle;Quell-WIM/ESD für install.esd wählen;Choose source WIM/ESD for install.esd
 MediaPickInstallTitle;Install-Image auswählen;Choose install image
 MediaPickBootTitle;boot.wim auswählen;Choose boot.wim
 MediaPickUsbSourceDescription;Quelle für den USB-Stick wählen;Choose source for USB stick
 MediaPickUsbTargetDescription;USB-Zielordner wählen;Choose USB target folder
+MediaUsbPickSourceButton;Quelle wählen;Pick source
+MediaUsbPickTargetButton;USB wählen;Pick USB
+MediaUsbCopyButton;Auf USB kopieren;Copy to USB
 MediaReady;Bereit;Ready
 MediaUsbCheck;USB prüfen;Check USB
 MediaUsbOpenTarget;Ziel öffnen;Open target
@@ -820,6 +841,10 @@ MediaUsbSamePath;Quelle und USB-Ziel dürfen nicht identisch sein.;Source and US
 MediaUsbTargetInsideSource;Das USB-Ziel darf nicht innerhalb der Quelle liegen.;The USB target must not be inside the source.
 MediaUsbMissingSourcesWarning;USB-Check: In der Quelle fehlt der sources-Ordner. Kopieren geht, Bootfähigkeit ist aber fraglich.;USB check: the source is missing the sources folder. Copying works, but bootability is questionable.
 MediaUsbMissingBootWarning;USB-Check: Keine typischen Bootdateien gefunden. Bitte Quelle prüfen.;USB check: no typical boot files found. Check the source.
+MediaUsbBootReadyHint;USB-Check: Boot-Dateien und sources-Ordner gefunden. Die Quelle wirkt bootfähig.;USB check: boot files and sources folder found. The source looks bootable.
+MediaUsbFat32Hint;USB-Check: FAT32 ist UEFI-freundlich, kann aber keine Einzeldateien über 4 GB speichern.;USB check: FAT32 is UEFI-friendly, but cannot store single files larger than 4 GB.
+MediaUsbNtfsHint;USB-Check: NTFS erlaubt große Dateien. Bootfähigkeit hängt von Firmware und Bootloader ab.;USB check: NTFS allows large files. Bootability depends on firmware and boot loader.
+MediaUsbExfatHint;USB-Check: exFAT ist nicht für jeden Windows-Installer als Bootmedium geeignet.;USB check: exFAT is not suitable as boot media for every Windows installer.
 MediaUsbNonRemovableWarning;USB-Check: Ziel-Laufwerk wird als {0} erkannt, nicht als Wechseldatenträger. Bitte Laufwerk genau prüfen.;USB check: target drive is detected as {0}, not removable media. Check the target drive carefully.
 MediaUsbExistingItemsWarningFormat;USB-Check: Ziel enthält bereits {0} Einträge. Es wird nichts gelöscht, aber Dateien können überschrieben werden.;USB check: target already contains {0} item(s). Nothing is deleted, but files may be overwritten.
 MediaUsbInsufficientSpaceFormat;Zu wenig freier Speicher auf {0}. Frei: {1}, benötigt: {2}.;Not enough free space on {0}. Free: {1}, required: {2}.
@@ -1174,9 +1199,16 @@ function Apply-LocalizationToRoot {
         CmbItemStartPageSettings = @{ Content = 'NavSettings' }
         CmbItemLanguageDe = @{ Content = 'SettingsLangGerman' }
         CmbItemLanguageEn = @{ Content = 'SettingsLangEnglish' }
+        TxtMediaUsbDriveLabel = @{ Text = 'MediaUsbDriveLabel' }
+        TxtMediaUsbStatus = @{ Text = 'MediaUsbStatusLineInitial' }
+        TxtMediaUsbPreflight = @{ Text = 'MediaUsbPreflightNotChecked' }
+        BtnMediaPickUsbSource = @{ Content = 'MediaUsbPickSourceButton' }
+        BtnMediaPickUsbTarget = @{ Content = 'MediaUsbPickTargetButton' }
+        BtnMediaRefreshUsbDrives = @{ Content = 'MediaUsbRefreshDrivesButton' }
         BtnMediaCheckUsb = @{ Content = 'MediaUsbCheck' }
         BtnMediaOpenUsbTarget = @{ Content = 'MediaUsbOpenTarget' }
         BtnMediaResetUsb = @{ Content = 'MediaUsbReset' }
+        BtnMediaCopyToUsb = @{ Content = 'MediaUsbCopyButton' }
         GrpSettingsAdk = @{ Header = 'GroupAdk' }
         BtnSettingsDetectAdk = @{ Content = 'BtnDetectAdk' }
         BtnSettingsPickAdkRoot = @{ Content = 'BtnPickAdk' }

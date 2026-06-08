@@ -176,6 +176,7 @@
         ControllerInitialized = @{}
         NavigationRefreshAt = @{}
         PageWarmupTimer = $null
+        PageWarmupCompleted = @{}
 
         NavigateDashboard = $null
         NavigateImages    = $null

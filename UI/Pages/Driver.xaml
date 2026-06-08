@@ -201,8 +201,9 @@
                        Margin="0,0,0,10"
                        TextAlignment="Center"
                        TextWrapping="Wrap" />
-            <ProgressBar Height="18"
-                          IsIndeterminate="True" />
+            <ProgressBar Name="PrgBusy"
+                         Height="18"
+                         IsIndeterminate="True" />
             <TextBlock Name="TxtBusyElapsed"
                        Text="Laufzeit: 00:00"
                        Foreground="#334155"

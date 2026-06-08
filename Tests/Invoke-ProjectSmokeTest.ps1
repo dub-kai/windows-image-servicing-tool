@@ -721,6 +721,7 @@ function Invoke-SmokeMediaUsbPreflight {
     }
     if ($result.HasSources -ne $true) { throw 'USB preflight did not detect sources folder.' }
     if ($result.HasBootFiles -ne $true) { throw 'USB preflight did not detect boot files.' }
+    if ([string]$result.BootReadiness -ne 'Ready') { throw 'USB preflight did not classify boot readiness as ready.' }
     if ([string]::IsNullOrWhiteSpace([string]$result.TargetDriveType) -or [string]$result.TargetDriveType -eq '-') {
         throw 'USB preflight did not detect target drive type.'
     }
@@ -729,6 +730,34 @@ function Invoke-SmokeMediaUsbPreflight {
     }
     if ($null -eq $result.Warnings) {
         throw 'USB preflight did not return warning metadata.'
+    }
+
+    Set-Content -LiteralPath (Join-Path $targetRoot 'existing-file.txt') -Value 'already here' -Encoding ASCII
+    $existingResult = & $mediaModule {
+        param([string]$SourcePath, [string]$TargetPath)
+        Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+    } $sourceRoot $targetRoot
+
+    if ([int]$existingResult.TargetExistingItems -lt 1) {
+        throw 'USB preflight did not count existing target items.'
+    }
+    if (@($existingResult.Warnings | Where-Object { [string]$_ -match 'bereits|already contains' }).Count -lt 1) {
+        throw 'USB preflight did not warn about existing target items.'
+    }
+
+    $partialSourceRoot = Join-Path $testRoot 'partial-source'
+    New-Item -ItemType Directory -Path (Join-Path $partialSourceRoot 'sources') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $partialSourceRoot 'sources\install.wim') -Value 'fake install image' -Encoding ASCII
+    $partialResult = & $mediaModule {
+        param([string]$SourcePath, [string]$TargetPath)
+        Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+    } $partialSourceRoot $targetRoot
+
+    if ([string]$partialResult.BootReadiness -eq 'Ready') {
+        throw 'USB preflight classified a partial source as boot ready.'
+    }
+    if (@($partialResult.Warnings | Where-Object { [string]$_ -match 'Bootdateien|boot files' }).Count -lt 1) {
+        throw 'USB preflight did not warn about missing boot files.'
     }
 
     $nestedBlocked = $false
@@ -753,7 +782,10 @@ function Invoke-SmokeMediaUsbPreflight {
         TargetFileSystem = [string]$result.TargetFileSystem
         TargetDriveType  = [string]$result.TargetDriveType
         ExistingItems    = [int]$result.TargetExistingItems
+        ExistingWarning  = (@($existingResult.Warnings | Where-Object { [string]$_ -match 'bereits|already contains' }).Count -gt 0)
+        PartialReadiness = [string]$partialResult.BootReadiness
         WarningCount     = @($result.Warnings).Count
+        BootReadiness    = [string]$result.BootReadiness
         TargetFreeText   = [string]$result.TargetFreeText
         NestedBlocked    = $nestedBlocked
     }
@@ -881,6 +913,21 @@ try {
             $obj = Import-XamlFile -RelativePath $xaml
             [pscustomobject]@{ Xaml = $xaml; Type = $obj.GetType().FullName }
         }
+    }
+
+    Invoke-SmokeStep 'Dark theme surface scan' {
+        $themeScanOutput = Join-Path $runDir 'ThemeScan'
+        $themeScanScript = Resolve-ProjectPath 'Tests\Invoke-ThemeScanTest.ps1' -MustExist
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -Sta -File $themeScanScript -ProjectRoot $ProjectRoot -OutputDir $themeScanOutput -MaxIssues 0 | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "Dark theme scan failed with exit code $LASTEXITCODE."
+        }
+
+        $latest = Get-ChildItem -LiteralPath $themeScanOutput -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if (-not $latest) { throw 'Dark theme scan did not write an output directory.' }
+        $resultFile = Join-Path $latest.FullName 'theme_scan_result.json'
+        if (-not (Test-Path -LiteralPath $resultFile -PathType Leaf)) { throw 'Dark theme scan did not write a result file.' }
+        Get-Content -LiteralPath $resultFile -Raw -Encoding UTF8 | ConvertFrom-Json
     }
 
     Invoke-SmokeStep 'Localization static UI switch' {

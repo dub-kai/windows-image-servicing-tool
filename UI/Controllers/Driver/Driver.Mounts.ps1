@@ -232,3 +232,39 @@ Get-MountedWimList
 
     Start-UiTask -Work (New-WorkerScript -Code $code) -OnCompleted $onCompleted -OnError $onError -Label "Driver:MountedWims"
 }
+
+function Start-DriverDeferredMountedRefresh {
+    param([int]$DelayMs = 450)
+
+    if (-not $script:ctx) { return }
+
+    $page = $null
+    try { $page = $script:ctx["DriverPage"] } catch {}
+    if (-not $page -or -not $page.Dispatcher) { return }
+
+    try {
+        if ($script:driverDeferredMountedRefreshTimer) {
+            try { $script:driverDeferredMountedRefreshTimer.Stop() } catch {}
+            $script:driverDeferredMountedRefreshTimer = $null
+        }
+
+        $timer = New-Object System.Windows.Threading.DispatcherTimer(
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+            $page.Dispatcher
+        )
+        $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $DelayMs))
+        $timer.Add_Tick({
+            try {
+                $script:driverDeferredMountedRefreshTimer.Stop()
+                $script:driverDeferredMountedRefreshTimer = $null
+                Refresh-DriverMountedList
+            } catch {
+                try { Write-Log -Level WARN -Message ("Driver: deferred mounted refresh failed: {0}" -f $_.Exception.Message) } catch {}
+            }
+        }.GetNewClosure())
+        $script:driverDeferredMountedRefreshTimer = $timer
+        $timer.Start()
+    } catch {
+        try { Write-Log -Level WARN -Message ("Driver: deferred mounted refresh could not start: {0}" -f $_.Exception.Message) } catch {}
+    }
+}
