@@ -222,7 +222,7 @@ function Set-UiThemeComboBoxStyles {
     } catch {}
 
     try {
-        $ComboBox.ItemContainerStyle = New-UiThemeStyle `
+        $itemStyle = New-UiThemeStyle `
             -TargetType ([System.Windows.Controls.ComboBoxItem]) `
             -Setters @(
                 (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.Input),
@@ -230,6 +230,115 @@ function Set-UiThemeComboBoxStyles {
                 (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
                 (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::PaddingProperty) -Value (New-Object System.Windows.Thickness(8, 4, 8, 4)))
             )
+
+        Add-UiThemeStyleTrigger -Style $itemStyle -Trigger (New-UiThemeTrigger `
+            -Property ([System.Windows.Controls.ComboBoxItem]::IsSelectedProperty) `
+            -Value $true `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.AccentDark),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.ButtonText),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.AccentDark)
+            ))
+
+        Add-UiThemeStyleTrigger -Style $itemStyle -Trigger (New-UiThemeTrigger `
+            -Property ([System.Windows.Controls.Control]::IsMouseOverProperty) `
+            -Value $true `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.SurfaceSoft),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text)
+            ))
+
+        $ComboBox.ItemContainerStyle = $itemStyle
+    } catch {}
+}
+
+function Set-UiThemeTextBoxResources {
+    param(
+        [Parameter(Mandatory)]$TextBox,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeSystemColorResources -Element $TextBox -Palette $Palette
+
+    foreach ($entry in @(
+        @{ Key = 'TextBox.Static.Background'; Value = $Palette.Input },
+        @{ Key = 'TextBox.Static.Border'; Value = $Palette.Border },
+        @{ Key = 'TextBox.MouseOver.Border'; Value = $Palette.AccentDark },
+        @{ Key = 'TextBox.Focus.Border'; Value = $Palette.AccentDark },
+        @{ Key = 'TextBox.Disabled.Background'; Value = $Palette.SurfaceSoft },
+        @{ Key = 'TextBox.Disabled.Border'; Value = $Palette.Border }
+    )) {
+        try { Set-UiThemeResource -Element $TextBox -Key ([string]$entry.Key) -Value $entry.Value } catch {}
+    }
+
+    try { $TextBox.SelectionBrush = $Palette.AccentDark } catch {}
+    try { $TextBox.SelectionTextBrush = $Palette.ButtonText } catch {}
+}
+
+function Set-UiThemeToggleResources {
+    param(
+        [Parameter(Mandatory)]$Toggle,
+        [Parameter(Mandatory)][hashtable]$Palette,
+        [Parameter(Mandatory)][string]$Prefix
+    )
+
+    Set-UiThemeSystemColorResources -Element $Toggle -Palette $Palette
+
+    foreach ($entry in @(
+        @{ Key = "$Prefix.Static.Background"; Value = $Palette.Input },
+        @{ Key = "$Prefix.Static.Border"; Value = $Palette.Border },
+        @{ Key = "$Prefix.Static.Glyph"; Value = $Palette.ButtonText },
+        @{ Key = "$Prefix.MouseOver.Background"; Value = $Palette.SurfaceSoft },
+        @{ Key = "$Prefix.MouseOver.Border"; Value = $Palette.AccentDark },
+        @{ Key = "$Prefix.MouseOver.Glyph"; Value = $Palette.ButtonText },
+        @{ Key = "$Prefix.Pressed.Background"; Value = $Palette.SurfaceSoft },
+        @{ Key = "$Prefix.Pressed.Border"; Value = $Palette.AccentDark },
+        @{ Key = "$Prefix.Pressed.Glyph"; Value = $Palette.ButtonText },
+        @{ Key = "$Prefix.Disabled.Background"; Value = $Palette.SurfaceSoft },
+        @{ Key = "$Prefix.Disabled.Border"; Value = $Palette.Border },
+        @{ Key = "$Prefix.Disabled.Glyph"; Value = $Palette.Hint },
+        @{ Key = "$Prefix.Disabled.Foreground"; Value = $Palette.Hint }
+    )) {
+        try { Set-UiThemeResource -Element $Toggle -Key ([string]$entry.Key) -Value $entry.Value } catch {}
+    }
+}
+
+function Set-UiThemeListBoxStyles {
+    param(
+        [Parameter(Mandatory)]$ListBox,
+        [Parameter(Mandatory)][hashtable]$Palette
+    )
+
+    Set-UiThemeSystemColorResources -Element $ListBox -Palette $Palette
+
+    try {
+        $itemStyle = New-UiThemeStyle `
+            -TargetType ([System.Windows.Controls.ListBoxItem]) `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.Input),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.Border),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::PaddingProperty) -Value (New-Object System.Windows.Thickness(6, 3, 6, 3)))
+            )
+
+        Add-UiThemeStyleTrigger -Style $itemStyle -Trigger (New-UiThemeTrigger `
+            -Property ([System.Windows.Controls.ListBoxItem]::IsSelectedProperty) `
+            -Value $true `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.AccentDark),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.ButtonText),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value $Palette.AccentDark)
+            ))
+
+        Add-UiThemeStyleTrigger -Style $itemStyle -Trigger (New-UiThemeTrigger `
+            -Property ([System.Windows.Controls.Control]::IsMouseOverProperty) `
+            -Value $true `
+            -Setters @(
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $Palette.SurfaceSoft),
+                (New-UiThemeSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $Palette.Text)
+            ))
+
+        $ListBox.ItemContainerStyle = $itemStyle
     } catch {}
 }
 
@@ -435,6 +544,7 @@ function Apply-UiThemeToElement {
             Set-UiThemeButtonResources -Button $Element -Palette $Palette
         }
         'TextBox' {
+            Set-UiThemeTextBoxResources -TextBox $Element -Palette $Palette
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
@@ -449,9 +559,11 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'CheckBox' {
+            Set-UiThemeToggleResources -Toggle $Element -Palette $Palette -Prefix 'CheckBox'
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'RadioButton' {
+            Set-UiThemeToggleResources -Toggle $Element -Palette $Palette -Prefix 'RadioButton'
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
         }
         'GroupBox' {
@@ -464,6 +576,7 @@ function Apply-UiThemeToElement {
             Set-UiThemeProperty -Element $Element -PropertyName 'Background' -Value $Palette.Input
             Set-UiThemeProperty -Element $Element -PropertyName 'Foreground' -Value $Palette.Text
             Set-UiThemeProperty -Element $Element -PropertyName 'BorderBrush' -Value $Palette.Border
+            Set-UiThemeListBoxStyles -ListBox $Element -Palette $Palette
         }
         'ScrollViewer' {
             Set-UiThemeSystemColorResources -Element $Element -Palette $Palette

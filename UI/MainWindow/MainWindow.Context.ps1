@@ -77,26 +77,45 @@
         param([AllowNull()]$Root)
 
         if (-not $Root) { return }
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $cacheHit = $false
+        $rootType = 'Unknown'
         $rootKey = $null
+        try { $rootType = $Root.GetType().Name } catch {}
         try { $rootKey = [string][System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Root) } catch {}
 
         $stateKey = 'unknown'
         try { $stateKey = ('{0}|{1}' -f (Get-UiLanguage), (Get-UiThemeName)) } catch {}
 
-        if ($rootKey -and $viewStateCache.ContainsKey($rootKey) -and $viewStateCache[$rootKey] -eq $stateKey) {
-            return
-        }
+        try {
+            if ($rootKey -and $viewStateCache.ContainsKey($rootKey) -and $viewStateCache[$rootKey] -eq $stateKey) {
+                $cacheHit = $true
+                return
+            }
 
-        & $applyLocalization -Root $Root
-        & $applyTheme -Root $Root
+            & $applyLocalization -Root $Root
+            & $applyTheme -Root $Root
 
-        if ($rootKey) {
-            $viewStateCache[$rootKey] = $stateKey
+            if ($rootKey) {
+                $viewStateCache[$rootKey] = $stateKey
+            }
+        } finally {
+            try {
+                $sw.Stop()
+                if ((-not $cacheHit) -or $sw.ElapsedMilliseconds -ge 15) {
+                    Write-MainWindowPerf -Name 'ApplyViewState' -DurationMs $sw.ElapsedMilliseconds -Data @{
+                        Root = $rootType
+                        CacheHit = $cacheHit
+                        State = $stateKey
+                    }
+                }
+            } catch {}
         }
     }.GetNewClosure()
     $refreshLocalization = {
         param([bool]$ShowBusy = $false)
 
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
         if ($ShowBusy) { & $showShellBusy -MessageKey 'ShellBusyApplying' }
         try {
             & $applyViewState -Root $window
@@ -108,6 +127,12 @@
             }
         } finally {
             if ($ShowBusy) { & $hideShellBusy }
+            try {
+                $sw.Stop()
+                Write-MainWindowPerf -Name 'RefreshViewState' -DurationMs $sw.ElapsedMilliseconds -Data @{
+                    Busy = $ShowBusy
+                }
+            } catch {}
         }
     }.GetNewClosure()
 
