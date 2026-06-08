@@ -732,6 +732,34 @@ function Invoke-SmokeMediaUsbPreflight {
         throw 'USB preflight did not return warning metadata.'
     }
 
+    Set-Content -LiteralPath (Join-Path $targetRoot 'existing-file.txt') -Value 'already here' -Encoding ASCII
+    $existingResult = & $mediaModule {
+        param([string]$SourcePath, [string]$TargetPath)
+        Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+    } $sourceRoot $targetRoot
+
+    if ([int]$existingResult.TargetExistingItems -lt 1) {
+        throw 'USB preflight did not count existing target items.'
+    }
+    if (@($existingResult.Warnings | Where-Object { [string]$_ -match 'bereits|already contains' }).Count -lt 1) {
+        throw 'USB preflight did not warn about existing target items.'
+    }
+
+    $partialSourceRoot = Join-Path $testRoot 'partial-source'
+    New-Item -ItemType Directory -Path (Join-Path $partialSourceRoot 'sources') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $partialSourceRoot 'sources\install.wim') -Value 'fake install image' -Encoding ASCII
+    $partialResult = & $mediaModule {
+        param([string]$SourcePath, [string]$TargetPath)
+        Test-MediaUsbCopyPrerequisites -SourcePath $SourcePath -TargetPath $TargetPath
+    } $partialSourceRoot $targetRoot
+
+    if ([string]$partialResult.BootReadiness -eq 'Ready') {
+        throw 'USB preflight classified a partial source as boot ready.'
+    }
+    if (@($partialResult.Warnings | Where-Object { [string]$_ -match 'Bootdateien|boot files' }).Count -lt 1) {
+        throw 'USB preflight did not warn about missing boot files.'
+    }
+
     $nestedBlocked = $false
     try {
         & $mediaModule {
@@ -754,6 +782,8 @@ function Invoke-SmokeMediaUsbPreflight {
         TargetFileSystem = [string]$result.TargetFileSystem
         TargetDriveType  = [string]$result.TargetDriveType
         ExistingItems    = [int]$result.TargetExistingItems
+        ExistingWarning  = (@($existingResult.Warnings | Where-Object { [string]$_ -match 'bereits|already contains' }).Count -gt 0)
+        PartialReadiness = [string]$partialResult.BootReadiness
         WarningCount     = @($result.Warnings).Count
         BootReadiness    = [string]$result.BootReadiness
         TargetFreeText   = [string]$result.TargetFreeText

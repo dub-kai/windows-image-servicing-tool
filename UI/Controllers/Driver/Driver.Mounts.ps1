@@ -243,6 +243,11 @@ function Start-DriverDeferredMountedRefresh {
     if (-not $page -or -not $page.Dispatcher) { return }
 
     try {
+        if ($script:driverDeferredMountedRefreshTimer) {
+            try { $script:driverDeferredMountedRefreshTimer.Stop() } catch {}
+            $script:driverDeferredMountedRefreshTimer = $null
+        }
+
         $timer = New-Object System.Windows.Threading.DispatcherTimer(
             [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
             $page.Dispatcher
@@ -250,12 +255,14 @@ function Start-DriverDeferredMountedRefresh {
         $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $DelayMs))
         $timer.Add_Tick({
             try {
-                $timer.Stop()
+                $script:driverDeferredMountedRefreshTimer.Stop()
+                $script:driverDeferredMountedRefreshTimer = $null
                 Refresh-DriverMountedList
             } catch {
                 try { Write-Log -Level WARN -Message ("Driver: deferred mounted refresh failed: {0}" -f $_.Exception.Message) } catch {}
             }
         }.GetNewClosure())
+        $script:driverDeferredMountedRefreshTimer = $timer
         $timer.Start()
     } catch {
         try { Write-Log -Level WARN -Message ("Driver: deferred mounted refresh could not start: {0}" -f $_.Exception.Message) } catch {}

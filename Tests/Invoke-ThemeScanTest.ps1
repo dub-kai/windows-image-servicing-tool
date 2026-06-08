@@ -256,6 +256,21 @@ foreach ($page in $pages) {
 
 $issues = @($pageResults | ForEach-Object { @($_.Issues) })
 $ok = ($issues.Count -le $MaxIssues)
+$issueSummary = @($issues | Group-Object Type, Page | ForEach-Object {
+    $typeName = ''
+    $pageName = ''
+    try {
+        $parts = [string]$_.Name -split ', ', 2
+        $typeName = [string]$parts[0]
+        if ($parts.Count -gt 1) { $pageName = [string]$parts[1] }
+    } catch {}
+
+    [pscustomobject]@{
+        Type  = $typeName
+        Page  = $pageName
+        Count = [int]$_.Count
+    }
+})
 $result = [pscustomobject]@{
     Ok          = $ok
     ProjectRoot = $ProjectRoot
@@ -263,12 +278,18 @@ $result = [pscustomobject]@{
     ResultPath  = $resultPath
     MaxIssues   = $MaxIssues
     IssueCount  = [int]$issues.Count
+    IssueSummary = $issueSummary
     Pages       = $pageResults
     Issues      = $issues
 }
 
 $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resultPath -Encoding UTF8
 Write-Host ("Theme scan result: {0} issue(s), result={1}" -f $issues.Count, $resultPath)
+if ($issues.Count -gt 0) {
+    foreach ($summary in $issueSummary) {
+        Write-Host ("  {0} {1}: {2}" -f $summary.Type, $summary.Page, $summary.Count)
+    }
+}
 
 if (-not $ok) { exit 1 }
 exit 0

@@ -5,6 +5,10 @@
         [Parameter()] [scriptblock] $OnStateChanged = $null
     )
 
+    if (-not (Get-Variable -Name driverDeferredMountedRefreshTimer -Scope Script -ErrorAction SilentlyContinue)) {
+        $script:driverDeferredMountedRefreshTimer = $null
+    }
+
     $script:ctx = @{
         DriverPage     = $DriverPage
         SetStatus      = $SetStatus
