@@ -146,6 +146,7 @@ try {
 
     for ($cycle = 1; $cycle -le $Cycles; $cycle++) {
         foreach ($item in $actions) {
+            Write-NavigationStressLine ("{0}/{1} {2}: START" -f $cycle, $Cycles, [string]$item.Name)
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             $stepOk = $true
             $stepError = ''
@@ -155,7 +156,9 @@ try {
                 if ($PauseMs -gt 0) {
                     Start-Sleep -Milliseconds $PauseMs
                 }
-                $ctx.Window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+                try {
+                    $null = $ctx.Window.Dispatcher.BeginInvoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+                } catch {}
             } catch {
                 $stepOk = $false
                 $stepError = $_.Exception.Message

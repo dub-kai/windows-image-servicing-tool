@@ -229,12 +229,16 @@ function Start-SettingsDeferredHealthRefresh {
             $page.Dispatcher
         )
         $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $DelayMs))
+        $timerRef = [pscustomobject]@{ Timer = $timer }
+        $startRefresh = (Get-Item function:Start-SettingsHealthRefresh -ErrorAction Stop).ScriptBlock
         $timer.Add_Tick({
             try {
-                $script:settingsDeferredHealthTimer.Stop()
+                if ($timerRef.Timer) { $timerRef.Timer.Stop() }
                 $script:settingsDeferredHealthTimer = $null
-                Start-SettingsHealthRefresh -StatusText $StatusText
+                & $startRefresh -StatusText $StatusText
             } catch {
+                try { if ($timerRef.Timer) { $timerRef.Timer.Stop() } } catch {}
+                $script:settingsDeferredHealthTimer = $null
                 try { Write-Log -Level WARN -Message ("Settings: deferred health refresh failed: {0}" -f $_.Exception.Message) } catch {}
             }
         }.GetNewClosure())

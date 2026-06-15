@@ -97,6 +97,70 @@ function Get-DismNonZeroLogLevel {
     return 'ERROR'
 }
 
+function Get-DismUserHint {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][int]$ExitCode,
+        [AllowEmptyString()][string]$Text = ''
+    )
+
+    $combined = [string]$Text
+
+    if ($ExitCode -eq 32 -or $combined -match '(?i)Error:\s*32|used by another process|process cannot access|handle') {
+        return 'Naechster Schritt: Alle Explorer-/Editor-/Terminal-Fenster im Mountpfad schliessen, Virenscanner kurz pruefen, dann Mount-Liste aktualisieren und erneut versuchen.'
+    }
+
+    if ($ExitCode -eq 87 -or $combined -match '(?i)Error:\s*87|parameter is incorrect|option is unknown|not recognized') {
+        return 'Naechster Schritt: DISM-Argumente, Image-Typ und Windows/ADK-Version pruefen. Manche DISM-Optionen gelten nicht fuer jedes Image.'
+    }
+
+    if ($combined -match '(?i)0xc142011d|partially unmounted|partial unmount|teilweise') {
+        return 'Naechster Schritt: Mount-Reparatur/Cleanup-Wim ausfuehren und danach die Mount-Liste neu laden.'
+    }
+
+    if ($ExitCode -eq 740 -or $combined -match '(?i)Error:\s*740|access is denied|zugriff verweigert|administrator|elevat') {
+        return 'Naechster Schritt: Tool als Administrator starten und Schreibrechte auf Quelle, Ziel und MountRoot pruefen.'
+    }
+
+    if ($combined -match '(?i)not enough space|insufficient|speicher|disk full') {
+        return 'Naechster Schritt: Freien Speicher auf Ziel- und Temp-Laufwerk pruefen oder MountRoot auf ein groesseres Laufwerk legen.'
+    }
+
+    if ($ExitCode -ne 0) {
+        return 'Naechster Schritt: DISM-Log oeffnen, letzte Fehlermeldung pruefen und danach den betroffenen Mount/Job erneut starten.'
+    }
+
+    return ''
+}
+
+function Format-DismUserMessage {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][int]$ExitCode,
+        [AllowEmptyString()][string]$Text = '',
+        [AllowEmptyString()][string]$Operation = 'DISM'
+    )
+
+    $message = if ([string]::IsNullOrWhiteSpace($Operation)) {
+        ('DISM fehlgeschlagen (ExitCode={0}).' -f $ExitCode)
+    } else {
+        ('{0} fehlgeschlagen (ExitCode={1}).' -f $Operation, $ExitCode)
+    }
+
+    $hint = Get-DismUserHint -ExitCode $ExitCode -Text $Text
+    if (-not [string]::IsNullOrWhiteSpace($hint)) {
+        $message = "{0}`n`n{1}" -f $message, $hint
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Text)) {
+        $tail = $Text
+        if ($tail.Length -gt 900) { $tail = $tail.Substring($tail.Length - 900) }
+        $message = "{0}`n`nDetails:`n{1}" -f $message, $tail.Trim()
+    }
+
+    return $message
+}
+
 function Invoke-Dism {
     [CmdletBinding()]
     param(
@@ -306,4 +370,4 @@ exit `$LASTEXITCODE
     }
 }
 
-Export-ModuleMember -Function Invoke-Dism
+Export-ModuleMember -Function Invoke-Dism, Get-DismUserHint, Format-DismUserMessage

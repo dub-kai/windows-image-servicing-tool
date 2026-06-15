@@ -175,6 +175,33 @@ function Get-SettingsLogPreviewSource {
     return 'App'
 }
 
+function Set-SettingsLogsPlaceholder {
+    if (-not $script:ctx) { return }
+
+    try {
+        if ($script:ctx.TxtSettingsLogsSummary) {
+            $script:ctx.TxtSettingsLogsSummary.Text = (Get-UiString -Key 'LogsLoading')
+        }
+        if ($script:ctx.TxtSettingsAppLogPath) {
+            $script:ctx.TxtSettingsAppLogPath.Text = '-'
+        }
+        if ($script:ctx.TxtSettingsDismLogPath) {
+            $script:ctx.TxtSettingsDismLogPath.Text = '-'
+        }
+        if ($script:ctx.LstSettingsLogFiles) {
+            $items = New-Object System.Collections.ObjectModel.ObservableCollection[string]
+            [void]$items.Add((Get-UiString -Key 'LogsLoading'))
+            $script:ctx.LstSettingsLogFiles.ItemsSource = $items
+        }
+        if ($script:ctx.TxtSettingsLogPreviewTitle) {
+            $script:ctx.TxtSettingsLogPreviewTitle.Text = (Get-UiString -Key 'LogsPreviewTitle')
+        }
+        if ($script:ctx.TxtSettingsLogPreview) {
+            $script:ctx.TxtSettingsLogPreview.Text = (Get-UiString -Key 'LogsPreviewDeferred')
+        }
+    } catch {}
+}
+
 function Refresh-SettingsLogsUI {
     if (-not $script:ctx) { return }
 
@@ -240,6 +267,44 @@ function Refresh-SettingsLogsUI {
         if ($script:ctx.TxtSettingsLogsSummary) {
             try { $script:ctx.TxtSettingsLogsSummary.Text = (Get-UiString -Key 'LogsLoadFailed' -Args @($_.Exception.Message)) } catch {}
         }
+    }
+}
+
+function Start-SettingsDeferredLogsRefresh {
+    param([int]$DelayMs = 450)
+
+    if (-not $script:ctx) { return }
+
+    Set-SettingsLogsPlaceholder
+
+    $page = $null
+    try { $page = $script:ctx.SettingsPage } catch {}
+    if (-not $page -or -not $page.Dispatcher) {
+        Refresh-SettingsLogsUI
+        return
+    }
+
+    try {
+        $timer = New-Object System.Windows.Threading.DispatcherTimer(
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+            $page.Dispatcher
+        )
+        $timer.Interval = [TimeSpan]::FromMilliseconds([Math]::Max(100, $DelayMs))
+        $timerRef = [pscustomobject]@{ Timer = $timer }
+        $refreshLogs = (Get-Item function:Refresh-SettingsLogsUI -ErrorAction Stop).ScriptBlock
+        $timer.Add_Tick({
+            try {
+                if ($timerRef.Timer) { $timerRef.Timer.Stop() }
+                & $refreshLogs
+            } catch {
+                try { if ($timerRef.Timer) { $timerRef.Timer.Stop() } } catch {}
+                try { Write-Log -Level WARN -Message ("Settings: deferred log refresh failed: {0}" -f $_.Exception.Message) } catch {}
+            }
+        }.GetNewClosure())
+        $timer.Start()
+    } catch {
+        try { Write-Log -Level WARN -Message ("Settings: deferred log refresh could not start: {0}" -f $_.Exception.Message) } catch {}
+        Refresh-SettingsLogsUI
     }
 }
 

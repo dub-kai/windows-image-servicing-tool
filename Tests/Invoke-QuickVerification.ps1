@@ -3,6 +3,7 @@ param(
     [string]$ProjectRoot = '',
     [string]$OutputDir,
     [int]$NavigationCycles = 2,
+    [int]$StepTimeoutSec = 180,
     [switch]$IncludeSmoke,
     [ValidateSet('Basic', 'Full')]
     [string]$SmokeScope = 'Basic'
@@ -24,6 +25,7 @@ if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
 }
 
 if ($NavigationCycles -lt 1) { $NavigationCycles = 1 }
+if ($StepTimeoutSec -lt 30) { $StepTimeoutSec = 30 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $ProjectRoot 'Work\Temp\QuickVerification'
@@ -40,14 +42,63 @@ function Invoke-QuickVerificationStep {
         [Parameter(Mandatory)][string[]]$Arguments
     )
 
-    $exe = 'powershell.exe'
+    $exe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     Write-Host ("== {0} ==" -f $Name)
-    $output = @(& $exe @Arguments 2>&1 | ForEach-Object { [string]$_ })
-    $exitCode = [int]$LASTEXITCODE
-    $sw.Stop()
+    $outPath = Join-Path $runDir ("{0}_stdout.log" -f $Name)
+    $errPath = Join-Path $runDir ("{0}_stderr.log" -f $Name)
+    $timedOut = $false
+    $proc = $null
 
-    foreach ($line in $output) {
+    try {
+        $proc = Start-Process `
+            -FilePath $exe `
+            -ArgumentList $Arguments `
+            -NoNewWindow `
+            -PassThru `
+            -RedirectStandardOutput $outPath `
+            -RedirectStandardError $errPath
+
+        $completed = $proc.WaitForExit([Math]::Max(1, $StepTimeoutSec) * 1000)
+        if (-not $completed) {
+            $timedOut = $true
+            try {
+                Get-CimInstance Win32_Process -Filter ("ParentProcessId={0}" -f [int]$proc.Id) |
+                    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            } catch {}
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
+            try { $proc.WaitForExit(3000) | Out-Null } catch {}
+        }
+    } catch {
+        $timedOut = $false
+        $err = $_.Exception.Message
+        Set-Content -LiteralPath $errPath -Value $err -Encoding UTF8
+    } finally {
+        $sw.Stop()
+    }
+
+    $output = New-Object System.Collections.Generic.List[string]
+    foreach ($path in @($outPath, $errPath)) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            foreach ($line in @(Get-Content -LiteralPath $path -ErrorAction SilentlyContinue)) {
+                $output.Add([string]$line) | Out-Null
+            }
+        }
+    }
+
+    if ($timedOut) {
+        $output.Add(("TIMEOUT after {0}s" -f $StepTimeoutSec)) | Out-Null
+    }
+
+    $exitCode = if ($timedOut) {
+        124
+    } elseif ($proc) {
+        try { [int]$proc.ExitCode } catch { 1 }
+    } else {
+        1
+    }
+
+    foreach ($line in @($output.ToArray())) {
         if (-not [string]::IsNullOrWhiteSpace($line)) {
             Write-Host $line
         }
@@ -58,7 +109,8 @@ function Invoke-QuickVerificationStep {
         Ok         = ($exitCode -eq 0)
         ExitCode   = $exitCode
         DurationMs = [int]$sw.ElapsedMilliseconds
-        Output     = $output
+        TimedOut   = [bool]$timedOut
+        Output     = @($output.ToArray())
     }
 }
 
@@ -69,6 +121,7 @@ $common = @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass')
 $steps.Add((Invoke-QuickVerificationStep -Name 'ModuleImport' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-ModuleImportTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'ModuleImport'))))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'ThemeScan' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-ThemeScanTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'ThemeScan'), '-MaxIssues', '0')))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'UsbAcceptance' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-UsbAcceptanceTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'UsbAcceptance'))))) | Out-Null
+$steps.Add((Invoke-QuickVerificationStep -Name 'DismHints' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-DismHintTest.ps1'), '-ProjectRoot', $ProjectRoot)))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'NavigationStress' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-NavigationStressTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'NavigationStress'), '-Cycles', ([string]$NavigationCycles), '-PauseMs', '80')))) | Out-Null
 $steps.Add((Invoke-QuickVerificationStep -Name 'StartupWarmup' -Arguments ($common + @('-File', (Join-Path $ProjectRoot 'Tests\Invoke-StartupWarmupTest.ps1'), '-ProjectRoot', $ProjectRoot, '-OutputDir', (Join-Path $runDir 'StartupWarmup'), '-WarmupTimeoutMs', '6000')))) | Out-Null
 
@@ -98,6 +151,7 @@ $result = [pscustomobject]@{
     StepCount     = $allSteps.Count
     IncludeSmoke  = [bool]$IncludeSmoke
     SmokeScope    = $SmokeScope
+    StepTimeoutSec = [int]$StepTimeoutSec
     TotalMs       = if ($allSteps.Count -gt 0) { [int](($allSteps | Measure-Object DurationMs -Sum).Sum) } else { 0 }
     FailedSteps   = @($allSteps | Where-Object { -not $_.Ok } | Select-Object -ExpandProperty Name)
     Steps         = $allSteps

@@ -943,12 +943,18 @@ try {
         }
     }
 
-    Invoke-SmokeStep 'Mounted WIM public inventory' {
-        Import-Module (Resolve-ProjectPath 'Services\MountedWimService.psm1' -MustExist) -Force -DisableNameChecking
-        @(Get-MountedWimList) | Select-Object MountDir, ImageFile, ImageIndex, ReadWrite, Health, RecommendedAction, RegistryOnly, CanCommit, CanIntegrateUpdates
+    if (Test-SmokeIsAdministrator) {
+        Invoke-SmokeStep 'Mounted WIM public inventory' {
+            Import-Module (Resolve-ProjectPath 'Services\MountedWimService.psm1' -MustExist) -Force -DisableNameChecking
+            @(Get-MountedWimList) | Select-Object MountDir, ImageFile, ImageIndex, ReadWrite, Health, RecommendedAction, RegistryOnly, CanCommit, CanIntegrateUpdates
+        }
+    } else {
+        Skip-SmokeStep 'Mounted WIM public inventory' 'Administrator rights are required.'
     }
 
-    if (Test-Path -LiteralPath $SourceWim -PathType Leaf) {
+    if (-not (Test-SmokeIsAdministrator)) {
+        Skip-SmokeStep 'Read source WIM indexes' 'Administrator rights are required.'
+    } elseif (Test-Path -LiteralPath $SourceWim -PathType Leaf) {
         Invoke-SmokeStep 'Read source WIM indexes' {
             @(Get-WimImageList -ImagePath $SourceWim)
         }
@@ -956,7 +962,9 @@ try {
         Skip-SmokeStep 'Read source WIM indexes' "Source WIM not found: $SourceWim"
     }
 
-    if (Test-Path -LiteralPath $InstallImage -PathType Leaf) {
+    if (-not (Test-SmokeIsAdministrator)) {
+        Skip-SmokeStep 'Read install image indexes' 'Administrator rights are required.'
+    } elseif (Test-Path -LiteralPath $InstallImage -PathType Leaf) {
         Invoke-SmokeStep 'Read install image indexes' {
             @(Get-WimImageList -ImagePath $InstallImage) | Select-Object -First 20
         }

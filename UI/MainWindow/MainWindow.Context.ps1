@@ -38,7 +38,7 @@
     $txtShellBusyMessage = Find-Ui -Root $window -Name "TxtShellBusyMessage"
 
     if ($txtBuild -and $txtBuild.PSObject.Properties.Match("Text").Count -gt 0) {
-        $txtBuild.Text = "v1.9 (Media Builder)"
+        $txtBuild.Text = "v1.0 RC (Workflow Polish)"
     }
 
     $applyLocalization = ${function:Apply-LocalizationToRoot}

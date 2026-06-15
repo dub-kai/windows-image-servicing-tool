@@ -247,7 +247,6 @@ function Refresh-SettingsUI {
         }
 
         Refresh-SettingsAdkUI
-        Refresh-SettingsLogsUI
         Refresh-SettingsDismBatchUI
 
         if ($script:ctx.CmbSettingsStartPage) {
@@ -764,6 +763,7 @@ function Initialize-SettingsController {
     }
 
     Refresh-SettingsUI
+    Start-SettingsDeferredLogsRefresh -DelayMs 450
     Set-SettingsHealthBusy -Busy $false
     Start-SettingsDeferredHealthRefresh -StatusText (Get-UiString -Key 'HealthInitiallyLoaded') -DelayMs 650
 }
